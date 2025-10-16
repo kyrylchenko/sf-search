@@ -1,0 +1,17 @@
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#1D1789",
+        "titleBar.activeBackground": "#2920C0",
+        "titleBar.activeForeground": "#FDFDFF"
+    },
+    "python-envs.pythonProjects": [
+        {
+            "path": "panos_all",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        }
+    ],
+    "cSpell.words": [
+        "Pano"
+    ]
+}
