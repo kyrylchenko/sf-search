@@ -1,0 +1,20 @@
+{
+  "ignorePaths": [
+    "src/**",
+    ".venv/**",
+    "data/**",
+    "panos/**"
+  ],
+  "maxNumberOfProblems": 0,
+  "userWords": [
+    "Pano",
+    "lonlat",
+    "meshgrid",
+    "dearpygui"
+  ],
+  "words": [
+    "Rodrigues",
+    "highres",
+    "lowres"
+  ]
+}
