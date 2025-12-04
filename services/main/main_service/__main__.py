@@ -1,3 +1,9 @@
+from src.config import config
+
+
+print("config maain", config)
+
+
 def main():
     print("Hello from main-service!")
 
