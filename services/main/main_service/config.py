@@ -1,26 +1,11 @@
-from collections.abc import Callable
-from typing import Any
-
-from pydantic import (
-    AliasChoices,
-    AmqpDsn,
-    BaseModel,
-    Field,
-    ImportString,
-    PostgresDsn,
-    RedisDsn,
-)
-
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class SubModel(BaseModel):
-    foo: str = "bar"
-    apple: int = 1
+from typing import Final
 
 
 class Settings(BaseSettings):
-    auth_key: str = Field()
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    area_to_process_geojson_filename: str = Field(default="target.geojson")
 
 
-config = Settings().model_dump()
+CONFIG: Final[Settings] = Settings()
