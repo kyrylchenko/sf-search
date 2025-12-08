@@ -31,4 +31,5 @@ Thumbs.db
 .ipynb_checkpoints
 
 *.log
+logs
 *.sqlite3gitignore
