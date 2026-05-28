@@ -774,7 +774,7 @@ git commit -m "feat: add coverage client abstraction"
 - Create: `services/main/main_service/ingestion/download_queue.py`
 - Create: `services/main/tests/ingestion/test_download_queue.py`
 
-- [ ] **Step 1: Write tests for queue messages and in-memory fake**
+- [x] **Step 1: Write tests for queue messages and in-memory fake**
 
 Create `services/main/tests/ingestion/test_download_queue.py`:
 
@@ -812,7 +812,7 @@ def test_download_message_serializes_to_public_safe_payload() -> None:
     }
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -823,7 +823,7 @@ uv run pytest tests/ingestion/test_download_queue.py -q
 
 Expected: fail because `download_queue.py` does not exist.
 
-- [ ] **Step 3: Implement queue abstraction**
+- [x] **Step 3: Implement queue abstraction**
 
 Create `services/main/main_service/ingestion/download_queue.py`:
 
@@ -872,7 +872,7 @@ class InMemoryPanoDownloadQueue:
 
 Do not implement the RabbitMQ class in this milestone; keep the interface ready for it.
 
-- [ ] **Step 4: Run tests and verify green**
+- [x] **Step 4: Run tests and verify green**
 
 Run:
 
@@ -883,7 +883,7 @@ uv run pytest tests/ingestion/test_download_queue.py -q
 
 Expected: `2 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
