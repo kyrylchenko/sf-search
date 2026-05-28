@@ -112,6 +112,22 @@ Forbidden:
 
 Expect local-only work. Future agents may commit locally as they go, but must not synchronize with any remote.
 
+## Public Repo Privacy and Secrets Rules
+
+This is a public repo. Treat everything committed here as visible to the internet.
+
+Hard rule: never commit secrets, private infrastructure details, or private identifiers.
+
+Do not commit:
+
+- API keys, access tokens, refresh tokens, cookies, session IDs, passwords, or private credentials.
+- Internal/private API endpoints, database URLs, hostnames, proxy URLs, or service credentials.
+- Private filesystem paths, private project paths, machine-specific absolute paths, or local usernames.
+- Personal names, private organization names, private customer/user data, or other identifying information unless the user explicitly says that exact value is public and belongs in git.
+- `.env` files, local logs containing sensitive data, generated datasets, downloaded panoramas, vector/index artifacts, or other large/private runtime outputs.
+
+When documentation needs an example, use placeholders such as `YOUR_API_KEY`, `https://example.internal`, `/path/to/project`, or `user@example.com`.
+
 ## Engineering Notes
 
 - Favor resumable, idempotent processing. This system is expected to run for long periods, potentially months.

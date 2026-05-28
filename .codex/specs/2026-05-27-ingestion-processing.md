@@ -33,6 +33,7 @@ Out of scope:
 - The pipeline may run for months, so all stages must be idempotent and resumable.
 - Google Street View calls must use bounded concurrency and backoff.
 - Generated images and future vectors can become large, so code should avoid committing artifacts to git.
+- This is a public repo. Real API keys, tokens, credentials, private endpoints, private filesystem paths, personal names, private organization names, downloaded panoramas, generated views, vectors, and indexes must not be committed.
 
 ## Data Flow
 

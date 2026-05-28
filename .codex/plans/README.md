@@ -13,3 +13,5 @@ Plans should state the goal, affected files, intended steps, verification, known
 Git rule for every plan: local commits are allowed, but remote/origin operations are forbidden. Do not plan or run `git push`, `git pull`, `git fetch`, or any command targeting `origin`.
 
 Commit rule for every plan: commit coherent local changes as work progresses, and use Conventional Commits format, for example `test: add ingestion baseline` or `feat: persist discovered panoramas`.
+
+Public repo rule for every plan: never include real API keys, tokens, credentials, private endpoints, private filesystem paths, personal names, private organization names, or generated private artifacts. Use placeholders in docs and tests.

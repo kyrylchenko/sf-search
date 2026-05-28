@@ -15,6 +15,7 @@
 - Commit coherent local changes as work progresses.
 - Use Conventional Commits format for every commit, such as `docs: add planning context`, `test: add cleanup baseline`, or `fix: make pipeline importable`.
 - Never run remote/origin operations: no `git push`, `git pull`, `git fetch`, commands targeting `origin`, or remote configuration changes.
+- This is a public repo. Never commit real API keys, tokens, credentials, private endpoints, private filesystem paths, personal names, private organization names, generated private artifacts, downloaded panoramas, vectors, or indexes.
 
 ## Scope
 
