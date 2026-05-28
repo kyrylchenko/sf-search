@@ -1,5 +1,7 @@
 # Ingestion State Foundation Implementation Plan
 
+> Superseded for immediate execution by `.codex/plans/2026-05-28-boundary-to-pano-discovery.md`. Keep this document as background for the smaller state-foundation slice, but use the boundary-to-pano discovery plan as the next milestone because it better matches the current product deliverable.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the durable ingestion foundation needed before live Street View discovery or panorama downloading: domain types, boundary loading, deterministic image paths, and relational state for map tiles and panoramas.
