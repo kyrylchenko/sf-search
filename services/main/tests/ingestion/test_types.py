@@ -33,3 +33,13 @@ def test_panorama_id_wraps_public_safe_example_value() -> None:
     pano_id = PanoramaId(value="example-pano-id")
 
     assert pano_id.value == "example-pano-id"
+    assert pano_id.latitude is None
+    assert pano_id.longitude is None
+
+
+def test_panorama_id_can_carry_coverage_coordinates() -> None:
+    pano_id = PanoramaId(value="example-pano-id", latitude=37.1, longitude=-122.1)
+
+    assert pano_id.value == "example-pano-id"
+    assert pano_id.latitude == 37.1
+    assert pano_id.longitude == -122.1

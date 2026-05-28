@@ -10,12 +10,9 @@ def test_downloader_entrypoint_parser_accepts_safe_manual_options() -> None:
             "2",
             "--max-processing-queue-depth",
             "10",
-            "--zoom",
-            "1",
         ]
     )
 
     assert args.limit == 5
     assert args.concurrency == 2
     assert args.max_processing_queue_depth == 10
-    assert args.zoom == 1

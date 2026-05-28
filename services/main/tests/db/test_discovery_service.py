@@ -40,6 +40,29 @@ def test_upsert_discovered_panorama_is_idempotent() -> None:
     assert first.download_status == DownloadStatus.PENDING.value
 
 
+def test_upsert_discovered_panorama_stores_coverage_coordinates() -> None:
+    service = make_service()
+
+    row = service.upsert_discovered_panorama(
+        PanoramaId(value="example-pano-id", latitude=37.1, longitude=-122.1)
+    )
+
+    assert row.latitude == 37.1
+    assert row.longitude == -122.1
+
+
+def test_upsert_discovered_panorama_fills_missing_coordinates_on_existing_row() -> None:
+    service = make_service()
+    service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+
+    row = service.upsert_discovered_panorama(
+        PanoramaId(value="example-pano-id", latitude=37.1, longitude=-122.1)
+    )
+
+    assert row.latitude == 37.1
+    assert row.longitude == -122.1
+
+
 def test_link_map_tile_to_panorama_is_idempotent() -> None:
     service = make_service()
     tile_row = service.upsert_map_tile(MapTileKey(x=1, y=2, z=17))

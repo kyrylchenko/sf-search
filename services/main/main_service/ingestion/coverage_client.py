@@ -11,12 +11,18 @@ class CoverageClient(Protocol):
 
 
 def pano_ids_from_coverage_objects(coverage_objects: list[object]) -> list[PanoramaId]:
-    ids = {
-        str(raw_id)
-        for item in coverage_objects
-        if (raw_id := getattr(item, "id", None)) is not None
-    }
-    return [PanoramaId(value=raw_id) for raw_id in sorted(ids)]
+    ids: dict[str, PanoramaId] = {}
+    for item in coverage_objects:
+        raw_id = getattr(item, "id", None)
+        if raw_id is None:
+            continue
+        pano_id = str(raw_id)
+        ids[pano_id] = PanoramaId(
+            value=pano_id,
+            latitude=getattr(item, "lat", None),
+            longitude=getattr(item, "lon", None),
+        )
+    return [ids[pano_id] for pano_id in sorted(ids)]
 
 
 class StreetLevelCoverageClient:

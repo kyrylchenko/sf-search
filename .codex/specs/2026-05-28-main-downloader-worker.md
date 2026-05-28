@@ -28,6 +28,10 @@ with duplicate queue messages.
   coverage discovery, optionally resolve via
   `streetlevel.streetview.find_panorama_async(lat, lon, radius=25)`.
 - Download the actual panorama image through `streetlevel.streetview.download_panorama_async`.
+- Always download the best available Google pano resolution for ingestion. For
+  current StreetLevel Google panos this is `zoom=5`, producing the full
+  equirectangular panorama such as `16384x8192` when available. Lower zooms are
+  useful only for manual probes, not ingestion output.
 - Create StreetLevel `aiohttp.ClientSession` instances with browser-like
   headers. The live probe showed `streetlevel==0.12.7` uses the current
   `streetviewpixels-pa.googleapis.com/v1/tile` endpoint, but plain sessions

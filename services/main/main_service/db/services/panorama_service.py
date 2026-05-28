@@ -69,8 +69,8 @@ class PanoramaService:
                 panorama = Panorama(
                     orig_id=pano_id.value,
                     image_hash=None,
-                    latitude=None,
-                    longitude=None,
+                    latitude=pano_id.latitude,
+                    longitude=pano_id.longitude,
                     metadata_status=ProcessingStatus.PENDING.value,
                     download_status=DownloadStatus.PENDING.value,
                 )
@@ -81,7 +81,14 @@ class PanoramaService:
                 session.commit()
                 return panorama
 
+            if panorama.latitude is None and pano_id.latitude is not None:
+                panorama.latitude = pano_id.latitude
+            if panorama.longitude is None and pano_id.longitude is not None:
+                panorama.longitude = pano_id.longitude
+            session.flush()
+            session.refresh(panorama)
             session.expunge(panorama)
+            session.commit()
             return panorama
 
     def link_map_tile_to_panorama(self, map_tile_id: int, panorama_id: int) -> bool:

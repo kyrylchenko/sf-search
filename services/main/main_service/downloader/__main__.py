@@ -37,12 +37,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Directory where downloaded panorama images are stored.",
     )
-    parser.add_argument(
-        "--zoom",
-        type=int,
-        default=5,
-        help="StreetLevel panorama zoom to download.",
-    )
     return parser
 
 
@@ -74,7 +68,6 @@ async def run(args: argparse.Namespace) -> None:
                 args.max_processing_queue_depth or settings.max_processing_queue_depth
             ),
             max_attempts=settings.max_attempts,
-            zoom=args.zoom,
         )
         print(json.dumps(asdict(result), sort_keys=True))
     finally:

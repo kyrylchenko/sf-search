@@ -32,3 +32,5 @@ class MapTileKey:
 @dataclass(frozen=True)
 class PanoramaId:
     value: str
+    latitude: float | None = None
+    longitude: float | None = None
