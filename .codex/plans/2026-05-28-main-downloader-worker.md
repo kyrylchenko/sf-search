@@ -29,7 +29,7 @@
 
 ## Task 1: Add Downloader Config
 
-- [ ] **Step 1: Write failing config tests**
+- [x] **Step 1: Write failing config tests**
 
 Create `services/main/tests/downloader/test_downloader_config.py`:
 
@@ -55,14 +55,14 @@ def test_downloader_defaults_are_configured_for_local_dev() -> None:
     assert settings.max_processing_queue_depth == 50
 ```
 
-- [ ] **Step 2: Run red**
+- [x] **Step 2: Run red**
 
 ```bash
 cd services/main
 uv run pytest tests/downloader/test_downloader_config.py -q
 ```
 
-- [ ] **Step 3: Implement settings**
+- [x] **Step 3: Implement settings**
 
 Add fields:
 
@@ -78,7 +78,7 @@ pano_downloader_consumer: str = Field(default="pano-downloader")
 max_processing_queue_depth: int = Field(default=50)
 ```
 
-- [ ] **Step 4: Run green and commit**
+- [x] **Step 4: Run green and commit**
 
 ```bash
 uv run pytest tests/downloader/test_downloader_config.py tests/test_config.py -q

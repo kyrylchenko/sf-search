@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     map_tiles_zoom: int = Field(default=17)
     discovery_concurrency: int = Field(default=20)
     max_attempts: int = Field(default=5)
+    pano_download_concurrency: int = Field(default=5)
+    pano_download_storage_dir: str = Field(default=".local/panoramas")
+    nats_url: str = Field(default="nats://localhost:4222")
+    pano_download_stream: str = Field(default="PANO_DOWNLOADS")
+    pano_download_subject: str = Field(default="pano.download.requested")
+    pano_processing_stream: str = Field(default="PANO_PROCESSING")
+    pano_processing_subject: str = Field(default="pano.processing.requested")
+    pano_downloader_consumer: str = Field(default="pano-downloader")
+    max_processing_queue_depth: int = Field(default=50)
 
 
 CONFIG: Final[Settings] = Settings()  # type: ignore
