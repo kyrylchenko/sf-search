@@ -69,6 +69,94 @@ def test_mark_panorama_download_queued_updates_status() -> None:
     assert updated.download_status == DownloadStatus.QUEUED.value
 
 
+def test_claim_panorama_for_download_marks_retryable_pano_downloading() -> None:
+    service = make_service()
+    pano_row = service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+    service.mark_panorama_download_queued(pano_row.id)
+
+    claimed = service.claim_panorama_for_download(PanoramaId(value="example-pano-id"))
+
+    assert claimed is not None
+    assert claimed.orig_id == "example-pano-id"
+    assert claimed.download_status == DownloadStatus.DOWNLOADING.value
+
+
+def test_claim_panorama_for_download_skips_complete_duplicate() -> None:
+    service = make_service()
+    pano_row = service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+    service.mark_panorama_downloaded(
+        PanoramaId(value="example-pano-id"),
+        image_path=".local/panoramas/example-pano-id.jpg",
+        image_hash="abc123",
+        metadata_json={"pano_id": "example-pano-id"},
+        latitude=37.1,
+        longitude=-122.1,
+    )
+
+    claimed = service.claim_panorama_for_download(PanoramaId(value="example-pano-id"))
+
+    assert claimed is None
+    assert service.is_panorama_download_complete(PanoramaId(value="example-pano-id"))
+
+
+def test_mark_panorama_downloaded_stores_outputs_and_metadata() -> None:
+    service = make_service()
+    service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+
+    updated = service.mark_panorama_downloaded(
+        PanoramaId(value="example-pano-id"),
+        image_path=".local/panoramas/example-pano-id.jpg",
+        image_hash="abc123",
+        metadata_json={"date": "2024-01", "heading": 12.5},
+        latitude=37.1,
+        longitude=-122.1,
+    )
+
+    assert updated.download_status == DownloadStatus.DOWNLOADED.value
+    assert updated.image_path == ".local/panoramas/example-pano-id.jpg"
+    assert updated.image_hash == "abc123"
+    assert updated.metadata_json == {"date": "2024-01", "heading": 12.5}
+    assert updated.latitude == 37.1
+    assert updated.longitude == -122.1
+    assert updated.downloaded_at is not None
+    assert updated.last_error is None
+
+
+def test_mark_panorama_download_failed_increments_attempts_and_stores_error() -> None:
+    service = make_service()
+    service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+
+    updated = service.mark_panorama_download_failed(
+        PanoramaId(value="example-pano-id"),
+        error="tile download failed",
+        max_attempts=3,
+    )
+
+    assert updated.download_status == DownloadStatus.FAILED.value
+    assert updated.attempt_count == 1
+    assert updated.last_error == "tile download failed"
+
+
+def test_mark_panorama_download_failed_sets_skipped_at_max_attempts() -> None:
+    service = make_service()
+    service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+
+    service.mark_panorama_download_failed(
+        PanoramaId(value="example-pano-id"),
+        error="first failure",
+        max_attempts=2,
+    )
+    updated = service.mark_panorama_download_failed(
+        PanoramaId(value="example-pano-id"),
+        error="second failure",
+        max_attempts=2,
+    )
+
+    assert updated.download_status == DownloadStatus.SKIPPED.value
+    assert updated.attempt_count == 2
+    assert updated.last_error == "second failure"
+
+
 def test_list_downloadable_pano_ids_for_map_tile_returns_linked_nonterminal_panos() -> None:
     service = make_service()
     tile_row = service.upsert_map_tile(MapTileKey(x=1, y=2, z=17))

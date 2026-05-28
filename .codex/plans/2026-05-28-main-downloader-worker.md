@@ -115,7 +115,7 @@ git commit -m "feat: store pano download outputs"
 
 ## Task 3: Add Download Status and Dedupe Service Methods
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 Add tests to `services/main/tests/db/test_discovery_service.py` for:
 
@@ -126,7 +126,7 @@ Add tests to `services/main/tests/db/test_discovery_service.py` for:
 - marking failure increments attempts and stores `last_error`;
 - marking failure at max attempts sets `skipped`.
 
-- [ ] **Step 2: Implement service methods**
+- [x] **Step 2: Implement service methods**
 
 Add:
 
@@ -137,7 +137,7 @@ mark_panorama_downloaded(...)
 mark_panorama_download_failed(...)
 ```
 
-- [ ] **Step 3: Run green and commit**
+- [x] **Step 3: Run green and commit**
 
 ```bash
 uv run pytest tests/db/test_discovery_service.py -q

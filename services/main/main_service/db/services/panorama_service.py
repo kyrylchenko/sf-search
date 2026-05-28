@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Engine, func, select
@@ -152,6 +153,110 @@ class PanoramaService:
                 raise ValueError(f"Panorama does not exist: {panorama_id}")
 
             panorama.download_status = status.value
+            session.flush()
+            session.refresh(panorama)
+            session.expunge(panorama)
+            session.commit()
+            return panorama
+
+    def claim_panorama_for_download(self, pano_id: PanoramaId) -> Panorama | None:
+        with Session(self.engine) as session:
+            panorama = session.execute(
+                select(Panorama).filter_by(orig_id=pano_id.value)
+            ).scalar_one_or_none()
+            if panorama is None:
+                panorama = Panorama(
+                    orig_id=pano_id.value,
+                    image_hash=None,
+                    latitude=None,
+                    longitude=None,
+                    metadata_status=ProcessingStatus.PENDING.value,
+                    download_status=DownloadStatus.PENDING.value,
+                )
+                session.add(panorama)
+                session.flush()
+
+            if panorama.download_status == DownloadStatus.SKIPPED.value:
+                return None
+
+            if (
+                panorama.download_status == DownloadStatus.DOWNLOADED.value
+                and panorama.image_path
+                and panorama.image_hash
+            ):
+                return None
+
+            panorama.download_status = DownloadStatus.DOWNLOADING.value
+            panorama.last_error = None
+            session.flush()
+            session.refresh(panorama)
+            session.expunge(panorama)
+            session.commit()
+            return panorama
+
+    def is_panorama_download_complete(self, pano_id: PanoramaId) -> bool:
+        with Session(self.engine) as session:
+            panorama = session.execute(
+                select(Panorama).filter_by(orig_id=pano_id.value)
+            ).scalar_one_or_none()
+            return bool(
+                panorama is not None
+                and panorama.download_status == DownloadStatus.DOWNLOADED.value
+                and panorama.image_path
+                and panorama.image_hash
+            )
+
+    def mark_panorama_downloaded(
+        self,
+        pano_id: PanoramaId,
+        *,
+        image_path: str,
+        image_hash: str,
+        metadata_json: dict[str, object] | None,
+        latitude: float | None,
+        longitude: float | None,
+    ) -> Panorama:
+        with Session(self.engine) as session:
+            panorama = session.execute(
+                select(Panorama).filter_by(orig_id=pano_id.value)
+            ).scalar_one_or_none()
+            if panorama is None:
+                raise ValueError(f"Panorama does not exist: {pano_id.value}")
+
+            panorama.download_status = DownloadStatus.DOWNLOADED.value
+            panorama.image_path = image_path
+            panorama.image_hash = image_hash
+            panorama.metadata_json = metadata_json
+            panorama.latitude = latitude
+            panorama.longitude = longitude
+            panorama.downloaded_at = datetime.now(timezone.utc)
+            panorama.last_error = None
+            session.flush()
+            session.refresh(panorama)
+            session.expunge(panorama)
+            session.commit()
+            return panorama
+
+    def mark_panorama_download_failed(
+        self,
+        pano_id: PanoramaId,
+        *,
+        error: str,
+        max_attempts: int,
+    ) -> Panorama:
+        with Session(self.engine) as session:
+            panorama = session.execute(
+                select(Panorama).filter_by(orig_id=pano_id.value)
+            ).scalar_one_or_none()
+            if panorama is None:
+                raise ValueError(f"Panorama does not exist: {pano_id.value}")
+
+            panorama.attempt_count += 1
+            panorama.last_error = error[:2000]
+            if panorama.attempt_count >= max_attempts:
+                panorama.download_status = DownloadStatus.SKIPPED.value
+            else:
+                panorama.download_status = DownloadStatus.FAILED.value
             session.flush()
             session.refresh(panorama)
             session.expunge(panorama)
