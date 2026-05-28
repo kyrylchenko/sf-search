@@ -1,6 +1,10 @@
 {
   "words": [
     "levelname",
-    "excepthook"
+    "excepthook",
+    "panos"
+  ],
+  "userWords": [
+    "pano"
   ]
 }

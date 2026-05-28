@@ -1,8 +1,11 @@
+from typing import Tuple, Set
 import shapely
 import mercantile
 
 
-def generate_tiles_given_geojson(geojson_data: dict, tiles_zoom: int):
+def generate_tiles_given_geojson(
+    geojson_data: dict, tiles_zoom: int
+) -> Set[Tuple[int, int, int]]:
     """Given geojson object and a zoom level of targets which needed to be extract
     generates tiles for that area
     """
@@ -16,7 +19,7 @@ def generate_tiles_given_geojson(geojson_data: dict, tiles_zoom: int):
     parsed_geometry = shapely.geometry.shape(source_geometry)
     all_area_tiles = mercantile.tiles(*parsed_geometry.bounds, tiles_zoom)
 
-    filtered_tiles = set()
+    filtered_tiles: Set[Tuple[int, int, int]] = set()
     for tile in all_area_tiles:
         tile_geometry = shapely.geometry.shape(mercantile.feature(tile)["geometry"])
         if tile_geometry.intersects(parsed_geometry):
