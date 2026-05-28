@@ -344,7 +344,7 @@ git commit -m "docs: capture streetview coverage sample"
 
 ## Task 7: Verify Runtime Postgres, NATS, Discovery Code, and Full Tests
 
-- [ ] **Step 1: Start local infrastructure**
+- [x] **Step 1: Start local infrastructure**
 
 ```bash
 docker compose up -d postgres nats
@@ -352,7 +352,7 @@ docker compose up -d postgres nats
 
 Expected: Postgres and NATS containers start.
 
-- [ ] **Step 2: Verify Postgres readiness and query**
+- [x] **Step 2: Verify Postgres readiness and query**
 
 ```bash
 docker compose exec postgres pg_isready -U sf_search -d sf_search
@@ -361,7 +361,7 @@ docker compose exec postgres psql -U sf_search -d sf_search -c "select current_d
 
 Expected: readiness succeeds and query returns `sf_search`.
 
-- [ ] **Step 3: Verify NATS readiness**
+- [x] **Step 3: Verify NATS readiness**
 
 ```bash
 docker compose exec nats wget -qO- http://127.0.0.1:8222/healthz
@@ -369,25 +369,25 @@ docker compose exec nats wget -qO- http://127.0.0.1:8222/healthz
 
 Expected: health endpoint returns a healthy response.
 
-- [ ] **Step 4: Verify app DB initialization against Postgres**
+- [x] **Step 4: Verify app DB initialization against Postgres**
 
 Run a one-off Python command from `services/main` that constructs `Settings` with local Compose credentials, calls `initialize_engine(settings)`, and checks that the discovery tables exist through SQLAlchemy inspection.
 
 Expected: table check prints the discovery table names.
 
-- [ ] **Step 5: Verify NATS queue adapter publishes a downloader job**
+- [x] **Step 5: Verify NATS queue adapter publishes a downloader job**
 
 Run a one-off Python command from `services/main` that constructs `NatsJetStreamPanoDownloadQueue.connect(...)` for a verification stream/subject, enqueues one `PanoDownloadMessage`, and checks `pending_count() >= 1`.
 
 Expected: pending count reaches one after publish.
 
-- [ ] **Step 6: Verify one live discovery pass against Postgres**
+- [x] **Step 6: Verify one live discovery pass against Postgres**
 
 Run a one-off Python command from `services/main` that constructs `Settings` with local Compose credentials, initializes the engine, creates `PanoramaService`, loads the first boundary tile, calls `discover_panos_for_tiles(...)` with `StreetLevelCoverageClient` and `NatsJetStreamPanoDownloadQueue`, and prints the resulting `DiscoveryResult`.
 
 Expected: one tile is processed, discovered pano IDs are persisted, and queued downloader messages stay as small ID/reference payloads.
 
-- [ ] **Step 7: Run all tests**
+- [x] **Step 7: Run all tests**
 
 ```bash
 cd services/main
