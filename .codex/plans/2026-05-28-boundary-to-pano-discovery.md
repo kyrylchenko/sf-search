@@ -681,7 +681,7 @@ git commit -m "feat: add coverage discovery persistence"
 - Create: `services/main/main_service/ingestion/coverage_client.py`
 - Create: `services/main/tests/ingestion/test_coverage_client.py`
 
-- [ ] **Step 1: Write tests for pano ID extraction**
+- [x] **Step 1: Write tests for pano ID extraction**
 
 Create `services/main/tests/ingestion/test_coverage_client.py`:
 
@@ -704,7 +704,7 @@ def test_pano_ids_from_coverage_objects_deduplicates_and_sorts() -> None:
     assert [pano_id.value for pano_id in pano_ids] == ["pano-a", "pano-b"]
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -715,7 +715,7 @@ uv run pytest tests/ingestion/test_coverage_client.py -q
 
 Expected: fail because `coverage_client.py` does not exist.
 
-- [ ] **Step 3: Implement coverage client abstraction**
+- [x] **Step 3: Implement coverage client abstraction**
 
 Create `services/main/main_service/ingestion/coverage_client.py`:
 
@@ -747,7 +747,7 @@ class StreetLevelCoverageClient:
         return pano_ids_from_coverage_objects(coverage_objects)
 ```
 
-- [ ] **Step 4: Run tests and verify green**
+- [x] **Step 4: Run tests and verify green**
 
 Run:
 
@@ -758,7 +758,7 @@ uv run pytest tests/ingestion/test_coverage_client.py -q
 
 Expected: `1 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
