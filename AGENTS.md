@@ -131,6 +131,7 @@ When documentation needs an example, use placeholders such as `YOUR_API_KEY`, `h
 ## Engineering Notes
 
 - Favor resumable, idempotent processing. This system is expected to run for long periods, potentially months.
+- Treat every service as standalone, durable, and restartable. Services should be able to stop and start normally with minimal disturbance: persistent state belongs in durable storage or queues, workers should be stateless where practical, and in-flight work should be recoverable through idempotent status transitions.
 - Preserve enough metadata to debug search results later: pano ID, source tile, location, date if available, view spec, image path/blob key, embedding model, and indexing version.
 - Avoid assuming the first implementation is final. Keep interfaces clear so crawler, downloader, tiler, embedder, and indexer can be split into separate workers later.
 - Do not commit local `.env`, virtualenvs, logs, generated image datasets, or large vector/index artifacts unless explicitly requested.

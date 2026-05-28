@@ -311,7 +311,7 @@ git commit -m "feat: add local postgres and nats compose"
 
 ## Task 6: Capture Street View Coverage Example
 
-- [ ] **Step 1: Add fixture writer**
+- [x] **Step 1: Add fixture writer**
 
 Run a one-off Python command from `services/main` that:
 
@@ -326,7 +326,7 @@ Output path:
 docs/data/streetview-coverage-tile-example.json
 ```
 
-- [ ] **Step 2: Add data documentation**
+- [x] **Step 2: Add data documentation**
 
 Create `docs/streetview-coverage-data.md` describing:
 
@@ -335,7 +335,7 @@ Create `docs/streetview-coverage-data.md` describing:
 - The observed returned field names.
 - The fact that downloader queues should carry IDs/references only, not panorama bytes.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/data/streetview-coverage-tile-example.json docs/streetview-coverage-data.md
