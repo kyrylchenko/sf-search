@@ -61,7 +61,12 @@ Observed behavior:
 - Coverage pano IDs may return `None` through `find_panorama_by_id_async(...)`,
   which matches the StreetLevel docs warning that Google pano IDs are not
   stable.
-- In this environment, the generated Google tile URL returned HTTP `403` with a
-  JSON `PERMISSION_DENIED` response instead of an image tile. Downloader code
-  must treat image download failure as normal retryable/failable work and record
-  it in Postgres.
+- `streetlevel==0.12.7` uses the newer
+  `streetviewpixels-pa.googleapis.com/v1/tile` endpoint.
+- In this environment, a plain `aiohttp.ClientSession` still gets HTTP `403`
+  from Google tile image requests, while the same StreetLevel call succeeds when
+  the session includes browser-like headers including
+  `Referer: https://www.google.com/maps/`.
+- Downloader code should use those headers for StreetLevel sessions, but still
+  treat image download failure as normal retryable/failable work and record it
+  in Postgres.

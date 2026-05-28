@@ -1,13 +1,50 @@
 {
   "docs_url": "https://streetlevel.readthedocs.io/en/master/streetlevel.streetview.html",
-  "image_sizes_none": false,
-  "lat": 46.88394554537813,
-  "lon": 12.16899747948169,
-  "pano_id": "t8OO-sz2iE_AImJRWjmO0A",
-  "resolved": true,
+  "download_with_browser_headers": {
+    "bytes": 73318,
+    "image_mode": "RGB",
+    "image_size": [
+      1024,
+      512
+    ],
+    "ok": true,
+    "output_path": ".local/probes/streetlevel-docs-example-zoom1.jpg",
+    "sha256": "7e74b27663b537b6c6b4a8d9e086beeef88a61f281b0afff9483eab0f2a66eb6",
+    "zoom": 1
+  },
+  "find_by_docs_id_no_headers": {
+    "pano_id": null,
+    "resolved": false
+  },
+  "find_by_docs_id_with_browser_headers": {
+    "lat": -0.1840889693330415,
+    "lon": -78.48699382370764,
+    "pano_id": "Py5vaKsLWJG16XyZosdYBQ",
+    "resolved": true
+  },
+  "find_panorama_docs_example": {
+    "image_sizes_none": false,
+    "lat": 46.88394554537813,
+    "lon": 12.16899747948169,
+    "pano_id": "t8OO-sz2iE_AImJRWjmO0A",
+    "resolved": true,
+    "source_lat": 46.883958,
+    "source_lon": 12.169002
+  },
+  "get_panorama_no_headers": {
+    "error_sample": "403, message='Forbidden'",
+    "ok": false,
+    "tile_url_sample": "https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid=t8OO-sz2iE_AImJRWjmO0A&x=0&y=0&zoom=1"
+  },
+  "get_panorama_with_browser_headers": {
+    "image_mode": "RGB",
+    "image_size": [
+      1024,
+      512
+    ],
+    "ok": true
+  },
   "source": "streetlevel docs example probe",
-  "tile_response_body_sample": "{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"The caller does not have permission\",\n    \"status\": \"PERMISSION_DENIED\"\n  }\n}\n",
-  "tile_response_content_type": "application/json; charset=UTF-8",
-  "tile_response_status": 403,
-  "tile_url_sample": "https://cbk0.google.com/cbk?output=tile&panoid=t8OO-sz2iE_AImJRWjmO0A&zoom=1&x=0&y=0"
+  "streetlevel_version": "0.12.7",
+  "summary": "streetlevel 0.12.7 uses the newer streetviewpixels-pa tile endpoint. The docs location example resolves without custom headers, but tile image download returns 403 unless the aiohttp ClientSession includes browser-like headers, including a Google Maps Referer. With those headers, zoom-1 panorama download succeeds."
 }

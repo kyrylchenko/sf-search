@@ -872,7 +872,7 @@ wheels = [
 
 [[package]]
 name = "streetlevel"
-version = "0.12.4"
+version = "0.12.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -892,9 +892,9 @@ dependencies = [
     { name = "requests" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/53/bde95b44fb85c7674dc48275ca5044755656e5102bd76ec848b4ee07904c/streetlevel-0.12.4.tar.gz", hash = "sha256:91a162152b4d9ac91889685b87faf5fccf760419eb749302a34d936d9d649834", size = 119553, upload-time = "2025-07-12T11:54:00.032Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/1a/b817befadf58269b29cdab70e207e263ec12583c2cd0b88fe838ce23abb1/streetlevel-0.12.7.tar.gz", hash = "sha256:b5ba62ff4dc13fd079f27608e9d7c3f116952e9e1dd848a9bae4a12084dcf2b4", size = 119739, upload-time = "2026-05-14T19:12:11.679Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/df/96/d3f0e672dae4c0618ad8228ab948c464cc79e3aa7c2243beac886eeba97c/streetlevel-0.12.4-py3-none-any.whl", hash = "sha256:a827b04acc5fd8b60a8c8de61b8401ef76c700558a59ad4689892631c3ce419e", size = 94315, upload-time = "2025-07-12T11:53:58.628Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/08/765906fffc2cc6b3571873b0202b31bfc495db8c3c18f78b5ec0de15ba00/streetlevel-0.12.7-py3-none-any.whl", hash = "sha256:c3315daf8538dc425b4384115d0a86b78de18386a0d766458d3e56ce07d4d8dc", size = 94501, upload-time = "2026-05-14T19:12:10.354Z" },
 ]
 
 [[package]]

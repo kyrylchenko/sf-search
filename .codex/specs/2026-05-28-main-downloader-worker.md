@@ -28,6 +28,10 @@ with duplicate queue messages.
   coverage discovery, optionally resolve via
   `streetlevel.streetview.find_panorama_async(lat, lon, radius=25)`.
 - Download the actual panorama image through `streetlevel.streetview.download_panorama_async`.
+- Create StreetLevel `aiohttp.ClientSession` instances with browser-like
+  headers. The live probe showed `streetlevel==0.12.7` uses the current
+  `streetviewpixels-pa.googleapis.com/v1/tile` endpoint, but plain sessions
+  still receive `403`; adding a Google Maps referer lets tile downloads succeed.
 - Save images under ignored local storage, default `./.local/panoramas`.
 - Capture useful metadata from the resolved panorama object.
 - Update Postgres with:
@@ -168,13 +172,16 @@ On failure:
 
 Live probe note:
 
-- A metadata probe against the StreetLevel docs example resolved a panorama, but
-  the generated Google tile URL returned HTTP `403 PERMISSION_DENIED` instead of
-  image bytes in this environment. See
-  `docs/data/streetview-panorama-download-probe.json`.
-- The downloader implementation must therefore make image download failures
-  first-class: record the error, increment attempts, and continue processing the
-  batch rather than crashing.
+- A metadata probe against the StreetLevel docs coordinate example resolved a
+  panorama.
+- With `streetlevel==0.12.7`, a plain `aiohttp.ClientSession` still returned
+  HTTP `403` from Google tile image requests.
+- The same StreetLevel image download succeeded when the session included
+  browser-like headers with `Referer: https://www.google.com/maps/`.
+- See `docs/data/streetview-panorama-download-probe.json`.
+- The downloader implementation must use those headers and still make image
+  download failures first-class: record the error, increment attempts, and
+  continue processing the batch rather than crashing.
 
 ## Local Storage
 
