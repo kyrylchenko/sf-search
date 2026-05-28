@@ -36,11 +36,11 @@
 
 ## Task 1: Document Local Postgres Plan
 
-- [ ] **Step 1: Create this plan**
+- [x] **Step 1: Create this plan**
 
 Create `.codex/plans/2026-05-28-postgres-compose.md`.
 
-- [ ] **Step 2: Commit the plan**
+- [x] **Step 2: Commit the plan**
 
 ```bash
 git add .codex/plans/2026-05-28-postgres-compose.md
@@ -49,7 +49,7 @@ git commit -m "docs: plan postgres local database"
 
 ## Task 2: Add Postgres URL Tests
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `services/main/tests/db/test_initialize_engine.py`:
 
@@ -92,7 +92,7 @@ def test_build_database_url_allows_driver_override() -> None:
     assert build_database_url(settings).drivername == "postgresql+psycopg"
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 ```bash
 cd services/main
@@ -103,7 +103,7 @@ Expected: import fails because `build_database_url` does not exist.
 
 ## Task 3: Switch Main Service DB Wiring to Postgres
 
-- [ ] **Step 1: Add config field and URL builder**
+- [x] **Step 1: Add config field and URL builder**
 
 In `services/main/main_service/config.py`, add:
 
@@ -130,7 +130,7 @@ def build_database_url(settings: Settings) -> URL:
 
 Update `initialize_engine()` to call `create_engine(build_database_url(CONFIG))`.
 
-- [ ] **Step 2: Replace DB driver dependency**
+- [x] **Step 2: Replace DB driver dependency**
 
 In `services/main/pyproject.toml`, remove:
 
@@ -151,7 +151,7 @@ cd services/main
 uv sync
 ```
 
-- [ ] **Step 3: Run tests and verify green**
+- [x] **Step 3: Run tests and verify green**
 
 ```bash
 cd services/main
@@ -160,7 +160,7 @@ uv run pytest tests/db/test_initialize_engine.py tests/test_config.py -q
 
 Expected: all selected tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add services/main/main_service/config.py services/main/main_service/db/initialize_engine.py services/main/pyproject.toml services/main/uv.lock services/main/tests/db/test_initialize_engine.py

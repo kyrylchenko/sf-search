@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     db_host: str = Field()
     db_port: int = Field()
     db_name: str = Field()
+    db_driver: str = Field(default="postgresql+psycopg")
     map_tiles_zoom: int = Field(default=17)
     discovery_concurrency: int = Field(default=20)
     max_attempts: int = Field(default=5)
