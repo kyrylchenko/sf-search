@@ -55,6 +55,14 @@ Useful files there include:
 - `src/query.py` and `src/query.desktop.py`: text embedding and HNSW search examples. This is deferred reference material.
 - `src/pano_detector.py`: perspective projection and object detection over panorama views.
 
+Upstream StreetLevel library docs:
+
+- `https://streetlevel.readthedocs.io/en/master/`
+
+Before implementing or changing Street View coverage, metadata resolution, or
+panorama download behavior, check these docs and the `../pano-analyzer` snippets
+instead of guessing at library APIs.
+
 ## Agent Workflow
 
 Before doing actual implementation work, write a plan in `.codex/plans/`.
