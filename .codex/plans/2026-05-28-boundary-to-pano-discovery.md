@@ -1083,7 +1083,7 @@ git commit -m "feat: discover pano ids for map tiles"
 
 - No direct source changes expected.
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 Run:
 
@@ -1094,7 +1094,7 @@ uv run pytest -q
 
 Expected: all tests pass.
 
-- [ ] **Step 2: Run import smoke check**
+- [x] **Step 2: Run import smoke check**
 
 Run:
 
@@ -1109,7 +1109,7 @@ Expected output:
 coverage discovery imports ok
 ```
 
-- [ ] **Step 3: Check whitespace and local status**
+- [x] **Step 3: Check whitespace and local status**
 
 Run from repo root:
 
