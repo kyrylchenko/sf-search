@@ -1,0 +1,13 @@
+{
+  "docs_url": "https://streetlevel.readthedocs.io/en/master/streetlevel.streetview.html",
+  "image_sizes_none": false,
+  "lat": 46.88394554537813,
+  "lon": 12.16899747948169,
+  "pano_id": "t8OO-sz2iE_AImJRWjmO0A",
+  "resolved": true,
+  "source": "streetlevel docs example probe",
+  "tile_response_body_sample": "{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"The caller does not have permission\",\n    \"status\": \"PERMISSION_DENIED\"\n  }\n}\n",
+  "tile_response_content_type": "application/json; charset=UTF-8",
+  "tile_response_status": 403,
+  "tile_url_sample": "https://cbk0.google.com/cbk?output=tile&panoid=t8OO-sz2iE_AImJRWjmO0A&zoom=1&x=0&y=0"
+}

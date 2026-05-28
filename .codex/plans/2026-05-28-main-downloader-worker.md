@@ -203,8 +203,13 @@ The real adapter should call:
 
 ```python
 streetview.find_panorama_by_id_async(pano_id, session)
+streetview.find_panorama_async(lat, lon, session, radius=25)  # fallback when DB has coordinates
 streetview.download_panorama_async(pano, str(output_path), session)
 ```
+
+It must handle `find_panorama_by_id_async(...)` returning `None` and image tile
+downloads failing with HTTP/permission responses surfaced as image decode
+errors.
 
 - [ ] **Step 3: Run green and commit**
 
@@ -297,6 +302,14 @@ Check:
 - processing stream message count increases.
 - runner pauses without downloading more when processing stream depth is at or
   above `50`.
+
+If Google tile downloads return HTTP `403 PERMISSION_DENIED` in the local
+environment, verify the failure path instead:
+
+- Postgres rows show `download_status='failed'` or `skipped` after max attempts;
+- `attempt_count` increments;
+- `last_error` includes the image download failure;
+- the runner continues through the bounded batch without crashing.
 
 - [ ] **Step 5: Full tests and final checks**
 

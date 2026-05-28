@@ -24,6 +24,9 @@ with duplicate queue messages.
   downloader message arrives for a pano that is already `downloaded` with an
   image path/hash, ack and skip it.
 - Resolve each pano ID through `streetlevel.streetview.find_panorama_by_id_async`.
+- If ID resolution returns `None` and the DB row has latitude/longitude from
+  coverage discovery, optionally resolve via
+  `streetlevel.streetview.find_panorama_async(lat, lon, radius=25)`.
 - Download the actual panorama image through `streetlevel.streetview.download_panorama_async`.
 - Save images under ignored local storage, default `./.local/panoramas`.
 - Capture useful metadata from the resolved panorama object.
@@ -162,6 +165,16 @@ On failure:
 4. Ack the original message after DB failure state is saved, because retry is
    handled by rediscovery/requeue and explicit failed-status replay rather than
    infinite immediate redelivery.
+
+Live probe note:
+
+- A metadata probe against the StreetLevel docs example resolved a panorama, but
+  the generated Google tile URL returned HTTP `403 PERMISSION_DENIED` instead of
+  image bytes in this environment. See
+  `docs/data/streetview-panorama-download-probe.json`.
+- The downloader implementation must therefore make image download failures
+  first-class: record the error, increment attempts, and continue processing the
+  batch rather than crashing.
 
 ## Local Storage
 

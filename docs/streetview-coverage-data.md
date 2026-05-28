@@ -49,3 +49,19 @@ Downloader queues should carry only small identifiers and references:
 
 Do not put panorama image bytes, generated view bytes, embeddings, or index
 artifacts in NATS.
+
+## Download Probe
+
+See `docs/data/streetview-panorama-download-probe.json` for a live probe of the
+StreetLevel Google Street View download path.
+
+Observed behavior:
+
+- Metadata resolution can succeed through `find_panorama_async(...)`.
+- Coverage pano IDs may return `None` through `find_panorama_by_id_async(...)`,
+  which matches the StreetLevel docs warning that Google pano IDs are not
+  stable.
+- In this environment, the generated Google tile URL returned HTTP `403` with a
+  JSON `PERMISSION_DENIED` response instead of an image tile. Downloader code
+  must treat image download failure as normal retryable/failable work and record
+  it in Postgres.
