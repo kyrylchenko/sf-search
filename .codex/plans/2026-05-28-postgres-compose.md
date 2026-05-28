@@ -169,7 +169,7 @@ git commit -m "feat: use postgres database driver"
 
 ## Task 4: Add NATS JetStream Queue Adapter
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Extend `services/main/tests/ingestion/test_download_queue.py`:
 
@@ -231,7 +231,7 @@ def test_nats_queue_publishes_json_download_message() -> None:
     assert json.loads(published["payload"]) == message.to_dict()
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 ```bash
 cd services/main
@@ -240,7 +240,7 @@ uv run pytest tests/ingestion/test_download_queue.py -q
 
 Expected: fail because `NatsJetStreamPanoDownloadQueue` does not exist.
 
-- [ ] **Step 3: Implement adapter**
+- [x] **Step 3: Implement adapter**
 
 Add `NatsJetStreamPanoDownloadQueue` in `services/main/main_service/ingestion/download_queue.py`.
 
@@ -252,7 +252,7 @@ It should:
 - Return pending depth from `stream_info(...).state.messages`.
 - Publish JSON `PanoDownloadMessage.to_dict()` bodies to the subject.
 
-- [ ] **Step 4: Run tests and verify green**
+- [x] **Step 4: Run tests and verify green**
 
 ```bash
 cd services/main
@@ -261,7 +261,7 @@ uv run pytest tests/ingestion/test_download_queue.py -q
 
 Expected: all queue tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add services/main/main_service/ingestion/download_queue.py services/main/tests/ingestion/test_download_queue.py
