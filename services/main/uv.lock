@@ -283,6 +283,11 @@ dependencies = [
     { name = "streetlevel" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "mercantile", specifier = ">=1.2.1" },
@@ -296,6 +301,9 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.45" },
     { name = "streetlevel", specifier = ">=0.12.4" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.0" }]
 
 [[package]]
 name = "mercantile"
