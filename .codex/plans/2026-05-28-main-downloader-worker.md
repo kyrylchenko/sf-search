@@ -249,7 +249,7 @@ git commit -m "feat: add pano downloader runner"
 
 ## Task 8: Add Runnable Entry Point and Docs
 
-- [ ] **Step 1: Add `python -m main_service.downloader` entry point**
+- [x] **Step 1: Add `python -m main_service.downloader` entry point**
 
 Support safe manual options:
 
@@ -257,7 +257,7 @@ Support safe manual options:
 uv run python -m main_service.downloader --limit 5
 ```
 
-- [ ] **Step 2: Update README and `.env.example`**
+- [x] **Step 2: Update README and `.env.example`**
 
 Document:
 
@@ -266,7 +266,7 @@ Document:
 - how to run downloader with a limit;
 - how to inspect Postgres rows and processing queue depth.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md .env.example services/main/main_service/downloader/__main__.py
