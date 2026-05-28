@@ -147,11 +147,11 @@ git commit -m "feat: add pano download state transitions"
 
 ## Task 4: Add Processing Queue Publisher
 
-- [ ] **Step 1: Write failing queue tests**
+- [x] **Step 1: Write failing queue tests**
 
 Add tests for `PanoProcessingMessage` and `NatsJetStreamPanoProcessingQueue`.
 
-- [ ] **Step 2: Implement publisher**
+- [x] **Step 2: Implement publisher**
 
 Message shape:
 
@@ -163,7 +163,7 @@ Message shape:
 }
 ```
 
-- [ ] **Step 3: Run green and commit**
+- [x] **Step 3: Run green and commit**
 
 ```bash
 uv run pytest tests/ingestion/test_download_queue.py -q

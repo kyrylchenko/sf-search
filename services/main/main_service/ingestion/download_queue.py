@@ -78,11 +78,32 @@ class PanoDownloadMessage:
         }
 
 
+@dataclass(frozen=True)
+class PanoProcessingMessage:
+    pano_id: PanoramaId
+    image_path: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "pano_id": self.pano_id.value,
+            "image_path": self.image_path,
+            "source": "pano_downloader",
+        }
+
+
 class PanoDownloadQueue(Protocol):
     def pending_count(self) -> int:
         ...
 
     def enqueue(self, message: PanoDownloadMessage) -> None:
+        ...
+
+
+class PanoProcessingQueue(Protocol):
+    def pending_count(self) -> int:
+        ...
+
+    def enqueue(self, message: PanoProcessingMessage) -> None:
         ...
 
 
@@ -94,6 +115,17 @@ class InMemoryPanoDownloadQueue:
         return len(self.messages)
 
     def enqueue(self, message: PanoDownloadMessage) -> None:
+        self.messages.append(message)
+
+
+class InMemoryPanoProcessingQueue:
+    def __init__(self) -> None:
+        self.messages: list[PanoProcessingMessage] = []
+
+    def pending_count(self) -> int:
+        return len(self.messages)
+
+    def enqueue(self, message: PanoProcessingMessage) -> None:
         self.messages.append(message)
 
 
@@ -177,3 +209,12 @@ class NatsJetStreamPanoDownloadQueue:
             self._async_runner.run(self._nats_client.close())
         if isinstance(self._async_runner, BackgroundAsyncRunner):
             self._async_runner.close()
+
+
+class NatsJetStreamPanoProcessingQueue(NatsJetStreamPanoDownloadQueue):
+    def enqueue(self, message: PanoProcessingMessage) -> None:
+        self._async_runner.run(self._enqueue_processing_async(message))
+
+    async def _enqueue_processing_async(self, message: PanoProcessingMessage) -> None:
+        payload = json.dumps(message.to_dict()).encode("utf-8")
+        await self._jetstream.publish(self._subject, payload)

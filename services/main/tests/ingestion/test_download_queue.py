@@ -4,8 +4,11 @@ import asyncio
 from main_service.ingestion.download_queue import (
     BackgroundAsyncRunner,
     InMemoryPanoDownloadQueue,
+    InMemoryPanoProcessingQueue,
     NatsJetStreamPanoDownloadQueue,
+    NatsJetStreamPanoProcessingQueue,
     PanoDownloadMessage,
+    PanoProcessingMessage,
 )
 from main_service.ingestion.types import MapTileKey, PanoramaId
 
@@ -34,6 +37,32 @@ def test_download_message_serializes_to_public_safe_payload() -> None:
         "source": "coverage_discovery",
         "discovered_from_tile": {"x": 1, "y": 2, "z": 17},
     }
+
+
+def test_processing_message_serializes_to_public_safe_payload() -> None:
+    message = PanoProcessingMessage(
+        pano_id=PanoramaId("pano-a"),
+        image_path=".local/panoramas/pano-a.jpg",
+    )
+
+    assert message.to_dict() == {
+        "pano_id": "pano-a",
+        "image_path": ".local/panoramas/pano-a.jpg",
+        "source": "pano_downloader",
+    }
+
+
+def test_in_memory_processing_queue_tracks_pending_count() -> None:
+    queue = InMemoryPanoProcessingQueue()
+    message = PanoProcessingMessage(
+        pano_id=PanoramaId("pano-a"),
+        image_path=".local/panoramas/pano-a.jpg",
+    )
+
+    queue.enqueue(message)
+
+    assert queue.pending_count() == 1
+    assert queue.messages == [message]
 
 
 class FakeStreamState:
@@ -88,6 +117,25 @@ def test_nats_queue_publishes_json_download_message() -> None:
 
     published = jetstream.published[0]
     assert published["subject"] == "pano.download.requested"
+    assert json.loads(published["payload"]) == message.to_dict()
+
+
+def test_nats_queue_publishes_json_processing_message() -> None:
+    jetstream = FakeJetStream()
+    queue = NatsJetStreamPanoProcessingQueue(
+        jetstream=jetstream,
+        stream_name="PANO_PROCESSING",
+        subject="pano.processing.requested",
+    )
+    message = PanoProcessingMessage(
+        pano_id=PanoramaId("pano-a"),
+        image_path=".local/panoramas/pano-a.jpg",
+    )
+
+    queue.enqueue(message)
+
+    published = jetstream.published[0]
+    assert published["subject"] == "pano.processing.requested"
     assert json.loads(published["payload"]) == message.to_dict()
 
 
