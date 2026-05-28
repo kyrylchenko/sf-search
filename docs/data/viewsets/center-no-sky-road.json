@@ -1,0 +1,1 @@
+{"name":"center-no-sky-road","description":"One large center view intended to avoid most sky and road while keeping enough facade/street context for CLIP.","views":[{"id":"center-band","relative_heading":0,"pitch":0,"fov":65,"view_kind":"center_context","output_width":768,"output_height":512}]}
