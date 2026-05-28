@@ -191,11 +191,11 @@ git commit -m "feat: add pano download storage"
 
 ## Task 6: Add Street View Download Client Boundary
 
-- [ ] **Step 1: Write offline tests**
+- [x] **Step 1: Write offline tests**
 
 Create tests for metadata extraction from fake pano objects.
 
-- [ ] **Step 2: Implement client protocol and real adapter**
+- [x] **Step 2: Implement client protocol and real adapter**
 
 Create `services/main/main_service/downloader/streetview_client.py`.
 
@@ -211,7 +211,7 @@ It must handle `find_panorama_by_id_async(...)` returning `None` and image tile
 downloads failing with HTTP/permission responses surfaced as image decode
 errors.
 
-- [ ] **Step 3: Run green and commit**
+- [x] **Step 3: Run green and commit**
 
 ```bash
 uv run pytest tests/downloader/test_streetview_client.py -q
