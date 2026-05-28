@@ -125,18 +125,18 @@ def create_streetview_session() -> ClientSession:
 
 def metadata_from_panorama(pano: Any) -> dict[str, object]:
     metadata: dict[str, object] = {
-        "pano_id": getattr(pano, "id", None),
-        "lat": getattr(pano, "lat", None),
-        "lon": getattr(pano, "lon", None),
-        "heading": getattr(pano, "heading", None),
-        "pitch": getattr(pano, "pitch", None),
-        "roll": getattr(pano, "roll", None),
-        "elevation": getattr(pano, "elevation", None),
-        "date": getattr(pano, "date", None),
-        "upload_date": getattr(pano, "upload_date", None),
-        "is_third_party": getattr(pano, "is_third_party", None),
-        "country_code": getattr(pano, "country_code", None),
-        "source": getattr(pano, "source", None),
+        "pano_id": _json_safe(getattr(pano, "id", None)),
+        "lat": _json_safe(getattr(pano, "lat", None)),
+        "lon": _json_safe(getattr(pano, "lon", None)),
+        "heading": _json_safe(getattr(pano, "heading", None)),
+        "pitch": _json_safe(getattr(pano, "pitch", None)),
+        "roll": _json_safe(getattr(pano, "roll", None)),
+        "elevation": _json_safe(getattr(pano, "elevation", None)),
+        "date": _json_safe(getattr(pano, "date", None)),
+        "upload_date": _json_safe(getattr(pano, "upload_date", None)),
+        "is_third_party": _json_safe(getattr(pano, "is_third_party", None)),
+        "country_code": _json_safe(getattr(pano, "country_code", None)),
+        "source": _json_safe(getattr(pano, "source", None)),
     }
 
     tile_size = getattr(pano, "tile_size", None)
@@ -163,3 +163,9 @@ def _optional_float(value: object) -> float | None:
     if value is None:
         return None
     return float(value)
+
+
+def _json_safe(value: object) -> object:
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    return str(value)

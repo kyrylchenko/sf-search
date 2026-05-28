@@ -275,24 +275,29 @@ git commit -m "feat: add downloader entrypoint"
 
 ## Task 9: Runtime Verification
 
-- [ ] **Step 1: Start infra**
+- [x] **Step 1: Start infra**
 
 ```bash
 docker compose up -d postgres nats
 ```
 
-- [ ] **Step 2: Ensure discovery messages exist**
+- [x] **Step 2: Ensure discovery messages exist**
 
 Run the existing one-tile discovery if needed.
 
-- [ ] **Step 3: Download a small bounded batch**
+Verification used the StreetLevel docs coordinate tile
+`x=69966, y=46163, z=17` and temporary local streams:
+`VERIFY_PANO_DOWNLOADS` / `VERIFY_PANO_PROCESSING`.
+Discovery found `29` pano IDs and enqueued `29` downloader jobs.
+
+- [x] **Step 3: Download a small bounded batch**
 
 ```bash
 cd services/main
 uv run python -m main_service.downloader --limit 5
 ```
 
-- [ ] **Step 4: Verify outputs**
+- [x] **Step 4: Verify outputs**
 
 Check:
 
@@ -311,7 +316,23 @@ environment, verify the failure path instead:
 - `last_error` includes the image download failure;
 - the runner continues through the bounded batch without crashing.
 
-- [ ] **Step 5: Full tests and final checks**
+Runtime findings:
+
+- First live download attempt failed because the temp file used `.jpg.tmp`;
+  Pillow/StreetLevel inferred extension `.tmp`. Fixed by using `.tmp.jpg`.
+- Second live attempt downloaded the image but failed while persisting metadata
+  because StreetLevel returned a non-JSON `CaptureDate` value. Fixed by
+  coercing non-primitive metadata values to strings.
+- Third live attempt succeeded: `downloaded=1`, `failed=0`.
+- Postgres row showed `download_status='downloaded'`, populated image path,
+  image hash, downloaded timestamp, and zoom `5` metadata of
+  `{"x": 16384, "y": 8192}`.
+- The downloaded file existed at
+  `services/main/.local/panoramas/9hlJooh9XYhISDIgrv-AaA.jpg`, was
+  `11666449` bytes, and opened as RGB `16384x8192`.
+- `VERIFY_PANO_PROCESSING` contained one processing message.
+
+- [x] **Step 5: Full tests and final checks**
 
 ```bash
 uv run pytest -q
@@ -319,7 +340,7 @@ git diff --check
 git status --short
 ```
 
-- [ ] **Step 6: Commit verification record**
+- [x] **Step 6: Commit verification record**
 
 ```bash
 git add .codex/plans/2026-05-28-main-downloader-worker.md

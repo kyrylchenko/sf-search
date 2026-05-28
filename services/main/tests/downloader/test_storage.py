@@ -21,7 +21,7 @@ def test_pano_image_path_sanitizes_pano_id() -> None:
 def test_temp_pano_image_path_uses_same_directory() -> None:
     final_path = Path(".local/panoramas/pano-a.jpg")
 
-    assert temp_pano_image_path(final_path) == Path(".local/panoramas/pano-a.jpg.tmp")
+    assert temp_pano_image_path(final_path) == Path(".local/panoramas/pano-a.tmp.jpg")
 
 
 def test_finalize_temp_file_creates_parent_and_replaces_final(tmp_path: Path) -> None:

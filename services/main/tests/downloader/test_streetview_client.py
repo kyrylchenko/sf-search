@@ -57,6 +57,29 @@ def test_metadata_from_panorama_extracts_scalar_and_size_fields() -> None:
     }
 
 
+def test_metadata_from_panorama_converts_non_json_scalar_values_to_strings() -> None:
+    class CaptureDateLike:
+        def __str__(self) -> str:
+            return "2024-01"
+
+    pano = SimpleNamespace(
+        id="resolved-pano-id",
+        lat=37.1,
+        lon=-122.1,
+        heading=None,
+        pitch=None,
+        roll=None,
+        elevation=None,
+        date=CaptureDateLike(),
+        upload_date=None,
+        is_third_party=False,
+        country_code=None,
+        source=None,
+    )
+
+    assert metadata_from_panorama(pano)["date"] == "2024-01"
+
+
 def test_resolve_falls_back_to_location_when_pano_id_is_stale() -> None:
     calls: list[tuple[str, object]] = []
     resolved_pano = SimpleNamespace(id="fresh-pano-id", lat=37.1, lon=-122.1)

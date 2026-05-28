@@ -38,6 +38,9 @@ with duplicate queue messages.
   still receive `403`; adding a Google Maps referer lets tile downloads succeed.
 - Save images under ignored local storage, default `./.local/panoramas`.
 - Capture useful metadata from the resolved panorama object.
+- Convert non-primitive StreetLevel metadata values to JSON-safe values before
+  storing in Postgres. StreetLevel can return custom values such as
+  `CaptureDate` that are not directly JSON serializable.
 - Update Postgres with:
   - `download_status`
   - `image_path`
@@ -197,6 +200,10 @@ Default image path:
 
 The `.local/` directory is git-ignored. The path is intentionally local and can
 later be replaced by object storage while keeping the DB field as a storage key.
+
+Temporary image paths must preserve the final image extension, e.g.
+`.local/panoramas/<pano-id>.tmp.jpg`. StreetLevel/Pillow infers output format
+from the file extension, so `.jpg.tmp` fails at save time.
 
 ## Testing
 

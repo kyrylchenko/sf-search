@@ -13,7 +13,7 @@ def pano_image_path(storage_dir: Path, pano_id: PanoramaId) -> Path:
 
 
 def temp_pano_image_path(final_path: Path) -> Path:
-    return final_path.with_name(f"{final_path.name}.tmp")
+    return final_path.with_name(f"{final_path.stem}.tmp{final_path.suffix}")
 
 
 def finalize_temp_file(temp_path: Path, final_path: Path) -> None:
