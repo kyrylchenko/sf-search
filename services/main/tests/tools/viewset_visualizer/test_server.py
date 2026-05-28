@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from main_service.tools.viewset_visualizer.server import create_app_payload
+from main_service.tools.viewset_visualizer.server import create_app_payload, render_view_image
 
 
 def test_create_app_payload_returns_image_metadata_and_python_polygons(
@@ -38,3 +38,40 @@ def test_create_app_payload_returns_image_metadata_and_python_polygons(
     view = payload["viewsets"][0]["views"][0]
     assert view["relative_heading"] == 0
     assert len(view["polygons"][0]) == 32
+
+
+def test_render_view_image_returns_perspective_jpeg_bytes(tmp_path: Path) -> None:
+    pano_path = tmp_path / "pano.jpg"
+    Image.new("RGB", (1024, 512), color="white").save(pano_path)
+    viewsets_dir = tmp_path / "viewsets"
+    viewsets_dir.mkdir()
+    (viewsets_dir / "candidate.json").write_text(
+        json.dumps(
+            {
+                "name": "candidate",
+                "views": [
+                    {
+                        "id": "center",
+                        "relative_heading": 0,
+                        "pitch": 0,
+                        "fov": 60,
+                        "output_width": 320,
+                        "output_height": 240,
+                    }
+                ],
+            }
+        )
+    )
+
+    body, content_type = render_view_image(
+        pano_path,
+        viewsets_dir,
+        viewset_name="candidate",
+        view_id="center",
+    )
+
+    output_path = tmp_path / "view.jpg"
+    output_path.write_bytes(body)
+    with Image.open(output_path) as image:
+        assert image.size == (320, 240)
+    assert content_type == "image/jpeg"

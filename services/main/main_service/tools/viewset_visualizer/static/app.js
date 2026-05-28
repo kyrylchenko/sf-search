@@ -6,6 +6,7 @@ const viewsEl = document.getElementById("views");
 
 let state = null;
 let panoImage = null;
+let currentViewset = null;
 
 async function loadState() {
   const response = await fetch("/api/state");
@@ -34,6 +35,7 @@ function populateViewsets() {
 function draw() {
   if (!state || !panoImage) return;
   const viewset = state.viewsets[Number(select.value || 0)];
+  currentViewset = viewset;
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.drawImage(panoImage, 0, 0, canvas.width, canvas.height);
   drawOverlays(viewset.views);
@@ -68,14 +70,53 @@ function renderSidebar(viewset) {
   viewset.views.forEach((view) => {
     const item = document.createElement("div");
     item.className = "view";
+    item.tabIndex = 0;
     item.innerHTML = `
       <strong>${escapeHtml(view.id)}</strong>
       <span>${escapeHtml(view.view_kind)}</span>
       <span>heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · fov ${formatNumber(view.fov)}</span>
       <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"}</span>
     `;
+    item.addEventListener("click", () => openViewImage(viewset, view));
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openViewImage(viewset, view);
+      }
+    });
     viewsEl.appendChild(item);
   });
+}
+
+canvas.addEventListener("click", (event) => {
+  if (!currentViewset) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width;
+  const y = (event.clientY - rect.top) / rect.height;
+  const view = [...currentViewset.views]
+    .reverse()
+    .find((candidate) => candidate.polygons.some((polygon) => pointInPolygon(x, y, polygon)));
+  if (view) {
+    openViewImage(currentViewset, view);
+  }
+});
+
+function openViewImage(viewset, view) {
+  const params = new URLSearchParams({ viewset: viewset.name, view: view.id });
+  window.open(`/api/view-image?${params.toString()}`, "_blank", "noopener");
+}
+
+function pointInPolygon(x, y, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
 }
 
 function formatNumber(value) {

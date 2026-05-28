@@ -60,6 +60,13 @@ select {
   border-radius: 7px;
   padding: 10px;
   background: #111827;
+  cursor: pointer;
+}
+
+.view:hover,
+.view:focus {
+  border-color: #ef4444;
+  outline: none;
 }
 
 .view strong {

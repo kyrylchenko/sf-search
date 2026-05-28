@@ -27,3 +27,6 @@ The visualizer computes accurate sampled perspective-frustum boundaries in
 Python using the same equirectangular coordinate model as `py360convert`. The
 browser only draws the returned normalized polygons, so the UI does not carry a
 separate pano-projection implementation.
+
+Click a view in the sidebar, or click an overlay on the pano, to open the
+server-rendered 2D perspective view in a new browser tab.
