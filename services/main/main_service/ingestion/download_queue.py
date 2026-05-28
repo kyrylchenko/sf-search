@@ -1,5 +1,6 @@
 import asyncio
 import json
+import threading
 from dataclasses import dataclass
 from typing import Any, Awaitable, Protocol, TypeVar
 
@@ -10,6 +11,42 @@ from nats.js.errors import NotFoundError
 from main_service.ingestion.types import MapTileKey, PanoramaId
 
 T = TypeVar("T")
+
+
+class AsyncRunner(Protocol):
+    def run(self, awaitable: Awaitable[T]) -> T:
+        ...
+
+
+class PerCallAsyncRunner:
+    def run(self, awaitable: Awaitable[T]) -> T:
+        return _run_async(awaitable)
+
+
+class BackgroundAsyncRunner:
+    def __init__(self) -> None:
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(
+            target=self._run_loop,
+            name="nats-jetstream-loop",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def _run_loop(self) -> None:
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def run(self, awaitable: Awaitable[T]) -> T:
+        future = asyncio.run_coroutine_threadsafe(awaitable, self._loop)
+        return future.result()
+
+    def close(self) -> None:
+        if self._loop.is_closed():
+            return
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join(timeout=5)
+        self._loop.close()
 
 
 def _run_async(awaitable: Awaitable[T]) -> T:
@@ -67,11 +104,13 @@ class NatsJetStreamPanoDownloadQueue:
         stream_name: str,
         subject: str,
         nats_client: Any | None = None,
+        async_runner: AsyncRunner | None = None,
     ) -> None:
         self._jetstream = jetstream
         self._stream_name = stream_name
         self._subject = subject
         self._nats_client = nats_client
+        self._async_runner = async_runner or PerCallAsyncRunner()
 
     @classmethod
     def connect(
@@ -80,7 +119,12 @@ class NatsJetStreamPanoDownloadQueue:
         stream_name: str,
         subject: str,
     ) -> "NatsJetStreamPanoDownloadQueue":
-        return _run_async(cls._connect_async(servers, stream_name, subject))
+        runner = BackgroundAsyncRunner()
+        try:
+            return runner.run(cls._connect_async(servers, stream_name, subject, runner))
+        except Exception:
+            runner.close()
+            raise
 
     @classmethod
     async def _connect_async(
@@ -88,6 +132,7 @@ class NatsJetStreamPanoDownloadQueue:
         servers: str | list[str],
         stream_name: str,
         subject: str,
+        async_runner: AsyncRunner,
     ) -> "NatsJetStreamPanoDownloadQueue":
         server_list = [servers] if isinstance(servers, str) else servers
         nats_client = await nats.connect(servers=server_list)
@@ -97,6 +142,7 @@ class NatsJetStreamPanoDownloadQueue:
             stream_name=stream_name,
             subject=subject,
             nats_client=nats_client,
+            async_runner=async_runner,
         )
         await queue.ensure_stream_async()
         return queue
@@ -113,14 +159,14 @@ class NatsJetStreamPanoDownloadQueue:
             )
 
     def pending_count(self) -> int:
-        return _run_async(self._pending_count_async())
+        return self._async_runner.run(self._pending_count_async())
 
     async def _pending_count_async(self) -> int:
         stream_info = await self._jetstream.stream_info(self._stream_name)
         return int(stream_info.state.messages)
 
     def enqueue(self, message: PanoDownloadMessage) -> None:
-        _run_async(self._enqueue_async(message))
+        self._async_runner.run(self._enqueue_async(message))
 
     async def _enqueue_async(self, message: PanoDownloadMessage) -> None:
         payload = json.dumps(message.to_dict()).encode("utf-8")
@@ -128,4 +174,6 @@ class NatsJetStreamPanoDownloadQueue:
 
     def close(self) -> None:
         if self._nats_client is not None:
-            _run_async(self._nats_client.close())
+            self._async_runner.run(self._nats_client.close())
+        if isinstance(self._async_runner, BackgroundAsyncRunner):
+            self._async_runner.close()
