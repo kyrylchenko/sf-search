@@ -270,7 +270,7 @@ git commit -m "feat: add nats download queue"
 
 ## Task 5: Add Docker Compose Local Infrastructure and Docs Folder
 
-- [ ] **Step 1: Add Compose and example env**
+- [x] **Step 1: Add Compose and example env**
 
 Create `docker-compose.yml` with:
 
@@ -290,7 +290,7 @@ PANO_DOWNLOAD_STREAM=PANO_DOWNLOADS
 PANO_DOWNLOAD_SUBJECT=pano.download.requested
 ```
 
-- [ ] **Step 2: Document usage**
+- [x] **Step 2: Document usage**
 
 Update `README.md` with:
 
@@ -302,7 +302,7 @@ docker compose up -d nats
 docker compose exec nats wget -qO- http://127.0.0.1:8222/healthz
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docker-compose.yml .env.example README.md
