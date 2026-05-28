@@ -11,7 +11,10 @@ class Embedding(Base):
     __tablename__ = "embedding_table"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    tile: Mapped["Tile"] = relationship(back_populates="embedding")
+    tile: Mapped["Tile"] = relationship(back_populates="embedding", uselist=False)
 
     def __repr__(self) -> str:
-        return f"Embedding(id={self.id!r}"
+        return f"Embedding(id={self.id!r})"
+
+
+from . import tile as _tile  # noqa: E402,F401

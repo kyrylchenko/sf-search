@@ -12,10 +12,10 @@ class Panorama(Base):
     __tablename__ = "panorama_table"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    orig_id: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
-    image_hash: Mapped[str] = mapped_column(VARCHAR(20), unique=True)
-    latitude: Mapped[int]
-    longitude: Mapped[int]
+    orig_id: Mapped[str] = mapped_column(VARCHAR(64), unique=True)
+    image_hash: Mapped[str | None] = mapped_column(VARCHAR(128), unique=True)
+    latitude: Mapped[float]
+    longitude: Mapped[float]
     tiles: Mapped[List["Tile"]] = relationship(back_populates="panorama")
 
     def __repr__(self) -> str:

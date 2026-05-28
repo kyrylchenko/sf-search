@@ -18,14 +18,14 @@ class Tile(Base):
     image_id: Mapped[int] = mapped_column()
     embedding_id: Mapped[int] = mapped_column(ForeignKey("embedding_table.id"))
     embedding: Mapped["Embedding"] = relationship(back_populates="tile")
-    pitch: Mapped[int]
-    yaw: Mapped[int]
-    roll: Mapped[int]
-    fov: Mapped[int]
-    google_pitch: Mapped[int]
-    google_yaw: Mapped[int]
-    google_roll: Mapped[int]
-    google_fov: Mapped[int]
+    pitch: Mapped[float]
+    yaw: Mapped[float]
+    roll: Mapped[float]
+    fov: Mapped[float]
+    google_pitch: Mapped[float]
+    google_yaw: Mapped[float]
+    google_roll: Mapped[float]
+    google_fov: Mapped[float]
 
     def __repr__(self) -> str:
         return (
