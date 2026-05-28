@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a restart-safe downloader runner inside `services/main` that consumes a bounded batch of pano IDs from NATS, downloads images locally with configurable concurrency, updates Postgres, and emits processing jobs.
+**Goal:** Add a restart-safe downloader runner inside `services/main` that consumes a bounded batch of pano IDs from NATS, downloads images locally with configurable concurrency, updates Postgres, emits processing jobs, and pauses when the processing queue is backed up.
 
-**Architecture:** Keep this as simple code in `services/main`, not a separate service or deployment unit. Postgres is the source of truth for pano download status and metadata, and it is the dedupe gate for duplicate NATS messages. NATS JetStream provides durable downloader input and processing-output streams; the runner acks input messages after DB state is safely updated.
+**Architecture:** Keep this as simple code in `services/main`, not a separate service or deployment unit. Postgres is the source of truth for pano download status and metadata, and it is the dedupe gate for duplicate NATS messages. NATS JetStream provides durable downloader input and processing-output streams; the runner checks processing stream depth before pulling more downloader work and acks input messages after DB state is safely updated.
 
 **Tech Stack:** Python 3.14, SQLAlchemy, Postgres, NATS JetStream via `nats-py`, `streetlevel`, `aiohttp`, pytest, Docker Compose.
 
@@ -52,6 +52,7 @@ def test_downloader_defaults_are_configured_for_local_dev() -> None:
     assert settings.nats_url == "nats://localhost:4222"
     assert settings.pano_processing_stream == "PANO_PROCESSING"
     assert settings.pano_processing_subject == "pano.processing.requested"
+    assert settings.max_processing_queue_depth == 50
 ```
 
 - [ ] **Step 2: Run red**
@@ -74,6 +75,7 @@ pano_download_subject: str = Field(default="pano.download.requested")
 pano_processing_stream: str = Field(default="PANO_PROCESSING")
 pano_processing_subject: str = Field(default="pano.processing.requested")
 pano_downloader_consumer: str = Field(default="pano-downloader")
+max_processing_queue_depth: int = Field(default=50)
 ```
 
 - [ ] **Step 4: Run green and commit**
@@ -218,6 +220,8 @@ git commit -m "feat: add streetview downloader client"
 
 Create `services/main/tests/downloader/test_runner.py` covering:
 
+- pauses before pulling downloader messages when processing queue depth is at
+  `max_processing_queue_depth`;
 - successful job downloads, updates DB, publishes processing message, acks input;
 - duplicate/already-downloaded pano acks and skips by checking Postgres, without
   calling Street View and without publishing another processing job;
@@ -291,6 +295,8 @@ Check:
 - Postgres rows show `download_status='downloaded'`;
 - `image_path`, `image_hash`, `downloaded_at` are populated;
 - processing stream message count increases.
+- runner pauses without downloading more when processing stream depth is at or
+  above `50`.
 
 - [ ] **Step 5: Full tests and final checks**
 
@@ -314,3 +320,5 @@ git commit -m "docs: mark downloader runner verified"
 - Local images remain under ignored `.local/`.
 - Downloader runner is restartable: DB state plus JetStream acking controls recovery.
 - Duplicates are skipped through Postgres before any Street View download call.
+- Processing queue backpressure prevents downloads from outrunning the slower
+  processing stage.

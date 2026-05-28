@@ -16,6 +16,10 @@ with duplicate queue messages.
 - Consume downloader jobs from `pano.download.requested`.
 - Use a durable JetStream consumer so unacked jobs survive runner restarts.
 - Process up to a configurable number of downloads concurrently; default `5`.
+- Before pulling or claiming more downloader jobs, check the processing queue
+  backlog. If `pano.processing.requested` has `50` or more pending messages by
+  default, pause the downloader runner so image downloads do not outrun the
+  processing stage.
 - Deduplicate by pano ID through Postgres before downloading. If a duplicate
   downloader message arrives for a pano that is already `downloaded` with an
   image path/hash, ack and skip it.
@@ -82,6 +86,18 @@ Processing payload:
 The processing payload stays small and references local storage. It never
 contains image bytes.
 
+Backpressure rule:
+
+- Default max processing queue depth: `50`.
+- If processing queue depth is greater than or equal to the threshold, the
+  downloader runner returns a paused result before pulling/claiming additional
+  downloader messages.
+- If downloads are already in flight when the threshold is crossed, finish those
+  in-flight downloads, publish their processing jobs, ack their input messages,
+  then pause before fetching another batch.
+- This mirrors discovery backpressure: finish current work, pause before
+  starting more.
+
 ## Database Model
 
 Extend `panorama_table` with:
@@ -115,6 +131,12 @@ Retryable statuses:
 A later lease/heartbeat model can make this more precise.
 
 ## Runner Flow
+
+Before fetching a batch:
+
+1. Check processing queue depth.
+2. If depth is at or above `max_processing_queue_depth`, return a paused result
+   without fetching downloader messages.
 
 For each fetched NATS message:
 
@@ -164,6 +186,7 @@ Use offline tests for:
 - Failure flow updates attempt count and status.
 - Duplicate input messages are skipped through Postgres state.
 - Runner concurrency limit uses configured value.
+- Processing queue backpressure pauses the runner at the configured threshold.
 
 Use one live verification after unit tests:
 
