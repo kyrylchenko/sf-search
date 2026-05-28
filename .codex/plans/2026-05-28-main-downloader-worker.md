@@ -173,15 +173,15 @@ git commit -m "feat: add pano processing queue"
 
 ## Task 5: Add Local Download Storage Helpers
 
-- [ ] **Step 1: Write failing storage tests**
+- [x] **Step 1: Write failing storage tests**
 
 Create `services/main/tests/downloader/test_storage.py` for safe file paths, temp file paths, atomic finalize, and SHA-256 hashing.
 
-- [ ] **Step 2: Implement storage helpers**
+- [x] **Step 2: Implement storage helpers**
 
 Create `services/main/main_service/downloader/storage.py`.
 
-- [ ] **Step 3: Run green and commit**
+- [x] **Step 3: Run green and commit**
 
 ```bash
 uv run pytest tests/downloader/test_storage.py -q
