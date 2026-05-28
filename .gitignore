@@ -33,3 +33,6 @@ Thumbs.db
 *.log
 logs
 *.sqlite3gitignore
+
+# Local runtime state; never commit generated DB/queue data.
+.local/
