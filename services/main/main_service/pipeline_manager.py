@@ -1,50 +1,53 @@
-from typing import Deque, MutableSequence, Optional, Sequence, Tuple, Final
-import copy
 from collections import deque
+from typing import Deque, Final, Optional, Sequence
+
 from main_service.db.models.panorama import Panorama
-from main_service.db.services import panorama_service
 from main_service.db.services.panorama_service import PanoramaService
 from main_service.processing.tiling import TileSpec
 
+
 EMBEDDING_QUEUE_THRESHOLD = 100
+
 
 class PipelineManager:
     def __init__(
-        self, panos_to_process: Sequence[str],
+        self,
+        panos_to_process: Sequence[str],
         tile_specs: Sequence[TileSpec],
-        pano_service: PanoramaService
+        pano_service: PanoramaService,
     ) -> None:
-        self._panos_to_process: Deque = deque(panos_to_process)
+        self._panos_to_process: Deque[str] = deque(panos_to_process)
         self._tile_specs: Sequence[TileSpec] = tile_specs
         self._pano_service = pano_service
-        pass
 
-    def start(self):
-        pass
+    def start(self) -> None:
+        raise NotImplementedError(
+            "Pipeline orchestration is not implemented yet. "
+            "Write a spec and plan before adding crawler/downloader/embedder behavior."
+        )
 
-    def _refill_queue_if_needed(self):
-        size = 5
-        if size >= EMBEDDING_QUEUE_THRESHOLD:
+    def _refill_queue_if_needed(self, current_queue_size: int) -> None:
+        if current_queue_size >= EMBEDDING_QUEUE_THRESHOLD:
+            return
+        if not self._panos_to_process:
             return
 
         pano_id_to_process: Final[str] = self._panos_to_process.pop()
-        found_pano: Final[Optional[Panorama]] = self._pano_service.find_panorama_by_orig_id(pano_id_to_process)
-        if found_pano:
-            return
-
-
-        # check inner list for tiles, if not empty take treshold * count of spliting tiles of tiles
-        # if empty refil it from tiles
-        # start downloading ids
-        # download id -> split it into tiles
-        # put tiles on queue check if queue is still below, if so, continue
-        pass
-
-    def _process_pano(self, pano_id: str):
-        found_pano: Final[Optional[Panorama]] = self._pano_service.find_panorama_by_orig_id(pano_id)
+        found_pano: Final[Optional[Panorama]] = (
+            self._pano_service.find_panorama_by_orig_id(pano_id_to_process)
+        )
         if found_pano is not None:
             return
-        
-        pano_metadata = 
 
+        self._process_pano(pano_id_to_process)
 
+    def _process_pano(self, pano_id: str) -> None:
+        found_pano: Final[Optional[Panorama]] = (
+            self._pano_service.find_panorama_by_orig_id(pano_id)
+        )
+        if found_pano is not None:
+            return
+
+        raise NotImplementedError(
+            f"Panorama processing for {pano_id!r} is not implemented yet."
+        )
