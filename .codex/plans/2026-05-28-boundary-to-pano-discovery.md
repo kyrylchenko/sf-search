@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first useful ingestion deliverable: read a boundary, generate all coverage tiles, query panorama IDs for each tile, and persist map tiles, panoramas, and tile-to-panorama links with resumable statuses.
+**Goal:** Build the first useful ingestion deliverable: read a boundary, generate all coverage tiles, query panorama IDs for each tile, persist map tiles/panoramas/tile-to-panorama links with resumable statuses, and enqueue discovered pano IDs for downstream downloading with queue backpressure.
 
-**Architecture:** Keep the milestone single-process and testable without live network calls. Use small ingestion modules for domain types, boundary loading, Street View coverage client abstraction, and discovery orchestration. Use SQLAlchemy models/service methods for idempotent persistence so the job can resume and later continue into metadata fetching, downloading, view generation, and embeddings.
+**Architecture:** Keep the milestone single-process and testable without live network calls. Use small ingestion modules for domain types, boundary loading, Street View coverage client abstraction, downloader queue abstraction, and discovery orchestration. Use SQLAlchemy models/service methods for idempotent persistence so the job can resume and later continue into metadata fetching, downloading, view generation, and embeddings. RabbitMQ is the intended real queue, but unit tests use an in-memory fake.
 
-**Tech Stack:** Python 3.14, uv, pytest, SQLAlchemy, Pydantic Settings, mercantile, shapely, streetlevel.
+**Tech Stack:** Python 3.14, uv, pytest, SQLAlchemy, Pydantic Settings, mercantile, shapely, streetlevel, pika/RabbitMQ.
 
 ---
 
@@ -27,17 +27,45 @@ After this milestone, the project can run a discovery pass that:
 4. Queries a coverage client for pano IDs in each tile.
 5. Persists every discovered pano ID once.
 6. Persists the many-to-many relationship between map tiles and pano IDs.
-7. Marks each tile as complete or failed with attempt counts and last errors.
-8. Leaves every panorama in a later-stage `download_status="pending"` state.
+7. Enqueues each discovered pano ID as a small downloader job message.
+8. Marks each tile as complete or failed with attempt counts and last errors.
+9. Leaves every enqueued panorama in `download_status="queued"` until a downloader service claims it.
 
 No panorama images are downloaded in this milestone.
+
+## Queue and Backpressure Rule
+
+RabbitMQ is the intended production queue. Messages must stay small and contain identifiers and references only. Do not put panorama bytes, generated view bytes, or 5-10 MB image payloads into RabbitMQ.
+
+Initial downloader queue:
+
+```text
+pano.download.requested
+```
+
+Message shape:
+
+```json
+{
+  "pano_id": "example-pano-id",
+  "source": "coverage_discovery",
+  "discovered_from_tile": {"x": 1, "y": 2, "z": 17}
+}
+```
+
+Backpressure behavior:
+
+- Before starting a new coverage tile, check downstream downloader queue depth.
+- If downloader queue depth is greater than or equal to `max_downloader_queue_depth`, pause discovery before starting that next tile.
+- If the current tile returns more IDs than the threshold, finish the current tile anyway. Persist all IDs, enqueue all downloader jobs, mark that tile complete, then pause before the next tile.
+- The pause is represented in code as a returned `DiscoveryResult(paused=True, pause_reason=...)`, not as a tile DB status. The tile remains `pending` until a later run processes it.
 
 ## Status Model
 
 Use two status enums:
 
 - `ProcessingStatus`: `pending`, `processing`, `complete`, `failed`, `skipped`
-- `DownloadStatus`: `pending`, `downloading`, `downloaded`, `failed`, `skipped`
+- `DownloadStatus`: `pending`, `queued`, `downloading`, `downloaded`, `failed`, `skipped`
 
 Map tiles use `ProcessingStatus` for coverage discovery.
 
@@ -53,6 +81,7 @@ Panoramas use:
 - Create `services/main/main_service/ingestion/types.py`: status enums and DTOs.
 - Create `services/main/main_service/ingestion/boundary_loader.py`: GeoJSON boundary to `MapTileKey` list.
 - Create `services/main/main_service/ingestion/coverage_client.py`: protocol plus `streetlevel` implementation for pano ID coverage lookup.
+- Create `services/main/main_service/ingestion/download_queue.py`: queue protocol, in-memory fake, and RabbitMQ-oriented message types.
 - Create `services/main/main_service/ingestion/discovery.py`: orchestration for persisting tiles and discovered pano IDs.
 - Modify `services/main/main_service/config.py`: ingestion settings.
 - Create `services/main/main_service/db/models/map_tile.py`: map tile state.
@@ -101,6 +130,7 @@ def test_processing_status_values_are_stable() -> None:
 
 def test_download_status_values_are_stable() -> None:
     assert DownloadStatus.PENDING.value == "pending"
+    assert DownloadStatus.QUEUED.value == "queued"
     assert DownloadStatus.DOWNLOADING.value == "downloading"
     assert DownloadStatus.DOWNLOADED.value == "downloaded"
     assert DownloadStatus.FAILED.value == "failed"
@@ -145,6 +175,7 @@ class ProcessingStatus(StrEnum):
 
 class DownloadStatus(StrEnum):
     PENDING = "pending"
+    QUEUED = "queued"
     DOWNLOADING = "downloading"
     DOWNLOADED = "downloaded"
     FAILED = "failed"
@@ -559,6 +590,15 @@ def test_mark_map_tile_discovery_complete_updates_status() -> None:
     updated = service.mark_map_tile_discovery_complete(tile_row.id)
 
     assert updated.discovery_status == ProcessingStatus.COMPLETE.value
+
+
+def test_mark_panorama_download_queued_updates_status() -> None:
+    service = make_service()
+    pano_row = service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+
+    updated = service.mark_panorama_download_queued(pano_row.id)
+
+    assert updated.download_status == DownloadStatus.QUEUED.value
 ```
 
 - [ ] **Step 2: Run tests and verify red**
@@ -603,7 +643,18 @@ Implementation requirements:
 - `upsert_discovered_panorama` must create panoramas with `download_status=DownloadStatus.PENDING.value`.
 - `mark_map_tile_discovery_failed` must increment `attempt_count` by one and set `last_error`.
 
-- [ ] **Step 4: Run tests and verify green**
+- [ ] **Step 6: Add queued status transition**
+
+Add a service method:
+
+```python
+    def mark_panorama_download_queued(self, panorama_id: int) -> Panorama:
+        ...
+```
+
+It must set `download_status=DownloadStatus.QUEUED.value` and return a detached `Panorama`.
+
+- [ ] **Step 7: Run tests and verify green**
 
 Run:
 
@@ -612,9 +663,9 @@ cd services/main
 uv run pytest tests/db/test_discovery_service.py -q
 ```
 
-Expected: `4 passed`.
+Expected: `5 passed`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 8: Commit**
 
 Run:
 
@@ -716,7 +767,132 @@ git add services/main/main_service/ingestion/coverage_client.py services/main/te
 git commit -m "feat: add coverage client abstraction"
 ```
 
-## Task 6: Add Boundary-to-Pano Discovery Orchestration
+## Task 6: Add Downloader Queue Abstraction
+
+**Files:**
+
+- Create: `services/main/main_service/ingestion/download_queue.py`
+- Create: `services/main/tests/ingestion/test_download_queue.py`
+
+- [ ] **Step 1: Write tests for queue messages and in-memory fake**
+
+Create `services/main/tests/ingestion/test_download_queue.py`:
+
+```python
+from main_service.ingestion.download_queue import (
+    InMemoryPanoDownloadQueue,
+    PanoDownloadMessage,
+)
+from main_service.ingestion.types import MapTileKey, PanoramaId
+
+
+def test_in_memory_queue_tracks_pending_count() -> None:
+    queue = InMemoryPanoDownloadQueue()
+    message = PanoDownloadMessage(
+        pano_id=PanoramaId("pano-a"),
+        source_tile=MapTileKey(x=1, y=2, z=17),
+    )
+
+    queue.enqueue(message)
+
+    assert queue.pending_count() == 1
+    assert queue.messages == [message]
+
+
+def test_download_message_serializes_to_public_safe_payload() -> None:
+    message = PanoDownloadMessage(
+        pano_id=PanoramaId("pano-a"),
+        source_tile=MapTileKey(x=1, y=2, z=17),
+    )
+
+    assert message.to_dict() == {
+        "pano_id": "pano-a",
+        "source": "coverage_discovery",
+        "discovered_from_tile": {"x": 1, "y": 2, "z": 17},
+    }
+```
+
+- [ ] **Step 2: Run tests and verify red**
+
+Run:
+
+```bash
+cd services/main
+uv run pytest tests/ingestion/test_download_queue.py -q
+```
+
+Expected: fail because `download_queue.py` does not exist.
+
+- [ ] **Step 3: Implement queue abstraction**
+
+Create `services/main/main_service/ingestion/download_queue.py`:
+
+```python
+from dataclasses import dataclass
+from typing import Protocol
+
+from main_service.ingestion.types import MapTileKey, PanoramaId
+
+
+@dataclass(frozen=True)
+class PanoDownloadMessage:
+    pano_id: PanoramaId
+    source_tile: MapTileKey
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "pano_id": self.pano_id.value,
+            "source": "coverage_discovery",
+            "discovered_from_tile": {
+                "x": self.source_tile.x,
+                "y": self.source_tile.y,
+                "z": self.source_tile.z,
+            },
+        }
+
+
+class PanoDownloadQueue(Protocol):
+    def pending_count(self) -> int:
+        ...
+
+    def enqueue(self, message: PanoDownloadMessage) -> None:
+        ...
+
+
+class InMemoryPanoDownloadQueue:
+    def __init__(self) -> None:
+        self.messages: list[PanoDownloadMessage] = []
+
+    def pending_count(self) -> int:
+        return len(self.messages)
+
+    def enqueue(self, message: PanoDownloadMessage) -> None:
+        self.messages.append(message)
+```
+
+Do not implement the RabbitMQ class in this milestone; keep the interface ready for it.
+
+- [ ] **Step 4: Run tests and verify green**
+
+Run:
+
+```bash
+cd services/main
+uv run pytest tests/ingestion/test_download_queue.py -q
+```
+
+Expected: `2 passed`.
+
+- [ ] **Step 5: Commit**
+
+Run:
+
+```bash
+git add services/main/main_service/ingestion/download_queue.py services/main/tests/ingestion/test_download_queue.py
+git commit -m "feat: add pano download queue abstraction"
+```
+
+## Task 7: Add Boundary-to-Pano Discovery Orchestration
 
 **Files:**
 
@@ -734,6 +910,7 @@ from main_service.db.models import embedding, map_tile, map_tile_panorama, panor
 from main_service.db.models.base import Base
 from main_service.db.services.panorama_service import PanoramaService
 from main_service.ingestion.discovery import discover_panos_for_tiles
+from main_service.ingestion.download_queue import InMemoryPanoDownloadQueue
 from main_service.ingestion.types import MapTileKey, PanoramaId
 
 
@@ -757,14 +934,45 @@ def make_service() -> PanoramaService:
 def test_discover_panos_for_tiles_persists_tiles_panos_and_links() -> None:
     service = make_service()
     coverage_client = FakeCoverageClient()
+    download_queue = InMemoryPanoDownloadQueue()
     tiles = [MapTileKey(x=1, y=10, z=17), MapTileKey(x=2, y=10, z=17)]
 
-    result = discover_panos_for_tiles(service, coverage_client, tiles)
+    result = discover_panos_for_tiles(
+        service,
+        coverage_client,
+        download_queue,
+        tiles,
+        max_downloader_queue_depth=1000,
+    )
 
     assert result.tiles_processed == 2
     assert result.unique_panos_discovered == 3
     assert result.tile_pano_links_created == 4
+    assert result.enqueued_downloads == 4
+    assert result.paused is False
     assert coverage_client.calls == tiles
+    assert download_queue.pending_count() == 4
+
+
+def test_discovery_pauses_before_next_tile_when_downloader_queue_is_full() -> None:
+    service = make_service()
+    coverage_client = FakeCoverageClient()
+    download_queue = InMemoryPanoDownloadQueue()
+    tiles = [MapTileKey(x=1, y=10, z=17), MapTileKey(x=2, y=10, z=17)]
+
+    result = discover_panos_for_tiles(
+        service,
+        coverage_client,
+        download_queue,
+        tiles,
+        max_downloader_queue_depth=1,
+    )
+
+    assert result.tiles_processed == 1
+    assert result.paused is True
+    assert result.pause_reason == "downloader_queue_full"
+    assert coverage_client.calls == [tiles[0]]
+    assert download_queue.pending_count() == 2
 ```
 
 - [ ] **Step 2: Run tests and verify red**
@@ -788,6 +996,7 @@ from typing import Sequence
 
 from main_service.db.services.panorama_service import PanoramaService
 from main_service.ingestion.coverage_client import CoverageClient
+from main_service.ingestion.download_queue import PanoDownloadMessage, PanoDownloadQueue
 from main_service.ingestion.types import MapTileKey
 
 
@@ -796,17 +1005,34 @@ class DiscoveryResult:
     tiles_processed: int
     unique_panos_discovered: int
     tile_pano_links_created: int
+    enqueued_downloads: int
+    paused: bool = False
+    pause_reason: str | None = None
 
 
 def discover_panos_for_tiles(
     pano_service: PanoramaService,
     coverage_client: CoverageClient,
+    download_queue: PanoDownloadQueue,
     tiles: Sequence[MapTileKey],
+    max_downloader_queue_depth: int,
 ) -> DiscoveryResult:
     unique_pano_ids: set[str] = set()
     link_count = 0
+    enqueued_count = 0
+    tiles_processed = 0
 
     for tile in tiles:
+        if download_queue.pending_count() >= max_downloader_queue_depth:
+            return DiscoveryResult(
+                tiles_processed=tiles_processed,
+                unique_panos_discovered=len(unique_pano_ids),
+                tile_pano_links_created=link_count,
+                enqueued_downloads=enqueued_count,
+                paused=True,
+                pause_reason="downloader_queue_full",
+            )
+
         tile_row = pano_service.upsert_map_tile(tile)
         pano_ids = coverage_client.get_pano_ids_for_tile(tile)
         for pano_id in pano_ids:
@@ -815,12 +1041,17 @@ def discover_panos_for_tiles(
             unique_pano_ids.add(pano_id.value)
             if created:
                 link_count += 1
+            download_queue.enqueue(PanoDownloadMessage(pano_id=pano_id, source_tile=tile))
+            pano_service.mark_panorama_download_queued(pano_row.id)
+            enqueued_count += 1
         pano_service.mark_map_tile_discovery_complete(tile_row.id)
+        tiles_processed += 1
 
     return DiscoveryResult(
-        tiles_processed=len(tiles),
+        tiles_processed=tiles_processed,
         unique_panos_discovered=len(unique_pano_ids),
         tile_pano_links_created=link_count,
+        enqueued_downloads=enqueued_count,
     )
 ```
 
@@ -832,7 +1063,7 @@ Run:
 
 ```bash
 cd services/main
-uv run pytest tests/ingestion/test_discovery.py tests/db/test_discovery_service.py -q
+uv run pytest tests/ingestion/test_discovery.py tests/db/test_discovery_service.py tests/ingestion/test_download_queue.py -q
 ```
 
 Expected: all tests pass.
@@ -846,7 +1077,7 @@ git add services/main/main_service/ingestion/discovery.py services/main/main_ser
 git commit -m "feat: discover pano ids for map tiles"
 ```
 
-## Task 7: Milestone Verification
+## Task 8: Milestone Verification
 
 **Files:**
 
@@ -869,7 +1100,7 @@ Run:
 
 ```bash
 cd services/main
-.venv/bin/python -B -c "import main_service.ingestion.boundary_loader; import main_service.ingestion.coverage_client; import main_service.ingestion.discovery; print('coverage discovery imports ok')"
+.venv/bin/python -B -c "import main_service.ingestion.boundary_loader; import main_service.ingestion.coverage_client; import main_service.ingestion.download_queue; import main_service.ingestion.discovery; print('coverage discovery imports ok')"
 ```
 
 Expected output:
@@ -891,7 +1122,7 @@ Expected: no whitespace errors and no uncommitted changes after task commits.
 
 ## Self-Review
 
-- Spec coverage: this plan covers boundary loading, coverage-tile generation, pano ID discovery per tile, DB persistence, statuses, and idempotent links.
+- Spec coverage: this plan covers boundary loading, coverage-tile generation, pano ID discovery per tile, DB persistence, statuses, idempotent links, queue handoff, and backpressure before starting the next tile.
 - Placeholder scan: no `TBD` or private values are present; examples use public-safe placeholder strings.
 - Type consistency: `MapTileKey`, `PanoramaId`, `ProcessingStatus`, and `DownloadStatus` are introduced before use.
 - Scope check: downloads, metadata enrichment, view generation, embeddings, HNSW, and website work are intentionally deferred.
