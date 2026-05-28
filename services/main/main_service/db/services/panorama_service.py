@@ -141,14 +141,43 @@ class PanoramaService:
             return tile
 
     def mark_panorama_download_queued(self, panorama_id: int) -> Panorama:
+        return self.mark_panorama_download_status(panorama_id, DownloadStatus.QUEUED)
+
+    def mark_panorama_download_status(
+        self, panorama_id: int, status: DownloadStatus
+    ) -> Panorama:
         with Session(self.engine) as session:
             panorama = session.get(Panorama, panorama_id)
             if panorama is None:
                 raise ValueError(f"Panorama does not exist: {panorama_id}")
 
-            panorama.download_status = DownloadStatus.QUEUED.value
+            panorama.download_status = status.value
             session.flush()
             session.refresh(panorama)
             session.expunge(panorama)
             session.commit()
             return panorama
+
+    def list_downloadable_pano_ids_for_map_tile(
+        self, map_tile_id: int
+    ) -> list[PanoramaId]:
+        with Session(self.engine) as session:
+            rows = session.execute(
+                select(Panorama.orig_id)
+                .join(
+                    MapTilePanorama,
+                    MapTilePanorama.panorama_id == Panorama.id,
+                )
+                .where(MapTilePanorama.map_tile_id == map_tile_id)
+                .where(
+                    Panorama.download_status.not_in(
+                        [
+                            DownloadStatus.DOWNLOADED.value,
+                            DownloadStatus.SKIPPED.value,
+                        ]
+                    )
+                )
+                .order_by(Panorama.orig_id)
+            ).all()
+
+            return [PanoramaId(value=orig_id) for (orig_id,) in rows]

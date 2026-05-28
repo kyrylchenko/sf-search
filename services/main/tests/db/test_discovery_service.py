@@ -67,3 +67,36 @@ def test_mark_panorama_download_queued_updates_status() -> None:
     updated = service.mark_panorama_download_queued(pano_row.id)
 
     assert updated.download_status == DownloadStatus.QUEUED.value
+
+
+def test_list_downloadable_pano_ids_for_map_tile_returns_linked_nonterminal_panos() -> None:
+    service = make_service()
+    tile_row = service.upsert_map_tile(MapTileKey(x=1, y=2, z=17))
+    pending = service.upsert_discovered_panorama(PanoramaId(value="pano-pending"))
+    queued = service.upsert_discovered_panorama(PanoramaId(value="pano-queued"))
+
+    service.link_map_tile_to_panorama(tile_row.id, pending.id)
+    service.link_map_tile_to_panorama(tile_row.id, queued.id)
+    service.mark_panorama_download_queued(queued.id)
+
+    pano_ids = service.list_downloadable_pano_ids_for_map_tile(tile_row.id)
+
+    assert [pano_id.value for pano_id in pano_ids] == ["pano-pending", "pano-queued"]
+
+
+def test_list_downloadable_pano_ids_for_map_tile_excludes_terminal_download_statuses() -> None:
+    service = make_service()
+    tile_row = service.upsert_map_tile(MapTileKey(x=1, y=2, z=17))
+    downloaded = service.upsert_discovered_panorama(PanoramaId(value="pano-downloaded"))
+    skipped = service.upsert_discovered_panorama(PanoramaId(value="pano-skipped"))
+    pending = service.upsert_discovered_panorama(PanoramaId(value="pano-pending"))
+
+    service.link_map_tile_to_panorama(tile_row.id, downloaded.id)
+    service.link_map_tile_to_panorama(tile_row.id, skipped.id)
+    service.link_map_tile_to_panorama(tile_row.id, pending.id)
+    service.mark_panorama_download_status(downloaded.id, DownloadStatus.DOWNLOADED)
+    service.mark_panorama_download_status(skipped.id, DownloadStatus.SKIPPED)
+
+    pano_ids = service.list_downloadable_pano_ids_for_map_tile(tile_row.id)
+
+    assert [pano_id.value for pano_id in pano_ids] == ["pano-pending"]

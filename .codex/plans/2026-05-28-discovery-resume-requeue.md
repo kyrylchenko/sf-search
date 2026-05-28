@@ -30,14 +30,14 @@
 
 ## Tasks
 
-- [ ] Add failing DB service tests for loading pano IDs linked to a map tile, excluding terminal download statuses.
-- [ ] Implement the DB service lookup.
-- [ ] Add failing discovery tests for completed-tile replay without coverage calls.
-- [ ] Implement completed-tile replay in discovery orchestration.
-- [ ] Update `AGENTS.md` with the restart/requeue invariant.
-- [ ] Run targeted tests.
-- [ ] Run full test suite.
-- [ ] Commit with Conventional Commits.
+- [x] Add failing DB service tests for loading pano IDs linked to a map tile, excluding terminal download statuses.
+- [x] Implement the DB service lookup.
+- [x] Add failing discovery tests for completed-tile replay without coverage calls.
+- [x] Implement completed-tile replay in discovery orchestration.
+- [x] Update `AGENTS.md` with the restart/requeue invariant.
+- [x] Run targeted tests.
+- [x] Run full test suite.
+- [x] Commit with Conventional Commits.
 
 ## Verification Commands
 

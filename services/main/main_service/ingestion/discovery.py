@@ -4,7 +4,7 @@ from typing import Sequence
 from main_service.db.services.panorama_service import PanoramaService
 from main_service.ingestion.coverage_client import CoverageClient
 from main_service.ingestion.download_queue import PanoDownloadMessage, PanoDownloadQueue
-from main_service.ingestion.types import MapTileKey
+from main_service.ingestion.types import MapTileKey, ProcessingStatus
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,19 @@ def discover_panos_for_tiles(
             )
 
         tile_row = pano_service.upsert_map_tile(tile)
+        if tile_row.discovery_status == ProcessingStatus.COMPLETE.value:
+            pano_ids = pano_service.list_downloadable_pano_ids_for_map_tile(tile_row.id)
+            for pano_id in pano_ids:
+                pano_row = pano_service.upsert_discovered_panorama(pano_id)
+                unique_pano_ids.add(pano_id.value)
+                download_queue.enqueue(
+                    PanoDownloadMessage(pano_id=pano_id, source_tile=tile)
+                )
+                pano_service.mark_panorama_download_queued(pano_row.id)
+                enqueued_count += 1
+            tiles_processed += 1
+            continue
+
         pano_ids = coverage_client.get_pano_ids_for_tile(tile)
         for pano_id in pano_ids:
             pano_row = pano_service.upsert_discovered_panorama(pano_id)
