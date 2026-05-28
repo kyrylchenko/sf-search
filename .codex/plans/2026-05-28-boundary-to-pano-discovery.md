@@ -899,7 +899,7 @@ git commit -m "feat: add pano download queue abstraction"
 - Create: `services/main/main_service/ingestion/discovery.py`
 - Create: `services/main/tests/ingestion/test_discovery.py`
 
-- [ ] **Step 1: Write tests with fake coverage client**
+- [x] **Step 1: Write tests with fake coverage client**
 
 Create `services/main/tests/ingestion/test_discovery.py`:
 
@@ -975,7 +975,7 @@ def test_discovery_pauses_before_next_tile_when_downloader_queue_is_full() -> No
     assert download_queue.pending_count() == 2
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -986,7 +986,7 @@ uv run pytest tests/ingestion/test_discovery.py -q
 
 Expected: fail because `discovery.py` does not exist.
 
-- [ ] **Step 3: Implement discovery orchestration**
+- [x] **Step 3: Implement discovery orchestration**
 
 Create `services/main/main_service/ingestion/discovery.py`:
 
@@ -1057,7 +1057,7 @@ def discover_panos_for_tiles(
 
 Adjust `PanoramaService.link_map_tile_to_panorama` to return `bool`: `True` when it creates a new row, `False` when the link already exists.
 
-- [ ] **Step 4: Run tests and verify green**
+- [x] **Step 4: Run tests and verify green**
 
 Run:
 
@@ -1068,7 +1068,7 @@ uv run pytest tests/ingestion/test_discovery.py tests/db/test_discovery_service.
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
