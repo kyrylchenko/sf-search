@@ -73,7 +73,6 @@ function drawOverlays(views) {
   context.lineWidth = Math.max(2, canvas.width / 900);
   views.forEach((view, index) => {
     const hue = (index * 37) % 360;
-    context.fillStyle = `hsla(${hue}, 95%, 55%, 0.28)`;
     context.strokeStyle = `hsla(${hue}, 95%, 65%, 0.9)`;
     view.polygons.forEach((polygon) => drawPolygon(polygon));
   });
@@ -87,7 +86,6 @@ function drawPolygon(polygon) {
     context.lineTo(point.x * canvas.width, point.y * canvas.height);
   });
   context.closePath();
-  context.fill();
   context.stroke();
 }
 
