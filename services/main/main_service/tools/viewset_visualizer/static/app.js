@@ -2,7 +2,8 @@ const canvas = document.getElementById("canvas");
 const context = canvas.getContext("2d");
 const select = document.getElementById("viewsetSelect");
 const summary = document.getElementById("summary");
-const viewsEl = document.getElementById("views");
+const viewMatrixEl = document.getElementById("viewMatrix");
+const selectedViewEl = document.getElementById("selectedView");
 const showAllBtn = document.getElementById("showAll");
 const hideAllBtn = document.getElementById("hideAll");
 
@@ -11,6 +12,7 @@ let panoImage = null;
 let currentViewset = null;
 let currentViewsetName = null;
 let visibleViewIds = new Set();
+let selectedViewId = null;
 
 async function loadState() {
   const response = await fetch("/api/state");
@@ -55,6 +57,7 @@ function draw() {
   if (currentViewsetName !== viewset.name) {
     currentViewsetName = viewset.name;
     visibleViewIds = defaultVisibleViews(viewset);
+    selectedViewId = viewset.views[0]?.id || null;
   }
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.drawImage(panoImage, 0, 0, canvas.width, canvas.height);
@@ -94,34 +97,75 @@ function drawPolygon(polygon) {
 
 function renderSidebar(viewset) {
   summary.textContent = `${viewset.description || "No description"} · ${state.pano.filename} · ${state.pano.width}x${state.pano.height}`;
-  viewsEl.innerHTML = "";
-  viewset.views.forEach((view) => {
-    const item = document.createElement("div");
-    item.className = "view";
-    const checked = visibleViewIds.has(view.id) ? "checked" : "";
-    item.innerHTML = `
-      <div class="viewHead">
-        <input type="checkbox" ${checked} aria-label="Toggle ${escapeHtml(view.id)}">
-        <strong>${escapeHtml(view.id)}</strong>
-        <button class="openView" type="button">Open</button>
-      </div>
-      <span>${escapeHtml(view.view_kind)}</span>
-      <span>heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · fov ${formatNumber(view.fov)}</span>
-      <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"}</span>
-    `;
-    const checkbox = item.querySelector("input");
-    const openButton = item.querySelector(".openView");
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) {
-        visibleViewIds.add(view.id);
+  renderMatrix(viewset);
+  renderSelectedView(viewset);
+}
+
+function renderMatrix(viewset) {
+  viewMatrixEl.innerHTML = "";
+  const pitches = [...new Set(viewset.views.map((view) => Number(view.pitch)))].sort((a, b) => b - a);
+  const headings = [...new Set(viewset.views.map((view) => Number(view.relative_heading)))].sort((a, b) => a - b);
+  pitches.forEach((pitch) => {
+    const row = document.createElement("div");
+    row.className = "matrixRow";
+    const label = document.createElement("div");
+    label.className = "rowLabel";
+    label.textContent = `${formatNumber(pitch)}°`;
+    const grid = document.createElement("div");
+    grid.className = "seatGrid";
+    headings.forEach((heading) => {
+      const view = findView(viewset, pitch, heading);
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "seat";
+      if (view) {
+        checkbox.title = `${view.id} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)}`;
+        checkbox.checked = visibleViewIds.has(view.id);
+        checkbox.addEventListener("change", () => {
+          selectedViewId = view.id;
+          if (checkbox.checked) {
+            visibleViewIds.add(view.id);
+          } else {
+            visibleViewIds.delete(view.id);
+          }
+          draw();
+        });
+        checkbox.addEventListener("mouseenter", () => {
+          selectedViewId = view.id;
+          renderSelectedView(viewset);
+        });
       } else {
-        visibleViewIds.delete(view.id);
+        checkbox.disabled = true;
+        checkbox.title = `No view at heading ${formatNumber(heading)}, pitch ${formatNumber(pitch)}`;
       }
-      draw();
+      grid.appendChild(checkbox);
     });
-    openButton.addEventListener("click", () => openViewImage(viewset, view));
-    viewsEl.appendChild(item);
+    row.appendChild(label);
+    row.appendChild(grid);
+    viewMatrixEl.appendChild(row);
   });
+}
+
+function renderSelectedView(viewset) {
+  const view = viewset.views.find((candidate) => candidate.id === selectedViewId) || viewset.views[0];
+  if (!view) {
+    selectedViewEl.textContent = "";
+    return;
+  }
+  selectedViewEl.innerHTML = `
+    <strong>${escapeHtml(view.id)}</strong>
+    <span>${escapeHtml(view.view_kind)}</span><br>
+    <span>heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · fov ${formatNumber(view.fov)}</span><br>
+    <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"}</span>
+    <button type="button">Open selected view</button>
+  `;
+  selectedViewEl.querySelector("button").addEventListener("click", () => openViewImage(viewset, view));
+}
+
+function findView(viewset, pitch, heading) {
+  return viewset.views.find(
+    (view) => Number(view.pitch) === pitch && Number(view.relative_heading) === heading
+  );
 }
 
 canvas.addEventListener("click", (event) => {

@@ -9,9 +9,12 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import numpy as np
-from py360convert import e2p
 from PIL import Image
 
+from main_service.processing.view_rendering import (
+    PerspectiveViewSpec,
+    render_perspective_view,
+)
 from main_service.tools.viewset_visualizer.geometry import view_to_api_dict
 from main_service.tools.viewset_visualizer.viewsets import Viewset, load_viewsets
 
@@ -151,12 +154,15 @@ def render_view_image(
 
     with Image.open(pano_path) as image:
         pano_array = np.asarray(image.convert("RGB"))
-    rendered = e2p(
+    rendered = render_perspective_view(
         pano_array,
-        view.fov,
-        _py360_heading(view.relative_heading),
-        view.pitch,
-        (view.output_height, view.output_width),
+        PerspectiveViewSpec(
+            relative_heading=view.relative_heading,
+            pitch=view.pitch,
+            fov=view.fov,
+            output_width=view.output_width,
+            output_height=view.output_height,
+        ),
     )
     output = BytesIO()
     Image.fromarray(rendered).save(output, format="JPEG", quality=92)
@@ -301,11 +307,6 @@ def _single_query_value(query: dict[str, list[str]], key: str) -> str:
     if not values or values[0] == "":
         raise ValueError(f"missing query parameter: {key}")
     return values[0]
-
-
-def _py360_heading(relative_heading: float) -> float:
-    heading = relative_heading % 360
-    return heading if heading <= 180 else heading - 360
 
 
 def _view_page_html(
