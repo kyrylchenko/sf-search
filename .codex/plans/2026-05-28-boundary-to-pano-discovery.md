@@ -101,7 +101,7 @@ Panoramas use:
 - Create: `services/main/main_service/ingestion/types.py`
 - Create: `services/main/tests/ingestion/test_types.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `services/main/tests/ingestion/test_types.py`:
 
@@ -143,7 +143,7 @@ def test_panorama_id_wraps_public_safe_example_value() -> None:
     assert pano_id.value == "example-pano-id"
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -154,7 +154,7 @@ uv run pytest tests/ingestion/test_types.py -q
 
 Expected: fail during import because `main_service.ingestion` does not exist.
 
-- [ ] **Step 3: Implement domain types**
+- [x] **Step 3: Implement domain types**
 
 Create `services/main/main_service/ingestion/__init__.py` as an empty file.
 
@@ -197,7 +197,7 @@ class PanoramaId:
     value: str
 ```
 
-- [ ] **Step 4: Run tests and verify green**
+- [x] **Step 4: Run tests and verify green**
 
 Run:
 
@@ -208,7 +208,7 @@ uv run pytest tests/ingestion/test_types.py -q
 
 Expected: `4 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
@@ -225,7 +225,7 @@ git commit -m "feat: add ingestion discovery types"
 - Create: `services/main/main_service/ingestion/boundary_loader.py`
 - Create: `services/main/tests/ingestion/test_boundary_loader.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `services/main/tests/ingestion/test_boundary_loader.py`:
 
@@ -259,7 +259,7 @@ def test_settings_exposes_discovery_defaults() -> None:
     assert settings.max_attempts == 5
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -270,7 +270,7 @@ uv run pytest tests/ingestion/test_boundary_loader.py -q
 
 Expected: fail because `main_service.ingestion.boundary_loader` does not exist.
 
-- [ ] **Step 3: Implement boundary loader**
+- [x] **Step 3: Implement boundary loader**
 
 Create `services/main/main_service/ingestion/boundary_loader.py`:
 
@@ -291,7 +291,7 @@ def load_map_tiles_from_geojson(path: Path, zoom: int) -> list[MapTileKey]:
     ]
 ```
 
-- [ ] **Step 4: Add config fields**
+- [x] **Step 4: Add config fields**
 
 In `services/main/main_service/config.py`, add:
 
@@ -301,7 +301,7 @@ In `services/main/main_service/config.py`, add:
     max_attempts: int = Field(default=5)
 ```
 
-- [ ] **Step 5: Run tests and verify green**
+- [x] **Step 5: Run tests and verify green**
 
 Run:
 
@@ -312,7 +312,7 @@ uv run pytest tests/ingestion/test_boundary_loader.py tests/test_geo.py tests/te
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Run:
 
