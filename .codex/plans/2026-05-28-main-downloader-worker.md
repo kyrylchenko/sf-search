@@ -221,7 +221,7 @@ git commit -m "feat: add streetview downloader client"
 
 ## Task 7: Add Downloader Runner Core
 
-- [ ] **Step 1: Write runner tests with fakes**
+- [x] **Step 1: Write runner tests with fakes**
 
 Create `services/main/tests/downloader/test_runner.py` covering:
 
@@ -233,13 +233,13 @@ Create `services/main/tests/downloader/test_runner.py` covering:
 - failed download records DB failure and acks;
 - concurrency limit is honored with `pano_download_concurrency`.
 
-- [ ] **Step 2: Implement runner**
+- [x] **Step 2: Implement runner**
 
 Create `services/main/main_service/downloader/runner.py`.
 
 Keep queue-consuming code behind protocols so tests do not require NATS.
 
-- [ ] **Step 3: Run green and commit**
+- [x] **Step 3: Run green and commit**
 
 ```bash
 uv run pytest tests/downloader/test_runner.py -q
