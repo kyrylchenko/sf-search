@@ -1,0 +1,52 @@
+# Viewset Visualizer Implementation Plan
+
+## Goal
+
+Add a local Python/browser visualizer for comparing JSON viewset presets on top
+of an actual downloaded equirectangular panorama.
+
+## Files
+
+- Create `services/main/main_service/tools/__init__.py`
+- Create `services/main/main_service/tools/viewset_visualizer/__init__.py`
+- Create `services/main/main_service/tools/viewset_visualizer/geometry.py`
+- Create `services/main/main_service/tools/viewset_visualizer/viewsets.py`
+- Create `services/main/main_service/tools/viewset_visualizer/server.py`
+- Create `services/main/main_service/tools/viewset_visualizer/__main__.py`
+- Create static UI files under
+  `services/main/main_service/tools/viewset_visualizer/static/`
+- Create tests under `services/main/tests/tools/viewset_visualizer/`
+- Add sample public-safe viewsets under `docs/data/viewsets/`
+- Update `README.md` or `services/main/README.md`
+
+## Steps
+
+- [x] Write geometry tests for heading/pitch/fov validation and seam wrapping.
+- [x] Implement geometry helpers.
+- [x] Write viewset parsing tests.
+- [x] Implement JSON loader and validation.
+- [x] Write server API tests.
+- [x] Implement local HTTP server API and static serving.
+- [x] Add browser UI with canvas overlays and viewset selector.
+- [x] Add sample viewset JSON.
+- [x] Document run command.
+- [x] Run tests and smoke check server startup.
+- [x] Commit changes.
+
+## Verification Commands
+
+```bash
+cd services/main
+uv run pytest tests/tools/viewset_visualizer -q
+uv run pytest -q
+python3 -m xml.etree.ElementTree ../docs/diagrams/current-ingestion-flow.svg
+```
+
+Manual smoke command:
+
+```bash
+cd services/main
+uv run python -m main_service.tools.viewset_visualizer \
+  --pano .local/panoramas/example.jpg \
+  --viewsets ../../docs/data/viewsets
+```

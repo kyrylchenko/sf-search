@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Viewset Visualizer</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <aside class="sidebar">
+        <h1>Viewsets</h1>
+        <label>
+          Preset
+          <select id="viewsetSelect"></select>
+        </label>
+        <div id="summary" class="summary"></div>
+        <div id="views" class="views"></div>
+      </aside>
+      <section class="stage">
+        <div class="canvasWrap">
+          <canvas id="canvas"></canvas>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #111827;
+  color: #e5e7eb;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid #374151;
+  background: #0f172a;
+  padding: 18px;
+  overflow: auto;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 18px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+select {
+  width: 100%;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #f8fafc;
+  padding: 9px 10px;
+}
+
+.summary {
+  margin: 16px 0;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.views {
+  display: grid;
+  gap: 8px;
+}
+
+.view {
+  border: 1px solid #334155;
+  border-radius: 7px;
+  padding: 10px;
+  background: #111827;
+}
+
+.view strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #f8fafc;
+  font-size: 13px;
+}
+
+.view span {
+  color: #94a3b8;
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.stage {
+  min-width: 0;
+  padding: 18px;
+  overflow: auto;
+}
+
+.canvasWrap {
+  width: min(100%, 1600px);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #020617;
+  border: 1px solid #334155;
+}
