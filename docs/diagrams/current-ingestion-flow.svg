@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1180" viewBox="0 0 1280 1180" role="img" aria-labelledby="title desc">
+  <title id="title">Current SF Search Ingestion Flow</title>
+  <desc id="desc">Flowchart from coordinates or city boundary to coverage tiles, pano discovery, Postgres state, NATS download queue, full-resolution panorama download, and processing queue output.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#253042"/>
+    </marker>
+    <style>
+      .bg { fill: #f7f9fc; }
+      .title { fill: #162033; font: 700 28px Arial, sans-serif; }
+      .subtitle { fill: #526174; font: 400 15px Arial, sans-serif; }
+      .box { fill: #ffffff; stroke: #9fb0c5; stroke-width: 2; rx: 8; }
+      .db { fill: #eef7ff; stroke: #4f8ecf; stroke-width: 2; rx: 8; }
+      .queue { fill: #fff7e8; stroke: #d99b35; stroke-width: 2; rx: 8; }
+      .disk { fill: #effaf1; stroke: #4c9b60; stroke-width: 2; rx: 8; }
+      .decision { fill: #ffffff; stroke: #7b8797; stroke-width: 2; }
+      .future { fill: #f1efff; stroke: #8470c9; stroke-width: 2; rx: 8; stroke-dasharray: 8 5; }
+      .label { fill: #162033; font: 700 15px Arial, sans-serif; }
+      .small { fill: #526174; font: 400 13px Arial, sans-serif; }
+      .edge { stroke: #253042; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .muted-edge { stroke: #6d7b8f; stroke-width: 2; fill: none; marker-end: url(#arrow); stroke-dasharray: 6 5; }
+      .note { fill: #526174; font: 400 12px Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1280" height="1180"/>
+  <text class="title" x="60" y="54">Current implemented ingestion and download flow</text>
+  <text class="subtitle" x="60" y="82">Coordinates/boundary to durable pano records, full-resolution local images, and processing queue jobs.</text>
+
+  <rect class="box" x="60" y="130" width="250" height="82"/>
+  <text class="label" x="85" y="165">Input coordinates</text>
+  <text class="small" x="85" y="188">or city boundary GeoJSON</text>
+
+  <rect class="box" x="390" y="130" width="250" height="82"/>
+  <text class="label" x="415" y="165">Generate map tiles</text>
+  <text class="small" x="415" y="188">current zoom: 17</text>
+
+  <rect class="box" x="720" y="130" width="250" height="82"/>
+  <text class="label" x="745" y="165">StreetLevel coverage</text>
+  <text class="small" x="745" y="188">get_coverage_tile(x, y)</text>
+
+  <rect class="box" x="720" y="270" width="250" height="92"/>
+  <text class="label" x="745" y="302">Coverage objects</text>
+  <text class="small" x="745" y="326">pano id + lat/lon</text>
+  <text class="small" x="745" y="347">partial metadata only</text>
+
+  <rect class="db" x="390" y="430" width="250" height="98"/>
+  <text class="label" x="415" y="462">Postgres map tiles</text>
+  <text class="small" x="415" y="486">map_tile_table</text>
+  <text class="small" x="415" y="507">discovery_status</text>
+
+  <rect class="db" x="720" y="430" width="250" height="120"/>
+  <text class="label" x="745" y="462">Postgres panoramas</text>
+  <text class="small" x="745" y="486">panorama_table</text>
+  <text class="small" x="745" y="507">orig_id, lat/lon</text>
+  <text class="small" x="745" y="528">download_status</text>
+
+  <rect class="db" x="1030" y="430" width="190" height="120"/>
+  <text class="label" x="1052" y="462">Tile to pano links</text>
+  <text class="small" x="1052" y="486">map_tile_panorama</text>
+  <text class="small" x="1052" y="507">deduped link table</text>
+
+  <rect class="queue" x="720" y="620" width="250" height="92"/>
+  <text class="label" x="745" y="652">NATS download queue</text>
+  <text class="small" x="745" y="676">PANO_DOWNLOADS</text>
+  <text class="small" x="745" y="697">pano.download.requested</text>
+
+  <polygon class="decision" points="845,770 970,835 845,900 720,835"/>
+  <text class="label" x="785" y="829">Already</text>
+  <text class="label" x="780" y="850">downloaded?</text>
+
+  <rect class="box" x="1030" y="794" width="190" height="82"/>
+  <text class="label" x="1052" y="827">Ack + skip</text>
+  <text class="small" x="1052" y="850">duplicate job</text>
+
+  <rect class="box" x="390" y="794" width="250" height="82"/>
+  <text class="label" x="415" y="827">Claim pano</text>
+  <text class="small" x="415" y="850">mark downloading in DB</text>
+
+  <rect class="box" x="60" y="794" width="250" height="100"/>
+  <text class="label" x="85" y="827">Resolve pano</text>
+  <text class="small" x="85" y="850">by current Google pano ID</text>
+  <text class="small" x="85" y="872">future stale fallback can use lat/lon</text>
+
+  <rect class="box" x="60" y="960" width="250" height="92"/>
+  <text class="label" x="85" y="992">Download panorama</text>
+  <text class="small" x="85" y="1016">StreetLevel zoom=5</text>
+  <text class="small" x="85" y="1037">example: 16384 x 8192</text>
+
+  <rect class="disk" x="390" y="960" width="250" height="92"/>
+  <text class="label" x="415" y="992">Local image file</text>
+  <text class="small" x="415" y="1016">.local/panoramas/*.jpg</text>
+  <text class="small" x="415" y="1037">ignored by git</text>
+
+  <rect class="db" x="720" y="960" width="250" height="116"/>
+  <text class="label" x="745" y="992">Persist download result</text>
+  <text class="small" x="745" y="1016">image_path, image_hash</text>
+  <text class="small" x="745" y="1037">downloaded_at</text>
+  <text class="small" x="745" y="1058">JSON-safe metadata</text>
+
+  <rect class="queue" x="1030" y="972" width="190" height="92"/>
+  <text class="label" x="1052" y="1004">NATS processing</text>
+  <text class="small" x="1052" y="1028">PANO_PROCESSING</text>
+  <text class="small" x="1052" y="1049">pano.processing.requested</text>
+
+  <rect class="future" x="1030" y="1094" width="190" height="58"/>
+  <text class="label" x="1052" y="1127">Next milestone</text>
+  <text class="small" x="1052" y="1148">split pano into views</text>
+
+  <path class="edge" d="M310 171 L390 171"/>
+  <path class="edge" d="M640 171 L720 171"/>
+  <path class="edge" d="M845 212 L845 270"/>
+  <path class="edge" d="M800 362 L610 430"/>
+  <path class="edge" d="M845 362 L845 430"/>
+  <path class="edge" d="M915 362 L1085 430"/>
+  <path class="edge" d="M845 550 L845 620"/>
+  <path class="edge" d="M845 712 L845 770"/>
+  <path class="edge" d="M970 835 L1030 835"/>
+  <text class="note" x="981" y="820">yes</text>
+  <path class="edge" d="M720 835 L640 835"/>
+  <text class="note" x="660" y="820">no</text>
+  <path class="edge" d="M390 835 L310 835"/>
+  <path class="edge" d="M185 894 L185 960"/>
+  <path class="edge" d="M310 1006 L390 1006"/>
+  <path class="edge" d="M640 1006 L720 1006"/>
+  <path class="edge" d="M970 1018 L1030 1018"/>
+  <path class="muted-edge" d="M1125 1064 L1125 1094"/>
+
+  <path class="muted-edge" d="M720 487 C650 580 620 670 640 794"/>
+  <text class="note" x="586" y="650">DB dedupe gate</text>
+
+  <path class="muted-edge" d="M1060 550 C1085 630 1085 720 1045 794"/>
+  <text class="note" x="1084" y="670">duplicate jobs are OK</text>
+
+  <text class="note" x="60" y="1134">Runtime-verified: one real pano downloaded at 16384x8192, metadata stored in Postgres, and one processing job published.</text>
+</svg>
