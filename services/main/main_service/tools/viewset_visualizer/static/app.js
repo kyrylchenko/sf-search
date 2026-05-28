@@ -103,7 +103,7 @@ canvas.addEventListener("click", (event) => {
 
 function openViewImage(viewset, view) {
   const params = new URLSearchParams({ viewset: viewset.name, view: view.id });
-  window.open(`/api/view-image?${params.toString()}`, "_blank", "noopener");
+  window.open(`/view?${params.toString()}`, "_blank", "noopener");
 }
 
 function pointInPolygon(x, y, polygon) {

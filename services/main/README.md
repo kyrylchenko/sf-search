@@ -30,3 +30,21 @@ separate pano-projection implementation.
 
 Click a view in the sidebar, or click an overlay on the pano, to open the
 server-rendered 2D perspective view in a new browser tab.
+
+That view page can toggle between the local rendered perspective image and a
+Google Maps Embed Street View iframe. Set the API key only in your local
+environment:
+
+```bash
+export GOOGLE_MAPS_EMBED_API_KEY=YOUR_KEY
+```
+
+Google expects north-based headings. Viewsets store pano-relative headings; the
+visualizer derives Google heading as:
+
+```text
+google_heading = (north_offset + relative_heading) % 360
+```
+
+By default `north_offset` is read from GPano XMP `PoseHeadingDegrees` in the
+downloaded panorama. Override it with `--north-offset` when needed.
