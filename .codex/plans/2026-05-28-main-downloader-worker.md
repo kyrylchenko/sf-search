@@ -88,11 +88,11 @@ git commit -m "feat: add downloader configuration"
 
 ## Task 2: Extend Download Persistence Schema
 
-- [ ] **Step 1: Write failing model tests**
+- [x] **Step 1: Write failing model tests**
 
 Extend `services/main/tests/db/test_discovery_models.py` to assert `image_path`, `metadata_json`, and `downloaded_at` exist on `Panorama`.
 
-- [ ] **Step 2: Implement columns**
+- [x] **Step 2: Implement columns**
 
 In `Panorama` add:
 
@@ -105,7 +105,7 @@ metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=T
 downloaded_at: Mapped[datetime | None] = mapped_column(nullable=True)
 ```
 
-- [ ] **Step 3: Run green and commit**
+- [x] **Step 3: Run green and commit**
 
 ```bash
 uv run pytest tests/db/test_discovery_models.py tests/test_models.py -q

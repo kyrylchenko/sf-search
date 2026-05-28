@@ -43,6 +43,9 @@ def test_panorama_has_discovery_and_later_stage_status_columns() -> None:
     assert "discovered_at_tile_count" in columns
     assert "attempt_count" in columns
     assert "last_error" in columns
+    assert "image_path" in columns
+    assert "metadata_json" in columns
+    assert "downloaded_at" in columns
 
 
 def test_metadata_can_create_sqlite_schema() -> None:
