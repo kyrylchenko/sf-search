@@ -2,7 +2,7 @@ from sqlalchemy import URL, create_engine
 
 from main_service.config import CONFIG
 from main_service.db.models.base import Base
-from main_service.db.models import embedding, panorama, tile
+from main_service.db.models import embedding, map_tile, map_tile_panorama, panorama, tile
 
 
 def initialize_engine():

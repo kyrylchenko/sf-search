@@ -332,7 +332,7 @@ git commit -m "feat: load discovery tiles from boundary"
 - Modify: `services/main/main_service/db/initialize_engine.py`
 - Create: `services/main/tests/db/test_discovery_models.py`
 
-- [ ] **Step 1: Write failing metadata tests**
+- [x] **Step 1: Write failing metadata tests**
 
 Create `services/main/tests/db/test_discovery_models.py`:
 
@@ -393,7 +393,7 @@ def test_metadata_can_create_sqlite_schema() -> None:
     assert inspect(engine).has_table("map_tile_panorama_table") is True
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -404,7 +404,7 @@ uv run pytest tests/db/test_discovery_models.py -q
 
 Expected: fail because `map_tile` models do not exist.
 
-- [ ] **Step 3: Implement `MapTile`**
+- [x] **Step 3: Implement `MapTile`**
 
 Create `services/main/main_service/db/models/map_tile.py`:
 
@@ -432,7 +432,7 @@ class MapTile(Base):
     last_error: Mapped[str | None]
 ```
 
-- [ ] **Step 4: Implement `MapTilePanorama`**
+- [x] **Step 4: Implement `MapTilePanorama`**
 
 Create `services/main/main_service/db/models/map_tile_panorama.py`:
 
@@ -458,7 +458,7 @@ class MapTilePanorama(Base):
     panorama_id: Mapped[int] = mapped_column(ForeignKey("panorama_table.id"))
 ```
 
-- [ ] **Step 5: Extend `Panorama`**
+- [x] **Step 5: Extend `Panorama`**
 
 In `services/main/main_service/db/models/panorama.py`, add:
 
@@ -476,7 +476,7 @@ Add fields:
     last_error: Mapped[str | None]
 ```
 
-- [ ] **Step 6: Import new models**
+- [x] **Step 6: Import new models**
 
 Update `services/main/main_service/db/models/__init__.py`:
 
@@ -498,7 +498,7 @@ Update `services/main/main_service/db/initialize_engine.py` import:
 from main_service.db.models import embedding, map_tile, map_tile_panorama, panorama, tile
 ```
 
-- [ ] **Step 7: Run tests and verify green**
+- [x] **Step 7: Run tests and verify green**
 
 Run:
 
@@ -509,7 +509,7 @@ uv run pytest tests/db/test_discovery_models.py tests/test_models.py -q
 
 Expected: all tests pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 Run:
 
