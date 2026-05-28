@@ -525,7 +525,7 @@ git commit -m "feat: add coverage discovery schema"
 - Modify: `services/main/main_service/db/services/panorama_service.py`
 - Create: `services/main/tests/db/test_discovery_service.py`
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 Create `services/main/tests/db/test_discovery_service.py`:
 
@@ -601,7 +601,7 @@ def test_mark_panorama_download_queued_updates_status() -> None:
     assert updated.download_status == DownloadStatus.QUEUED.value
 ```
 
-- [ ] **Step 2: Run tests and verify red**
+- [x] **Step 2: Run tests and verify red**
 
 Run:
 
@@ -612,7 +612,7 @@ uv run pytest tests/db/test_discovery_service.py -q
 
 Expected: fail because the new service methods do not exist.
 
-- [ ] **Step 3: Implement service methods**
+- [x] **Step 3: Implement service methods**
 
 Add methods to `services/main/main_service/db/services/panorama_service.py`:
 
@@ -643,7 +643,7 @@ Implementation requirements:
 - `upsert_discovered_panorama` must create panoramas with `download_status=DownloadStatus.PENDING.value`.
 - `mark_map_tile_discovery_failed` must increment `attempt_count` by one and set `last_error`.
 
-- [ ] **Step 6: Add queued status transition**
+- [x] **Step 6: Add queued status transition**
 
 Add a service method:
 
@@ -654,7 +654,7 @@ Add a service method:
 
 It must set `download_status=DownloadStatus.QUEUED.value` and return a detached `Panorama`.
 
-- [ ] **Step 7: Run tests and verify green**
+- [x] **Step 7: Run tests and verify green**
 
 Run:
 
@@ -665,7 +665,7 @@ uv run pytest tests/db/test_discovery_service.py -q
 
 Expected: `5 passed`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 Run:
 
