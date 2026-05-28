@@ -80,13 +80,16 @@ function drawOverlays(views) {
 
 function drawPolygon(polygon) {
   if (polygon.length === 0) return;
-  context.beginPath();
-  context.moveTo(polygon[0].x * canvas.width, polygon[0].y * canvas.height);
-  polygon.slice(1).forEach((point) => {
-    context.lineTo(point.x * canvas.width, point.y * canvas.height);
+  polygon.forEach((point, index) => {
+    const next = polygon[(index + 1) % polygon.length];
+    if (Math.abs(next.x - point.x) > 0.5) {
+      return;
+    }
+    context.beginPath();
+    context.moveTo(point.x * canvas.width, point.y * canvas.height);
+    context.lineTo(next.x * canvas.width, next.y * canvas.height);
+    context.stroke();
   });
-  context.closePath();
-  context.stroke();
 }
 
 function renderSidebar(viewset) {

@@ -46,7 +46,7 @@ def overlay_polygons_for_view(
     coor_x, coor_y = py360_utils.uv2coor(u, v, h=1, w=1)
     x_values = np.asarray(coor_x, dtype=np.float64).reshape(-1) + 0.5
     y_values = np.asarray(coor_y, dtype=np.float64).reshape(-1) + 0.5
-    x_values = _unwrap_x_values(x_values, center=normalize_heading(view.relative_heading) / 360)
+    x_values = _unwrap_x_values(x_values, center=_view_center_x(view.relative_heading))
 
     polygon = [
         {"x": float(x), "y": float(np.clip(y, 0, 1))}
@@ -104,6 +104,10 @@ def _vertical_fov_radians(
 def _py360_u_degrees(relative_heading: float) -> float:
     normalized = normalize_heading(relative_heading)
     return normalized if normalized <= 180 else normalized - 360
+
+
+def _view_center_x(relative_heading: float) -> float:
+    return (-_py360_u_degrees(relative_heading) / 360 + 0.5) % 1
 
 
 def _unwrap_x_values(x_values: np.ndarray, *, center: float) -> np.ndarray:

@@ -45,11 +45,28 @@ def test_overlay_polygons_are_sampled_curved_boundaries_not_four_point_boxes() -
     assert len({round(point["y"], 6) for point in polygons[0][:17]}) > 2
 
 
+def test_center_heading_view_does_not_cross_pano_seam() -> None:
+    polygons = overlay_polygons_for_view(
+        ViewSpec(
+            id="center",
+            relative_heading=0,
+            pitch=0,
+            fov=95,
+            output_width=512,
+            output_height=512,
+        ),
+        edge_samples=9,
+    )
+
+    assert len(polygons) == 1
+    assert all(0 <= point["x"] <= 1 for point in polygons[0])
+
+
 def test_overlay_polygons_duplicate_shifted_copy_when_crossing_pano_seam() -> None:
     polygons = overlay_polygons_for_view(
         ViewSpec(
             id="seam-crossing",
-            relative_heading=358,
+            relative_heading=180,
             pitch=0,
             fov=45,
             output_width=512,
@@ -59,5 +76,5 @@ def test_overlay_polygons_duplicate_shifted_copy_when_crossing_pano_seam() -> No
     )
 
     assert len(polygons) == 2
-    assert any(point["x"] > 1 for point in polygons[0])
-    assert any(point["x"] < 0 for point in polygons[1])
+    assert any(point["x"] < 0 for point in polygons[0])
+    assert any(point["x"] > 1 for point in polygons[1])
