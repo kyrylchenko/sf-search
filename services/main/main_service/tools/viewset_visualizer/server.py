@@ -20,6 +20,7 @@ from main_service.tools.viewset_visualizer.viewsets import Viewset, load_viewset
 
 Image.MAX_IMAGE_PIXELS = None
 _POSE_HEADING_PATTERN = re.compile(rb'GPano:PoseHeadingDegrees="([^"]+)"')
+_SUPPORTED_PANO_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def create_app_payload(
@@ -27,8 +28,13 @@ def create_app_payload(
     viewsets_dir: Path,
     *,
     edge_samples: int = 49,
+    pano_paths: list[Path] | None = None,
+    pano_index: int = 0,
 ) -> dict[str, object]:
-    with Image.open(pano_path) as image:
+    gallery_paths = pano_paths or [pano_path]
+    selected_index = _normalize_pano_index(pano_index, gallery_paths)
+    selected_pano_path = gallery_paths[selected_index]
+    with Image.open(selected_pano_path) as image:
         width, height = image.size
 
     viewsets = []
@@ -47,17 +53,22 @@ def create_app_payload(
 
     return {
         "pano": {
-            "filename": pano_path.name,
+            "filename": selected_pano_path.name,
             "width": width,
             "height": height,
-            "url": "/pano",
+            "url": "/pano?" + urlencode({"pano": selected_index}),
+            "index": selected_index,
+            "count": len(gallery_paths),
+            "previous_index": (selected_index - 1) % len(gallery_paths),
+            "next_index": (selected_index + 1) % len(gallery_paths),
+            "filenames": [path.name for path in gallery_paths],
         },
         "viewsets": viewsets,
     }
 
 
 class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
-    pano_path: Path
+    pano_paths: list[Path]
     viewsets_dir: Path
     edge_samples: int
     google_api_key: str | None
@@ -72,22 +83,26 @@ class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
         if parsed.path == "/api/state":
+            pano_index = self._query_pano_index(query)
             self._send_json(
                 create_app_payload(
-                    self.pano_path,
+                    self.pano_paths[pano_index],
                     self.viewsets_dir,
                     edge_samples=self.edge_samples,
+                    pano_paths=self.pano_paths,
+                    pano_index=pano_index,
                 )
             )
             return
 
         if parsed.path == "/view":
-            query = parse_qs(parsed.query)
+            pano_index = self._query_pano_index(query)
             viewset_name = _single_query_value(query, "viewset")
             view_id = _single_query_value(query, "view")
             body = render_view_page(
-                self.pano_path,
+                self.pano_paths[pano_index],
                 self.viewsets_dir,
                 viewset_name=viewset_name,
                 view_id=view_id,
@@ -96,16 +111,17 @@ class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
                 pano_id=self.pano_id,
                 latitude=self.latitude,
                 longitude=self.longitude,
+                pano_index=pano_index,
             )
             self._send_bytes(body, "text/html; charset=utf-8")
             return
 
         if parsed.path == "/api/view-image":
-            query = parse_qs(parsed.query)
+            pano_index = self._query_pano_index(query)
             viewset_name = _single_query_value(query, "viewset")
             view_id = _single_query_value(query, "view")
             body, content_type = render_view_image(
-                self.pano_path,
+                self.pano_paths[pano_index],
                 self.viewsets_dir,
                 viewset_name=viewset_name,
                 view_id=view_id,
@@ -114,10 +130,17 @@ class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
             return
 
         if parsed.path == "/pano":
-            self._send_file(self.pano_path)
+            self._send_file(self.pano_paths[self._query_pano_index(query)])
             return
 
         super().do_GET()
+
+    def _query_pano_index(self, query: dict[str, list[str]]) -> int:
+        raw_index = query.get("pano", ["0"])[0]
+        try:
+            return _normalize_pano_index(int(raw_index), self.pano_paths)
+        except ValueError as exc:
+            raise ValueError(f"invalid pano index: {raw_index}") from exc
 
     def _send_json(self, payload: dict[str, object]) -> None:
         body = json.dumps(payload).encode("utf-8")
@@ -180,6 +203,7 @@ def render_view_page(
     pano_id: str | None,
     latitude: float | None,
     longitude: float | None,
+    pano_index: int | None = None,
 ) -> bytes:
     viewset = _find_viewset(load_viewsets(viewsets_dir), viewset_name)
     view = next((candidate for candidate in viewset.views if candidate.id == view_id), None)
@@ -203,9 +227,10 @@ def render_view_page(
             fov=view.fov,
         )
 
-    local_url = "/api/view-image?" + urlencode(
-        {"viewset": viewset.name, "view": view.id}
-    )
+    local_params: dict[str, str | int] = {"viewset": viewset.name, "view": view.id}
+    if pano_index is not None:
+        local_params["pano"] = pano_index
+    local_url = "/api/view-image?" + urlencode(local_params)
     return _view_page_html(
         view_id=view.id,
         local_url=local_url,
@@ -275,11 +300,12 @@ def run_server(
     longitude: float | None = None,
 ) -> None:
     static_dir = Path(__file__).parent / "static"
+    pano_paths = resolve_pano_paths(pano_path)
 
     class ConfiguredHandler(ViewsetVisualizerHandler):
         pass
 
-    ConfiguredHandler.pano_path = pano_path
+    ConfiguredHandler.pano_paths = pano_paths
     ConfiguredHandler.viewsets_dir = viewsets_dir
     ConfiguredHandler.edge_samples = edge_samples
     ConfiguredHandler.google_api_key = google_api_key or os.getenv(google_api_key_env)
@@ -290,9 +316,29 @@ def run_server(
     handler = partial(ConfiguredHandler, directory=str(static_dir))
     server = ThreadingHTTPServer((host, port), handler)
     print(f"Viewset visualizer: http://{host}:{port}")
-    print(f"Pano: {pano_path}")
+    print(f"Panos: {len(pano_paths)} from {pano_path}")
     print(f"Viewsets: {viewsets_dir}")
     server.serve_forever()
+
+
+def resolve_pano_paths(pano_path: Path) -> list[Path]:
+    if pano_path.is_dir():
+        paths = sorted(
+            path
+            for path in pano_path.iterdir()
+            if path.is_file() and path.suffix.lower() in _SUPPORTED_PANO_SUFFIXES
+        )
+    else:
+        paths = [pano_path]
+    if not paths:
+        raise ValueError(f"no pano images found: {pano_path}")
+    return paths
+
+
+def _normalize_pano_index(index: int, pano_paths: list[Path]) -> int:
+    if not pano_paths:
+        raise ValueError("no pano images configured")
+    return index % len(pano_paths)
 
 
 def _find_viewset(viewsets: list[Viewset], name: str) -> Viewset:

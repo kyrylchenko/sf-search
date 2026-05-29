@@ -7,6 +7,7 @@ from main_service.tools.viewset_visualizer.server import (
     build_google_embed_url,
     create_app_payload,
     parse_gpano_pose_heading,
+    resolve_pano_paths,
     render_view_page,
     render_view_image,
 )
@@ -44,6 +45,41 @@ def test_create_app_payload_returns_image_metadata_and_python_polygons(
     view = payload["viewsets"][0]["views"][0]
     assert view["relative_heading"] == 0
     assert len(view["polygons"][0]) == 32
+
+
+def test_create_app_payload_can_select_from_pano_gallery(tmp_path: Path) -> None:
+    pano_a = tmp_path / "a.jpg"
+    pano_b = tmp_path / "b.jpg"
+    Image.new("RGB", (1024, 512), color="white").save(pano_a)
+    Image.new("RGB", (2048, 1024), color="white").save(pano_b)
+    viewsets_dir = tmp_path / "viewsets"
+    viewsets_dir.mkdir()
+    (viewsets_dir / "candidate.json").write_text(
+        json.dumps(
+            {
+                "name": "candidate",
+                "views": [
+                    {"id": "center", "relative_heading": 0, "pitch": 0, "fov": 60}
+                ],
+            }
+        )
+    )
+
+    payload = create_app_payload(
+        pano_a,
+        viewsets_dir,
+        pano_paths=[pano_a, pano_b],
+        pano_index=1,
+    )
+
+    assert payload["pano"]["filename"] == "b.jpg"
+    assert payload["pano"]["width"] == 2048
+    assert payload["pano"]["height"] == 1024
+    assert payload["pano"]["index"] == 1
+    assert payload["pano"]["count"] == 2
+    assert payload["pano"]["previous_index"] == 0
+    assert payload["pano"]["next_index"] == 0
+    assert payload["pano"]["url"] == "/pano?pano=1"
 
 
 def test_render_view_image_returns_perspective_jpeg_bytes(tmp_path: Path) -> None:
@@ -146,3 +182,43 @@ def test_render_view_page_contains_local_and_google_toggle(tmp_path: Path) -> No
     assert "Google embed" in html
     assert "/api/view-image?viewset=candidate&amp;view=center" in html
     assert "heading=13.5" in html
+
+
+def test_render_view_page_pins_local_image_to_pano_index(tmp_path: Path) -> None:
+    pano_path = tmp_path / "pano-b.jpg"
+    Image.new("RGB", (1024, 512), color="white").save(pano_path)
+    viewsets_dir = tmp_path / "viewsets"
+    viewsets_dir.mkdir()
+    (viewsets_dir / "candidate.json").write_text(
+        json.dumps(
+            {
+                "name": "candidate",
+                "views": [
+                    {"id": "center", "relative_heading": 0, "pitch": 0, "fov": 60}
+                ],
+            }
+        )
+    )
+
+    html = render_view_page(
+        pano_path,
+        viewsets_dir,
+        viewset_name="candidate",
+        view_id="center",
+        google_api_key=None,
+        north_offset=None,
+        pano_id=None,
+        latitude=None,
+        longitude=None,
+        pano_index=3,
+    ).decode("utf-8")
+
+    assert "/api/view-image?viewset=candidate&amp;view=center&amp;pano=3" in html
+
+
+def test_resolve_pano_paths_returns_sorted_supported_images(tmp_path: Path) -> None:
+    (tmp_path / "b.jpg").write_bytes(b"fake")
+    (tmp_path / "a.webp").write_bytes(b"fake")
+    (tmp_path / "ignore.txt").write_text("nope")
+
+    assert [path.name for path in resolve_pano_paths(tmp_path)] == ["a.webp", "b.jpg"]

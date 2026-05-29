@@ -11,7 +11,7 @@ of the equirectangular pano each view covers.
 
 - Provide a local Python tool under `services/main`.
 - Accept:
-  - path to a downloaded panorama image,
+  - path to a downloaded panorama image or a directory of panorama images,
   - path to a folder of `.json` viewset definitions,
   - optional host/port.
 - Serve a small browser UI.
@@ -33,6 +33,10 @@ of the equirectangular pano each view covers.
   direct "Open selected view" button, or a fuzzy search box whose results can be
   clicked to open a matching view. Pressing Enter in the search should open the
   top match.
+- When `--pano` points to a directory, the UI must expose Previous/Next pano
+  controls. The selected pano index must be included in `/api/state`, `/pano`,
+  `/view`, and `/api/view-image` links so the canvas image and opened rendered
+  views always refer to the same pano.
 - View specs must be compatible with later Google Maps Embed usage:
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;

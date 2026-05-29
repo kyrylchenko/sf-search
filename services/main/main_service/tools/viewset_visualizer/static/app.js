@@ -6,6 +6,9 @@ const viewMatrixEl = document.getElementById("viewMatrix");
 const selectedViewEl = document.getElementById("selectedView");
 const showAllBtn = document.getElementById("showAll");
 const hideAllBtn = document.getElementById("hideAll");
+const prevPanoBtn = document.getElementById("prevPano");
+const nextPanoBtn = document.getElementById("nextPano");
+const panoLabelEl = document.getElementById("panoLabel");
 
 let state = null;
 let panoImage = null;
@@ -13,31 +16,36 @@ let currentViewset = null;
 let currentViewsetName = null;
 let visibleViewIds = new Set();
 let selectedViewId = null;
+let controlsInitialized = false;
 
-async function loadState() {
-  const response = await fetch("/api/state");
+async function loadState(panoIndex = 0) {
+  const response = await fetch(`/api/state?pano=${encodeURIComponent(panoIndex)}`);
   state = await response.json();
   panoImage = new Image();
   panoImage.onload = () => {
     canvas.width = state.pano.width;
     canvas.height = state.pano.height;
-    populateViewsets();
+    if (!controlsInitialized) {
+      initializeControls();
+      controlsInitialized = true;
+    }
+    syncViewsetOptions();
+    syncPanoControls();
     draw();
   };
   panoImage.src = state.pano.url;
 }
 
-function populateViewsets() {
-  select.innerHTML = "";
-  state.viewsets.forEach((viewset, index) => {
-    const option = document.createElement("option");
-    option.value = String(index);
-    option.textContent = `${viewset.name} (${viewset.views.length})`;
-    select.appendChild(option);
-  });
+function initializeControls() {
   select.addEventListener("change", () => {
     currentViewsetName = null;
     draw();
+  });
+  prevPanoBtn.addEventListener("click", () => {
+    loadState(state.pano.previous_index);
+  });
+  nextPanoBtn.addEventListener("click", () => {
+    loadState(state.pano.next_index);
   });
   showAllBtn.addEventListener("click", () => {
     if (!currentViewset) return;
@@ -48,6 +56,28 @@ function populateViewsets() {
     visibleViewIds = new Set();
     draw();
   });
+}
+
+function syncViewsetOptions() {
+  const selectedValue = select.value;
+  select.innerHTML = "";
+  state.viewsets.forEach((viewset, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = `${viewset.name} (${viewset.views.length})`;
+    select.appendChild(option);
+  });
+  if (selectedValue && Number(selectedValue) < state.viewsets.length) {
+    select.value = selectedValue;
+  }
+}
+
+function syncPanoControls() {
+  const count = state.pano.count || 1;
+  const index = state.pano.index || 0;
+  prevPanoBtn.disabled = count <= 1;
+  nextPanoBtn.disabled = count <= 1;
+  panoLabelEl.textContent = `Pano ${index + 1} of ${count}: ${state.pano.filename}`;
 }
 
 function draw() {
@@ -276,7 +306,11 @@ function normalizeSearch(value) {
 }
 
 function openViewImage(viewset, view) {
-  const params = new URLSearchParams({ viewset: viewset.name, view: view.id });
+  const params = new URLSearchParams({
+    viewset: viewset.name,
+    view: view.id,
+    pano: String(state.pano.index || 0),
+  });
   window.open(`/view?${params.toString()}`, "_blank", "noopener");
 }
 

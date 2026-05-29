@@ -6,7 +6,12 @@ from main_service.tools.viewset_visualizer.server import run_server
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Visualize pano viewset overlays.")
-    parser.add_argument("--pano", required=True, type=Path, help="Path to pano image.")
+    parser.add_argument(
+        "--pano",
+        required=True,
+        type=Path,
+        help="Path to a pano image, or a directory of pano images for next/previous browsing.",
+    )
     parser.add_argument(
         "--viewsets",
         required=True,

@@ -44,6 +44,9 @@ of an actual downloaded equirectangular panorama.
 - [x] Keep matrix checkboxes scoped to overlay visibility toggling only.
 - [x] Add selected-view fuzzy search for opening rendered views by id, kind,
   heading, pitch, or fov.
+- [x] Add multi-pano directory support for the visualizer server.
+- [x] Add Previous/Next pano controls that keep opened rendered views pinned to
+  the selected pano index.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.
