@@ -291,7 +291,10 @@ def test_render_view_page_fits_preview_image_inside_viewport(tmp_path: Path) -> 
     ).decode("utf-8")
 
     assert ".stage { height: calc(100vh - 58px); overflow: hidden;" in html
-    assert "max-width: 100%; max-height: 100%; object-fit: contain;" in html
+    assert (
+        "width: 100%; height: 100%; min-width: 0; min-height: 0; "
+        "max-width: 100vw; max-height: calc(100vh - 58px); object-fit: contain;"
+    ) in html
     assert ".viewer.hidden, .hidden { display: none;" in html
 
 

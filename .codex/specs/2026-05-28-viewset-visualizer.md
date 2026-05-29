@@ -46,6 +46,13 @@ of the equirectangular pano each view covers.
 - Rendered local view images should be served losslessly for inspection. JPEG
   re-encoding can make already-downsampled signs and fine text look worse than
   the actual projection.
+- Local perspective rendering should not use direct bilinear sampling as the
+  default quality path. Visual comparison showed bilinear as the weakest option
+  for small signs and other fine detail, while bicubic/supersampled outputs did
+  not show obvious projection corruption.
+- Opened high-resolution preview pages must scale the rendered image down to
+  fit the browser viewport. Large `scale=4` renders must not be clipped by the
+  viewport or hidden behind the page bounds.
 - When `--pano` points to a directory, the UI must expose Previous/Next pano
   controls. The selected pano index must be included in `/api/state`, `/pano`,
   `/view`, and `/api/view-image` links so the canvas image and opened rendered

@@ -31,6 +31,7 @@ def render_perspective_view(
         _py360_heading(spec.relative_heading),
         spec.pitch,
         (spec.output_height, spec.output_width),
+        mode="bicubic",
     )
 
 

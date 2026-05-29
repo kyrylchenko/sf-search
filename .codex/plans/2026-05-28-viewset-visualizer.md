@@ -65,6 +65,13 @@ of an actual downloaded equirectangular panorama.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.
+- [x] Switch local perspective rendering away from direct bilinear sampling
+  after visual inspection showed bilinear is the weakest option for signs and
+  other fine detail.
+- [x] Make opened high-resolution previews fit the browser viewport without
+  cropping large rendered images.
+- [x] Re-run visualizer tests and full service tests.
+- [x] Commit the rendering-quality and viewport-fit fix.
 
 ## Verification Commands
 

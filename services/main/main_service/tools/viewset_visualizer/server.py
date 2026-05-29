@@ -433,7 +433,7 @@ def _view_page_html(
     .meta {{ color: #94a3b8; font-size: 13px; }}
     .stage {{ height: calc(100vh - 58px); overflow: hidden; display: grid; place-items: center; background: #020617; }}
     .viewer {{ border: 0; background: #020617; }}
-    img.viewer {{ display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }}
+    img.viewer {{ display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; max-width: 100vw; max-height: calc(100vh - 58px); object-fit: contain; }}
     #googleView, iframe.viewer {{ width: 100%; height: 100%; }}
     .empty {{ display: grid; place-items: center; color: #cbd5e1; padding: 24px; text-align: center; }}
     .viewer.hidden, .hidden {{ display: none; }}
