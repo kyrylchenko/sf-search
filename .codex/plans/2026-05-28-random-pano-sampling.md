@@ -15,6 +15,9 @@ of adjacent panoramas from one coverage tile.
   production ingestion flow.
 - Dedupe by resolved Google pano ID so repeated nearby random points do not
   waste slots.
+- Treat existing `*.jpg` files in the output directory as already-seen pano IDs
+  so manually seeded visualizer samples are not overwritten by a later random
+  run.
 
 ## Steps
 
@@ -22,4 +25,5 @@ of adjacent panoramas from one coverage tile.
 - [x] Add unit tests for bounds parsing/sampling and dedupe/download behavior.
 - [x] Download 15 random-location panos.
 - [x] Verify the visualizer can browse the downloaded random pano directory.
+- [x] Skip pano IDs that already exist in the output directory.
 - [x] Commit changes.

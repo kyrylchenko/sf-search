@@ -22,6 +22,7 @@ from main_service.tools.viewset_visualizer.viewsets import Viewset, load_viewset
 Image.MAX_IMAGE_PIXELS = None
 _POSE_HEADING_PATTERN = re.compile(rb'GPano:PoseHeadingDegrees="([^"]+)"')
 _SUPPORTED_PANO_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+_PREVIEW_RENDER_SCALE = 4
 
 
 @dataclass(frozen=True)
@@ -128,11 +129,13 @@ class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
             pano_index = self._query_pano_index(query)
             viewset_name = _single_query_value(query, "viewset")
             view_id = _single_query_value(query, "view")
+            render_scale = _positive_int_query_value(query, "scale", default=1)
             body, content_type = render_view_image(
                 self.pano_paths[pano_index],
                 self.viewsets_dir,
                 viewset_name=viewset_name,
                 view_id=view_id,
+                render_scale=render_scale,
             )
             self._send_bytes(body, content_type)
             return
@@ -177,7 +180,10 @@ def render_view_image(
     *,
     viewset_name: str,
     view_id: str,
+    render_scale: int = 1,
 ) -> tuple[bytes, str]:
+    if render_scale < 1:
+        raise ValueError("render_scale must be positive")
     viewset = _find_viewset(load_viewsets(viewsets_dir), viewset_name)
     view = next((candidate for candidate in viewset.views if candidate.id == view_id), None)
     if view is None:
@@ -191,13 +197,13 @@ def render_view_image(
             relative_heading=view.relative_heading,
             pitch=view.pitch,
             fov=view.fov,
-            output_width=view.output_width,
-            output_height=view.output_height,
+            output_width=view.output_width * render_scale,
+            output_height=view.output_height * render_scale,
         ),
     )
     output = BytesIO()
-    Image.fromarray(rendered).save(output, format="JPEG", quality=92)
-    return output.getvalue(), "image/jpeg"
+    Image.fromarray(rendered).save(output, format="PNG")
+    return output.getvalue(), "image/png"
 
 
 def render_view_page(
@@ -235,13 +241,15 @@ def render_view_page(
             fov=view.fov,
         )
 
-    local_params: dict[str, str | int] = {"viewset": viewset.name, "view": view.id}
+    preview_params: dict[str, str | int] = {"viewset": viewset.name, "view": view.id}
     if pano_index is not None:
-        local_params["pano"] = pano_index
-    local_url = "/api/view-image?" + urlencode(local_params)
+        preview_params["pano"] = pano_index
+    preview_params["scale"] = _PREVIEW_RENDER_SCALE
+    preview_url = "/api/view-image?" + urlencode(preview_params)
     return _view_page_html(
         view_id=view.id,
-        local_url=local_url,
+        preview_url=preview_url,
+        preview_scale=_PREVIEW_RENDER_SCALE,
         google_url=google_url,
         north_offset=resolved_north_offset,
         google_heading=(
@@ -380,10 +388,27 @@ def _single_query_value(query: dict[str, list[str]], key: str) -> str:
     return values[0]
 
 
+def _positive_int_query_value(
+    query: dict[str, list[str]],
+    key: str,
+    *,
+    default: int,
+) -> int:
+    raw_value = query.get(key, [str(default)])[0]
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{key} must be a positive integer") from exc
+    if value < 1:
+        raise ValueError(f"{key} must be a positive integer")
+    return value
+
+
 def _view_page_html(
     *,
     view_id: str,
-    local_url: str,
+    preview_url: str,
+    preview_scale: int,
     google_url: str | None,
     north_offset: float | None,
     google_heading: float | None,
@@ -406,38 +431,38 @@ def _view_page_html(
     button {{ border: 1px solid #475569; border-radius: 6px; background: #1e293b; color: #f8fafc; padding: 8px 10px; cursor: pointer; }}
     button.active {{ border-color: #ef4444; }}
     .meta {{ color: #94a3b8; font-size: 13px; }}
-    .stage {{ height: calc(100vh - 58px); overflow: auto; display: grid; place-items: center; background: #020617; }}
+    .stage {{ height: calc(100vh - 58px); overflow: hidden; display: grid; place-items: center; background: #020617; }}
     .viewer {{ border: 0; background: #020617; }}
-    img.viewer {{ display: block; width: auto; height: auto; max-width: none; max-height: none; }}
+    img.viewer {{ display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }}
     #googleView, iframe.viewer {{ width: 100%; height: 100%; }}
     .empty {{ display: grid; place-items: center; color: #cbd5e1; padding: 24px; text-align: center; }}
-    .hidden {{ display: none; }}
+    .viewer.hidden, .hidden {{ display: none; }}
   </style>
 </head>
 <body>
   <header>
     <strong>{_escape_text(view_id)}</strong>
-    <button id="localBtn" class="active">Local 2D view</button>
+    <button id="previewBtn" class="active">High-res preview</button>
     <button id="googleBtn">Google embed</button>
-    <span class="meta">north offset: {_escape_text(_format_optional(north_offset))} · google heading: {_escape_text(_format_optional(google_heading))}</span>
+    <span class="meta">preview: {_escape_text(preview_scale)}x · north offset: {_escape_text(_format_optional(north_offset))} · google heading: {_escape_text(_format_optional(google_heading))}</span>
   </header>
   <section class="stage">
-    <img id="localView" class="viewer" src="{_escape_attr(local_url)}" alt="Local rendered perspective view">
+    <img id="previewView" class="viewer" src="{_escape_attr(preview_url)}" alt="High-resolution rendered perspective preview">
     <div id="googleView" class="hidden">{google_panel}</div>
   </section>
   <script>
-    const localBtn = document.getElementById("localBtn");
+    const previewBtn = document.getElementById("previewBtn");
     const googleBtn = document.getElementById("googleBtn");
-    const localView = document.getElementById("localView");
+    const previewView = document.getElementById("previewView");
     const googleView = document.getElementById("googleView");
     function show(which) {{
       const google = which === "google";
-      localView.classList.toggle("hidden", google);
+      previewView.classList.toggle("hidden", google);
       googleView.classList.toggle("hidden", !google);
-      localBtn.classList.toggle("active", !google);
+      previewBtn.classList.toggle("active", which === "preview");
       googleBtn.classList.toggle("active", google);
     }}
-    localBtn.addEventListener("click", () => show("local"));
+    previewBtn.addEventListener("click", () => show("preview"));
     googleBtn.addEventListener("click", () => show("google"));
   </script>
 </body>

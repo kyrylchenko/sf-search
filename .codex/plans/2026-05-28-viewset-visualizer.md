@@ -51,8 +51,17 @@ of an actual downloaded equirectangular panorama.
   results cannot push tile toggles too far down the sidebar.
 - [x] Treat a single pano file path as a gallery rooted at its parent directory
   when sibling pano images exist, starting on the requested file.
-- [x] Keep local rendered view pages at native processing pixels instead of
-  stretching 512x512 tiles to the viewport.
+- [x] Keep local rendered view pages from stretching processing-sized tiles
+  directly to the viewport.
+- [x] Align overlay heading projection with the processing perspective renderer
+  so canvas/matrix selection and opened view images reference the same region.
+- [x] Add high-resolution local preview rendering for opened views.
+- [x] Remove the processing-tile image from the opened-view UI and fit the
+  high-resolution preview inside the browser viewport.
+- [x] Treat view `fov` as horizontal in the processing renderer and derive
+  vertical FOV from output aspect ratio to match overlays and Google Embed.
+- [x] Move the `v1-wide-center` preset roughly 10 degrees upward to reduce
+  road-heavy framing.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.

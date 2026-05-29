@@ -1,8 +1,10 @@
 from dataclasses import dataclass
-from math import atan, degrees, radians, tan
+from math import radians
 
 import numpy as np
 from py360convert import utils as py360_utils
+
+from main_service.processing.view_rendering import vertical_fov_degrees
 
 Point = dict[str, float]
 Polygon = list[Point]
@@ -70,10 +72,12 @@ def view_to_api_dict(view: ViewSpec, *, edge_samples: int = 49) -> dict[str, obj
 
 def _sample_frustum_edge_xyz(view: ViewSpec, edge_samples: int) -> np.ndarray:
     h_fov = radians(view.fov)
-    v_fov = _vertical_fov_radians(
-        horizontal_fov_degrees=view.fov,
-        output_width=view.output_width,
-        output_height=view.output_height,
+    v_fov = radians(
+        vertical_fov_degrees(
+            horizontal_fov_degrees=view.fov,
+            output_width=view.output_width,
+            output_height=view.output_height,
+        )
     )
     grid = py360_utils.xyzpers(
         h_fov,
@@ -90,20 +94,10 @@ def _sample_frustum_edge_xyz(view: ViewSpec, edge_samples: int) -> np.ndarray:
     return np.concatenate([top, right, bottom, left], axis=0)
 
 
-def _vertical_fov_radians(
-    *,
-    horizontal_fov_degrees: float,
-    output_width: int,
-    output_height: int,
-) -> float:
-    aspect_height_over_width = output_height / output_width
-    horizontal_fov = radians(horizontal_fov_degrees)
-    return 2 * atan(tan(horizontal_fov / 2) * aspect_height_over_width)
-
-
 def _py360_u_degrees(relative_heading: float) -> float:
     normalized = normalize_heading(relative_heading)
-    return normalized if normalized <= 180 else normalized - 360
+    signed_heading = normalized if normalized <= 180 else normalized - 360
+    return -signed_heading
 
 
 def _view_center_x(relative_heading: float) -> float:

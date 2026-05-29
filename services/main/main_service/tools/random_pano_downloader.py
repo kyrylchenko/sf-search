@@ -122,7 +122,7 @@ async def download_random_panos(
     resolved_client = client or StreetLevelRandomPanoClient()
     output_dir.mkdir(parents=True, exist_ok=True)
     downloads: list[RandomPanoDownload] = []
-    seen_pano_ids: set[str] = set()
+    seen_pano_ids: set[str] = existing_pano_ids(output_dir)
     duplicates = 0
     misses = 0
     attempts = 0
@@ -209,6 +209,14 @@ def sample_coordinate(bbox: BoundingBox, rng: random.Random) -> tuple[float, flo
         rng.uniform(bbox.south, bbox.north),
         rng.uniform(bbox.west, bbox.east),
     )
+
+
+def existing_pano_ids(output_dir: Path) -> set[str]:
+    return {
+        path.stem
+        for path in output_dir.glob("*.jpg")
+        if path.is_file() and not path.name.endswith(".tmp.jpg")
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:

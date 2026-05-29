@@ -26,6 +26,9 @@ of the equirectangular pano each view covers.
   approximate same area on the displayed pano.
 - Opening a selected view must call the same perspective rendering function that
   processing will use for embedding images.
+- Overlay polygons must use the same relative-heading convention as the
+  processing renderer. A view highlighted in the matrix/canvas and the same
+  view opened through search must point at the same pano region.
 - Pano canvas clicks must not open views.
 - Matrix checkboxes only toggle overlay visibility. They must not have hover
   preview, modifier-key opening, or Open mode behavior.
@@ -35,10 +38,14 @@ of the equirectangular pano each view covers.
   direct "Open selected view" button, or a fuzzy search box whose results can be
   clicked to open a matching view. Pressing Enter in the search should open the
   top match.
-- Local rendered view pages must show the processing-sized image at native
-  pixels by default. The perspective renderer intentionally emits CLIP input
-  dimensions such as `512x512`; stretching that output to the browser viewport
-  makes valid tiles look pixelated and hides the true processing artifact.
+- Local rendered view pages must show a high-resolution preview by default,
+  rendered through the same perspective function but with larger output
+  dimensions so humans can inspect source detail.
+- The high-resolution preview should fit inside the browser viewport without
+  showing a second lower-resolution processing image below it.
+- Rendered local view images should be served losslessly for inspection. JPEG
+  re-encoding can make already-downsampled signs and fine text look worse than
+  the actual projection.
 - When `--pano` points to a directory, the UI must expose Previous/Next pano
   controls. The selected pano index must be included in `/api/state`, `/pano`,
   `/view`, and `/api/view-image` links so the canvas image and opened rendered
@@ -51,11 +58,15 @@ of the equirectangular pano each view covers.
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;
   - `fov` clamped/validated against `[10, 100]`.
+- `fov` is horizontal FOV. Rendered perspective images must derive vertical
+  FOV from `output_width`/`output_height`; passing scalar FOV to projection
+  libraries is incorrect for non-square outputs and causes visual drift from
+  overlays and Google Embed.
 - Current committed sample presets:
   - `center-no-sky-road`: one center-context view at `fov=91`;
   - `small-object-grid-72`: 72 small-object views at `fov=40`;
   - `v1-wide-center`: six wide-context views at `fov=100` plus one
-    center-context view at `fov=77`;
+    center-context view at `fov=77`, all pitched 10 degrees up;
   - `wide-triptych-front-band`: three front-band wide-context views at
     `fov=100`.
 - Avoid geometry drift between Python and browser. Python must compute all pano

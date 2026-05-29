@@ -83,7 +83,7 @@ def test_create_app_payload_can_select_from_pano_gallery(tmp_path: Path) -> None
     assert payload["pano"]["url"] == "/pano?pano=1"
 
 
-def test_render_view_image_returns_perspective_jpeg_bytes(tmp_path: Path) -> None:
+def test_render_view_image_returns_perspective_png_bytes(tmp_path: Path) -> None:
     pano_path = tmp_path / "pano.jpg"
     Image.new("RGB", (1024, 512), color="white").save(pano_path)
     viewsets_dir = tmp_path / "viewsets"
@@ -113,11 +113,48 @@ def test_render_view_image_returns_perspective_jpeg_bytes(tmp_path: Path) -> Non
         view_id="center",
     )
 
-    output_path = tmp_path / "view.jpg"
+    output_path = tmp_path / "view.png"
     output_path.write_bytes(body)
     with Image.open(output_path) as image:
         assert image.size == (320, 240)
-    assert content_type == "image/jpeg"
+    assert content_type == "image/png"
+
+
+def test_render_view_image_can_scale_output_for_preview(tmp_path: Path) -> None:
+    pano_path = tmp_path / "pano.jpg"
+    Image.new("RGB", (1024, 512), color="white").save(pano_path)
+    viewsets_dir = tmp_path / "viewsets"
+    viewsets_dir.mkdir()
+    (viewsets_dir / "candidate.json").write_text(
+        json.dumps(
+            {
+                "name": "candidate",
+                "views": [
+                    {
+                        "id": "center",
+                        "relative_heading": 0,
+                        "pitch": 0,
+                        "fov": 60,
+                        "output_width": 320,
+                        "output_height": 240,
+                    }
+                ],
+            }
+        )
+    )
+
+    body, _ = render_view_image(
+        pano_path,
+        viewsets_dir,
+        viewset_name="candidate",
+        view_id="center",
+        render_scale=2,
+    )
+
+    output_path = tmp_path / "view.png"
+    output_path.write_bytes(body)
+    with Image.open(output_path) as image:
+        assert image.size == (640, 480)
 
 
 def test_parse_gpano_pose_heading_reads_xmp_heading() -> None:
@@ -179,9 +216,10 @@ def test_render_view_page_contains_local_and_google_toggle(tmp_path: Path) -> No
         longitude=None,
     ).decode("utf-8")
 
-    assert "Local 2D view" in html
+    assert "High-res preview" in html
+    assert "Processing tile" not in html
     assert "Google embed" in html
-    assert "/api/view-image?viewset=candidate&amp;view=center" in html
+    assert "/api/view-image?viewset=candidate&amp;view=center&amp;scale=4" in html
     assert "heading=13.5" in html
 
 
@@ -214,10 +252,10 @@ def test_render_view_page_pins_local_image_to_pano_index(tmp_path: Path) -> None
         pano_index=3,
     ).decode("utf-8")
 
-    assert "/api/view-image?viewset=candidate&amp;view=center&amp;pano=3" in html
+    assert "/api/view-image?viewset=candidate&amp;view=center&amp;pano=3&amp;scale=4" in html
 
 
-def test_render_view_page_keeps_local_image_at_native_pixels(tmp_path: Path) -> None:
+def test_render_view_page_fits_preview_image_inside_viewport(tmp_path: Path) -> None:
     pano_path = tmp_path / "pano-a.jpg"
     Image.new("RGB", (1024, 512), color="white").save(pano_path)
     viewsets_dir = tmp_path / "viewsets"
@@ -252,8 +290,9 @@ def test_render_view_page_keeps_local_image_at_native_pixels(tmp_path: Path) -> 
         longitude=None,
     ).decode("utf-8")
 
-    assert ".stage { height: calc(100vh - 58px); overflow: auto;" in html
-    assert "img.viewer { display: block; width: auto; height: auto;" in html
+    assert ".stage { height: calc(100vh - 58px); overflow: hidden;" in html
+    assert "max-width: 100%; max-height: 100%; object-fit: contain;" in html
+    assert ".viewer.hidden, .hidden { display: none;" in html
 
 
 def test_resolve_pano_paths_returns_sorted_supported_images(tmp_path: Path) -> None:

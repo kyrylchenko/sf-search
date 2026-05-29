@@ -19,6 +19,7 @@ def test_committed_sample_viewsets_include_requested_presets() -> None:
     assert len(by_name["v1-wide-center"].views) == 7
     assert by_name["center-no-sky-road"].views[0].fov == 91
     assert [view.fov for view in by_name["v1-wide-center"].views[:6]] == [100] * 6
+    assert [view.pitch for view in by_name["v1-wide-center"].views] == [10] * 7
     assert by_name["v1-wide-center"].views[6].fov == 77
     assert all(
         view.view_kind != "small_object"

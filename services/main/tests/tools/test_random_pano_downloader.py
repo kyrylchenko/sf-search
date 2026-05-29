@@ -24,10 +24,10 @@ class NullSession:
 
 
 class FakeRandomPanoClient:
-    def __init__(self) -> None:
+    def __init__(self, panos: list[object | None] | None = None) -> None:
         self.find_calls: list[tuple[float, float, int]] = []
         self.download_calls: list[Path] = []
-        self._panos = [
+        self._panos = panos or [
             SimpleNamespace(id="pano-a", lat=37.1, lon=-122.1),
             SimpleNamespace(id="pano-a", lat=37.1, lon=-122.1),
             None,
@@ -110,3 +110,33 @@ def test_download_random_panos_dedupes_and_writes_metadata(tmp_path: Path) -> No
     assert metadata["image_path"] == str(tmp_path / "pano-a.jpg")
     assert "requested_latitude" in metadata
     assert (tmp_path / "pano-a.jpg").read_bytes() == b"pano-a-5"
+
+
+def test_download_random_panos_skips_existing_output_pano_ids(tmp_path: Path) -> None:
+    (tmp_path / "pano-a.jpg").write_bytes(b"existing-image")
+    client = FakeRandomPanoClient(
+        [
+            SimpleNamespace(id="pano-a", lat=37.1, lon=-122.1),
+            SimpleNamespace(id="pano-b", lat=37.2, lon=-122.2),
+        ]
+    )
+
+    result = asyncio.run(
+        download_random_panos(
+            count=1,
+            bbox=BoundingBox(west=-122.5, south=37.7, east=-122.3, north=37.8),
+            output_dir=tmp_path,
+            max_attempts=10,
+            radius=50,
+            zoom=5,
+            rng=random.Random(0),
+            client=client,
+            session_factory=NullSession,
+        )
+    )
+
+    assert result.downloaded_count == 1
+    assert result.duplicates == 1
+    assert [download.pano_id for download in result.downloads] == ["pano-b"]
+    assert [path.name for path in client.download_calls] == ["pano-b.tmp.jpg"]
+    assert (tmp_path / "pano-a.jpg").read_bytes() == b"existing-image"
