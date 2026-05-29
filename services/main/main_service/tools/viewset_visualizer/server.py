@@ -406,9 +406,10 @@ def _view_page_html(
     button {{ border: 1px solid #475569; border-radius: 6px; background: #1e293b; color: #f8fafc; padding: 8px 10px; cursor: pointer; }}
     button.active {{ border-color: #ef4444; }}
     .meta {{ color: #94a3b8; font-size: 13px; }}
-    .stage {{ height: calc(100vh - 58px); }}
-    .viewer {{ width: 100%; height: 100%; border: 0; object-fit: contain; background: #020617; }}
-    img.viewer {{ display: block; }}
+    .stage {{ height: calc(100vh - 58px); overflow: auto; display: grid; place-items: center; background: #020617; }}
+    .viewer {{ border: 0; background: #020617; }}
+    img.viewer {{ display: block; width: auto; height: auto; max-width: none; max-height: none; }}
+    #googleView, iframe.viewer {{ width: 100%; height: 100%; }}
     .empty {{ display: grid; place-items: center; color: #cbd5e1; padding: 24px; text-align: center; }}
     .hidden {{ display: none; }}
   </style>

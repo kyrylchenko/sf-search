@@ -217,6 +217,45 @@ def test_render_view_page_pins_local_image_to_pano_index(tmp_path: Path) -> None
     assert "/api/view-image?viewset=candidate&amp;view=center&amp;pano=3" in html
 
 
+def test_render_view_page_keeps_local_image_at_native_pixels(tmp_path: Path) -> None:
+    pano_path = tmp_path / "pano-a.jpg"
+    Image.new("RGB", (1024, 512), color="white").save(pano_path)
+    viewsets_dir = tmp_path / "viewsets"
+    viewsets_dir.mkdir()
+    (viewsets_dir / "candidate.json").write_text(
+        json.dumps(
+            {
+                "name": "candidate",
+                "views": [
+                    {
+                        "id": "center",
+                        "relative_heading": 0,
+                        "pitch": 0,
+                        "fov": 60,
+                        "output_width": 512,
+                        "output_height": 512,
+                    }
+                ],
+            }
+        )
+    )
+
+    html = render_view_page(
+        pano_path,
+        viewsets_dir,
+        viewset_name="candidate",
+        view_id="center",
+        google_api_key=None,
+        north_offset=None,
+        pano_id=None,
+        latitude=None,
+        longitude=None,
+    ).decode("utf-8")
+
+    assert ".stage { height: calc(100vh - 58px); overflow: auto;" in html
+    assert "img.viewer { display: block; width: auto; height: auto;" in html
+
+
 def test_resolve_pano_paths_returns_sorted_supported_images(tmp_path: Path) -> None:
     (tmp_path / "b.jpg").write_bytes(b"fake")
     (tmp_path / "a.webp").write_bytes(b"fake")

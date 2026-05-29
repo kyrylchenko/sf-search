@@ -51,6 +51,8 @@ of an actual downloaded equirectangular panorama.
   results cannot push tile toggles too far down the sidebar.
 - [x] Treat a single pano file path as a gallery rooted at its parent directory
   when sibling pano images exist, starting on the requested file.
+- [x] Keep local rendered view pages at native processing pixels instead of
+  stretching 512x512 tiles to the viewport.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.

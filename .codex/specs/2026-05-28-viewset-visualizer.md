@@ -35,6 +35,10 @@ of the equirectangular pano each view covers.
   direct "Open selected view" button, or a fuzzy search box whose results can be
   clicked to open a matching view. Pressing Enter in the search should open the
   top match.
+- Local rendered view pages must show the processing-sized image at native
+  pixels by default. The perspective renderer intentionally emits CLIP input
+  dimensions such as `512x512`; stretching that output to the browser viewport
+  makes valid tiles look pixelated and hides the true processing artifact.
 - When `--pano` points to a directory, the UI must expose Previous/Next pano
   controls. The selected pano index must be included in `/api/state`, `/pano`,
   `/view`, and `/api/view-image` links so the canvas image and opened rendered
