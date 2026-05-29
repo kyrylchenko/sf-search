@@ -10,6 +10,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .panorama import Panorama
+    from .panorama_view_embedding import PanoramaViewEmbedding
 
 
 def utcnow() -> datetime:
@@ -34,6 +35,9 @@ class PanoramaView(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     panorama_id: Mapped[int] = mapped_column(ForeignKey("panorama_table.id"))
     panorama: Mapped["Panorama"] = relationship(back_populates="views")
+    embeddings: Mapped[list["PanoramaViewEmbedding"]] = relationship(
+        back_populates="panorama_view"
+    )
 
     viewset_name: Mapped[str]
     viewset_description: Mapped[str] = mapped_column(default="")

@@ -4,10 +4,13 @@ import asyncio
 from main_service.ingestion.download_queue import (
     BackgroundAsyncRunner,
     InMemoryPanoDownloadQueue,
+    InMemoryPanoEmbeddingQueue,
     InMemoryPanoProcessingQueue,
     NatsJetStreamPanoDownloadQueue,
+    NatsJetStreamPanoEmbeddingQueue,
     NatsJetStreamPanoProcessingQueue,
     PanoDownloadMessage,
+    PanoEmbeddingMessage,
     PanoProcessingMessage,
 )
 from main_service.ingestion.types import MapTileKey, PanoramaId
@@ -52,11 +55,40 @@ def test_processing_message_serializes_to_public_safe_payload() -> None:
     }
 
 
+def test_embedding_message_serializes_to_public_safe_payload() -> None:
+    message = PanoEmbeddingMessage(
+        pano_id=PanoramaId("pano-a"),
+        view_id=123,
+        image_path=".local/panorama-views/pano-a/candidate/center.jpg",
+    )
+
+    assert message.to_dict() == {
+        "pano_id": "pano-a",
+        "view_id": 123,
+        "image_path": ".local/panorama-views/pano-a/candidate/center.jpg",
+        "source": "pano_processor",
+    }
+
+
 def test_in_memory_processing_queue_tracks_pending_count() -> None:
     queue = InMemoryPanoProcessingQueue()
     message = PanoProcessingMessage(
         pano_id=PanoramaId("pano-a"),
         image_path=".local/panoramas/pano-a.jpg",
+    )
+
+    queue.enqueue(message)
+
+    assert queue.pending_count() == 1
+    assert queue.messages == [message]
+
+
+def test_in_memory_embedding_queue_tracks_pending_count() -> None:
+    queue = InMemoryPanoEmbeddingQueue()
+    message = PanoEmbeddingMessage(
+        pano_id=PanoramaId("pano-a"),
+        view_id=123,
+        image_path=".local/panorama-views/pano-a/candidate/center.jpg",
     )
 
     queue.enqueue(message)
@@ -136,6 +168,26 @@ def test_nats_queue_publishes_json_processing_message() -> None:
 
     published = jetstream.published[0]
     assert published["subject"] == "pano.processing.requested"
+    assert json.loads(published["payload"]) == message.to_dict()
+
+
+def test_nats_queue_publishes_json_embedding_message() -> None:
+    jetstream = FakeJetStream()
+    queue = NatsJetStreamPanoEmbeddingQueue(
+        jetstream=jetstream,
+        stream_name="PANO_EMBEDDING",
+        subject="pano.embedding.requested",
+    )
+    message = PanoEmbeddingMessage(
+        pano_id=PanoramaId("pano-a"),
+        view_id=123,
+        image_path=".local/panorama-views/pano-a/candidate/center.jpg",
+    )
+
+    queue.enqueue(message)
+
+    published = jetstream.published[0]
+    assert published["subject"] == "pano.embedding.requested"
     assert json.loads(published["payload"]) == message.to_dict()
 
 

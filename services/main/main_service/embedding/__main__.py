@@ -1,0 +1,100 @@
+import argparse
+import asyncio
+import json
+from dataclasses import asdict
+from pathlib import Path
+
+from main_service.config import CONFIG
+from main_service.db.initialize_engine import initialize_engine
+from main_service.db.services.panorama_view_embedding_service import (
+    EmbeddingModelSpec,
+    PanoramaViewEmbeddingService,
+)
+from main_service.embedding.model import TransformersSiglipEmbedder
+from main_service.embedding.nats_source import NatsPanoEmbeddingJobSource
+from main_service.embedding.runner import run_embedding_batch
+from main_service.embedding.vector_store import LocalHnswVectorStore
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run a bounded pano embedding batch.")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=5,
+        help="Maximum embedding jobs to pull in this run.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Number of embedding jobs to run concurrently.",
+    )
+    parser.add_argument(
+        "--vector-store-dir",
+        default=None,
+        help="Directory where local HNSW vector indexes are stored.",
+    )
+    parser.add_argument(
+        "--model-id",
+        default=None,
+        help="Embedding model ID.",
+    )
+    parser.add_argument(
+        "--model-revision",
+        default=None,
+        help="Embedding model revision.",
+    )
+    return parser
+
+
+async def run(args: argparse.Namespace) -> None:
+    settings = CONFIG
+    engine = initialize_engine(settings)
+    embedding_service = PanoramaViewEmbeddingService(engine)
+    model_spec = EmbeddingModelSpec(
+        model_provider=settings.embedding_model_provider,
+        model_id=args.model_id or settings.embedding_model_id,
+        model_revision=args.model_revision or settings.embedding_model_revision,
+        preprocess_version=settings.embedding_preprocess_version,
+        embedding_dimension=settings.embedding_dimension,
+        embedding_dtype=settings.embedding_dtype,
+        embedding_normalized=True,
+    )
+    source = await NatsPanoEmbeddingJobSource.connect(
+        servers=settings.nats_url,
+        stream_name=settings.pano_embedding_stream,
+        subject=settings.pano_embedding_subject,
+        durable_consumer=settings.pano_embedding_consumer,
+    )
+    embedder = TransformersSiglipEmbedder(
+        model_id=model_spec.model_id,
+        revision=model_spec.model_revision,
+        dtype=model_spec.embedding_dtype,
+    )
+    vector_store = LocalHnswVectorStore(
+        root_dir=Path(args.vector_store_dir or settings.embedding_vector_store_dir),
+        model_id=model_spec.model_id,
+        dimension=model_spec.embedding_dimension,
+    )
+    try:
+        result = await run_embedding_batch(
+            embedding_service=embedding_service,
+            job_source=source,
+            image_embedder=embedder,
+            vector_store=vector_store,
+            model_spec=model_spec,
+            limit=args.limit,
+            concurrency=args.concurrency or settings.pano_embedding_concurrency,
+        )
+        print(json.dumps(asdict(result), sort_keys=True))
+    finally:
+        await source.close()
+
+
+def main() -> None:
+    asyncio.run(run(build_parser().parse_args()))
+
+
+if __name__ == "__main__":
+    main()

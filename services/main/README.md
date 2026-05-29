@@ -23,6 +23,11 @@ default, renders perspective views through the shared processing renderer, saves
 generated images under `.local/panorama-views`, and records each generated view
 in `panorama_view_table`.
 
+The preprocessor also publishes small embedding jobs to
+`pano.embedding.requested`. It checks the embedding queue before pulling another
+panorama; by default it pauses at 100 queued view jobs, but it can finish and
+enqueue all views for the current panorama.
+
 Useful local options:
 
 ```bash
@@ -33,6 +38,39 @@ uv run python -m main_service.processing \
   --viewsets-dir ../../docs/data/viewsets \
   --storage-dir .local/panorama-views
 ```
+
+Run a bounded panorama view embedding batch:
+
+```bash
+uv sync --group embedding
+uv run python -m main_service.embedding --limit 10
+```
+
+The embedder consumes durable NATS JetStream jobs from
+`pano.embedding.requested`, claims model-specific rows in
+`panorama_view_embedding_table`, embeds local generated view images, and writes
+vectors to a local HNSW index under `.local/embedding-indexes`.
+
+The default model settings target `google/siglip2-so400m-patch14-384`:
+
+```text
+EMBEDDING_MODEL_PROVIDER=transformers
+EMBEDDING_MODEL_ID=google/siglip2-so400m-patch14-384
+EMBEDDING_PREPROCESS_VERSION=siglip2-384-rgb-v1
+EMBEDDING_DIMENSION=1152
+EMBEDDING_DTYPE=float16
+```
+
+Run the local test-only query UI:
+
+```bash
+uv sync --group embedding
+uv run python -m main_service.embedding.query_ui
+```
+
+Open `http://127.0.0.1:8787`. The UI embeds the text query with the same local
+model, searches the local HNSW index, and displays locally stored generated view
+images with pano/view/model metadata. This is not the future public website.
 
 ## Viewset Visualizer
 

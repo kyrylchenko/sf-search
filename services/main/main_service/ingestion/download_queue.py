@@ -91,6 +91,21 @@ class PanoProcessingMessage:
         }
 
 
+@dataclass(frozen=True)
+class PanoEmbeddingMessage:
+    pano_id: PanoramaId
+    view_id: int
+    image_path: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "pano_id": self.pano_id.value,
+            "view_id": self.view_id,
+            "image_path": self.image_path,
+            "source": "pano_processor",
+        }
+
+
 class PanoDownloadQueue(Protocol):
     def pending_count(self) -> int:
         ...
@@ -104,6 +119,14 @@ class PanoProcessingQueue(Protocol):
         ...
 
     def enqueue(self, message: PanoProcessingMessage) -> None:
+        ...
+
+
+class PanoEmbeddingQueue(Protocol):
+    def pending_count(self) -> int:
+        ...
+
+    def enqueue(self, message: PanoEmbeddingMessage) -> None:
         ...
 
 
@@ -126,6 +149,17 @@ class InMemoryPanoProcessingQueue:
         return len(self.messages)
 
     def enqueue(self, message: PanoProcessingMessage) -> None:
+        self.messages.append(message)
+
+
+class InMemoryPanoEmbeddingQueue:
+    def __init__(self) -> None:
+        self.messages: list[PanoEmbeddingMessage] = []
+
+    def pending_count(self) -> int:
+        return len(self.messages)
+
+    def enqueue(self, message: PanoEmbeddingMessage) -> None:
         self.messages.append(message)
 
 
@@ -216,5 +250,14 @@ class NatsJetStreamPanoProcessingQueue(NatsJetStreamPanoDownloadQueue):
         self._async_runner.run(self._enqueue_processing_async(message))
 
     async def _enqueue_processing_async(self, message: PanoProcessingMessage) -> None:
+        payload = json.dumps(message.to_dict()).encode("utf-8")
+        await self._jetstream.publish(self._subject, payload)
+
+
+class NatsJetStreamPanoEmbeddingQueue(NatsJetStreamPanoDownloadQueue):
+    def enqueue(self, message: PanoEmbeddingMessage) -> None:
+        self._async_runner.run(self._enqueue_embedding_async(message))
+
+    async def _enqueue_embedding_async(self, message: PanoEmbeddingMessage) -> None:
         payload = json.dumps(message.to_dict()).encode("utf-8")
         await self._jetstream.publish(self._subject, payload)

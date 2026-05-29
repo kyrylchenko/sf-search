@@ -14,6 +14,10 @@ from main_service.db.services.panorama_view_service import (
     PanoramaViewSpecRecord,
 )
 from main_service.downloader.storage import finalize_temp_file, sha256_file
+from main_service.ingestion.download_queue import (
+    PanoEmbeddingMessage,
+    PanoEmbeddingQueue,
+)
 from main_service.ingestion.types import PanoramaId
 from main_service.processing.nats_source import (
     PanoProcessingJob,
@@ -48,6 +52,9 @@ class ProcessingRunResult:
     generated_views: int
     skipped_views: int
     failed_views: int
+    queued_embeddings: int = 0
+    paused: bool = False
+    pause_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +63,7 @@ class ProcessingJobOutcome:
     generated_views: int = 0
     skipped_views: int = 0
     failed_views: int = 0
+    queued_embeddings: int = 0
 
 
 async def run_processing_batch(
@@ -69,7 +77,25 @@ async def run_processing_batch(
     render_scale: int,
     output_format: str = "jpeg",
     image_quality: int = 95,
+    embedding_queue: PanoEmbeddingQueue | None = None,
+    max_embedding_queue_depth: int | None = None,
 ) -> ProcessingRunResult:
+    if (
+        embedding_queue is not None
+        and max_embedding_queue_depth is not None
+        and embedding_queue.pending_count() >= max_embedding_queue_depth
+    ):
+        return ProcessingRunResult(
+            processed_jobs=0,
+            failed_jobs=0,
+            generated_views=0,
+            skipped_views=0,
+            failed_views=0,
+            queued_embeddings=0,
+            paused=True,
+            pause_reason="embedding_queue_backlog",
+        )
+
     jobs = await job_source.fetch(limit)
     viewsets = load_viewsets(viewsets_dir)
     semaphore = asyncio.Semaphore(max(1, concurrency))
@@ -84,6 +110,7 @@ async def run_processing_batch(
                 render_scale=render_scale,
                 output_format=output_format,
                 image_quality=image_quality,
+                embedding_queue=embedding_queue,
             )
             for received_job in jobs
         ]
@@ -94,6 +121,7 @@ async def run_processing_batch(
         generated_views=sum(outcome.generated_views for outcome in outcomes),
         skipped_views=sum(outcome.skipped_views for outcome in outcomes),
         failed_views=sum(outcome.failed_views for outcome in outcomes),
+        queued_embeddings=sum(outcome.queued_embeddings for outcome in outcomes),
     )
 
 
@@ -107,6 +135,7 @@ async def _process_received_job(
     render_scale: int,
     output_format: str,
     image_quality: int,
+    embedding_queue: PanoEmbeddingQueue | None,
 ) -> ProcessingJobOutcome:
     async with semaphore:
         outcome = _process_job(
@@ -117,6 +146,7 @@ async def _process_received_job(
             render_scale=render_scale,
             output_format=output_format,
             image_quality=image_quality,
+            embedding_queue=embedding_queue,
         )
         await received_job.ack()
         return outcome
@@ -131,6 +161,7 @@ def _process_job(
     render_scale: int,
     output_format: str,
     image_quality: int,
+    embedding_queue: PanoEmbeddingQueue | None,
 ) -> ProcessingJobOutcome:
     if render_scale < 1:
         raise ValueError("render_scale must be positive")
@@ -157,6 +188,7 @@ def _process_job(
     generated = 0
     skipped = 0
     failed = 0
+    queued_embeddings = 0
     for viewset in viewsets:
         for view in viewset.views:
             spec = _build_spec_record(
@@ -190,12 +222,21 @@ def _process_job(
                     output_format=normalized_format,
                     image_quality=image_quality,
                 )
-                panorama_view_service.mark_view_complete(
+                completed = panorama_view_service.mark_view_complete(
                     claim.id,
                     image_path=str(output_path),
                     image_hash=sha256_file(output_path),
                     image_bytes=output_path.stat().st_size,
                 )
+                if completed.image_path and embedding_queue is not None:
+                    embedding_queue.enqueue(
+                        PanoEmbeddingMessage(
+                            pano_id=job.pano_id,
+                            view_id=completed.id,
+                            image_path=completed.image_path,
+                        )
+                    )
+                    queued_embeddings += 1
                 generated += 1
             except Exception as exc:
                 panorama_view_service.mark_view_failed(claim.id, str(exc))
@@ -205,6 +246,7 @@ def _process_job(
         generated_views=generated,
         skipped_views=skipped,
         failed_views=failed,
+        queued_embeddings=queued_embeddings,
     )
 
 

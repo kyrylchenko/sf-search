@@ -7,6 +7,7 @@ from pathlib import Path
 from main_service.config import CONFIG
 from main_service.db.initialize_engine import initialize_engine
 from main_service.db.services.panorama_view_service import PanoramaViewService
+from main_service.ingestion.download_queue import NatsJetStreamPanoEmbeddingQueue
 from main_service.processing.nats_source import NatsPanoProcessingJobSource
 from main_service.processing.runner import run_processing_batch
 
@@ -53,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="JPEG quality for generated view images.",
     )
+    parser.add_argument(
+        "--max-embedding-queue-depth",
+        type=int,
+        default=None,
+        help="Pause before fetching when embedding queue depth is at this value.",
+    )
     return parser
 
 
@@ -66,6 +73,11 @@ async def run(args: argparse.Namespace) -> None:
         subject=settings.pano_processing_subject,
         durable_consumer=settings.pano_processing_consumer,
     )
+    embedding_queue = NatsJetStreamPanoEmbeddingQueue.connect(
+        servers=settings.nats_url,
+        stream_name=settings.pano_embedding_stream,
+        subject=settings.pano_embedding_subject,
+    )
     try:
         result = await run_processing_batch(
             panorama_view_service=view_service,
@@ -77,10 +89,15 @@ async def run(args: argparse.Namespace) -> None:
             render_scale=args.render_scale or settings.pano_view_render_scale,
             output_format=args.output_format or settings.pano_view_output_format,
             image_quality=args.jpeg_quality or settings.pano_view_jpeg_quality,
+            embedding_queue=embedding_queue,
+            max_embedding_queue_depth=(
+                args.max_embedding_queue_depth or settings.max_embedding_queue_depth
+            ),
         )
         print(json.dumps(asdict(result), sort_keys=True))
     finally:
         await source.close()
+        embedding_queue.close()
 
 
 def main() -> None:

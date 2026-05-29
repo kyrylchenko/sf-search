@@ -11,6 +11,7 @@ from main_service.db.models.base import Base
 from main_service.db.services.panorama_service import PanoramaService
 from main_service.db.services.panorama_view_service import PanoramaViewService
 from main_service.downloader.storage import sha256_file
+from main_service.ingestion.download_queue import PanoEmbeddingMessage
 from main_service.ingestion.types import DownloadStatus, PanoramaId, ProcessingStatus
 from main_service.processing.nats_source import (
     PanoProcessingJob,
@@ -77,6 +78,19 @@ class FakeJobSource:
         return self.jobs[:limit]
 
 
+class FakeEmbeddingQueue:
+    def __init__(self, pending: int = 0) -> None:
+        self.pending = pending
+        self.messages: list[PanoEmbeddingMessage] = []
+
+    def pending_count(self) -> int:
+        return self.pending
+
+    def enqueue(self, message: PanoEmbeddingMessage) -> None:
+        self.messages.append(message)
+        self.pending += 1
+
+
 def test_runner_generates_view_rows_files_and_acks_job(tmp_path: Path) -> None:
     panorama_service, view_service = make_services()
     pano_path = tmp_path / "panoramas" / "pano-a.jpg"
@@ -125,6 +139,95 @@ def test_runner_generates_view_rows_files_and_acks_job(tmp_path: Path) -> None:
     assert rows[0].rendered_height == 24
     with Image.open(rows[0].image_path) as image:
         assert image.size == (32, 24)
+
+
+def test_runner_enqueues_embedding_job_for_completed_view(tmp_path: Path) -> None:
+    panorama_service, view_service = make_services()
+    pano_path = tmp_path / "panoramas" / "pano-a.jpg"
+    write_test_pano(pano_path)
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-a"))
+    panorama_service.mark_panorama_downloaded(
+        PanoramaId("pano-a"),
+        image_path=str(pano_path),
+        image_hash=sha256_file(pano_path),
+        metadata_json={"pano_id": "pano-a"},
+        latitude=37.1,
+        longitude=-122.1,
+    )
+    viewsets_dir = tmp_path / "viewsets"
+    write_viewset(viewsets_dir / "candidate.json")
+    received = FakeReceivedJob(
+        PanoProcessingJob(PanoramaId("pano-a"), image_path=str(pano_path))
+    )
+    embedding_queue = FakeEmbeddingQueue()
+
+    result = asyncio.run(
+        run_processing_batch(
+            panorama_view_service=view_service,
+            job_source=FakeJobSource([received]),
+            viewsets_dir=viewsets_dir,
+            storage_dir=tmp_path / "views",
+            limit=5,
+            concurrency=1,
+            render_scale=2,
+            embedding_queue=embedding_queue,
+            max_embedding_queue_depth=100,
+        )
+    )
+
+    rows = view_service.list_views_for_panorama(PanoramaId("pano-a"))
+    assert result.queued_embeddings == 1
+    assert embedding_queue.messages == [
+        PanoEmbeddingMessage(
+            pano_id=PanoramaId("pano-a"),
+            view_id=rows[0].id,
+            image_path=rows[0].image_path or "",
+        )
+    ]
+
+
+def test_runner_pauses_before_fetching_when_embedding_queue_is_backed_up(
+    tmp_path: Path,
+) -> None:
+    _, view_service = make_services()
+    viewsets_dir = tmp_path / "viewsets"
+    write_viewset(viewsets_dir / "candidate.json")
+    source = FakeJobSource(
+        [
+            FakeReceivedJob(
+                PanoProcessingJob(
+                    PanoramaId("pano-a"),
+                    image_path=str(tmp_path / "panoramas" / "pano-a.jpg"),
+                )
+            )
+        ]
+    )
+
+    result = asyncio.run(
+        run_processing_batch(
+            panorama_view_service=view_service,
+            job_source=source,
+            viewsets_dir=viewsets_dir,
+            storage_dir=tmp_path / "views",
+            limit=5,
+            concurrency=1,
+            render_scale=2,
+            embedding_queue=FakeEmbeddingQueue(pending=100),
+            max_embedding_queue_depth=100,
+        )
+    )
+
+    assert result == ProcessingRunResult(
+        processed_jobs=0,
+        failed_jobs=0,
+        generated_views=0,
+        skipped_views=0,
+        failed_views=0,
+        queued_embeddings=0,
+        paused=True,
+        pause_reason="embedding_queue_backlog",
+    )
+    assert source.fetch_calls == []
 
 
 def test_runner_skips_duplicate_completed_view(tmp_path: Path) -> None:

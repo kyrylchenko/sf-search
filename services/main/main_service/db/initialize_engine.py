@@ -8,6 +8,7 @@ from main_service.db.models import (
     map_tile_panorama,
     panorama,
     panorama_view,
+    panorama_view_embedding,
     tile,
 )
 
