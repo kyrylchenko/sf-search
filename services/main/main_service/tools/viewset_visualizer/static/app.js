@@ -6,6 +6,7 @@ const viewMatrixEl = document.getElementById("viewMatrix");
 const selectedViewEl = document.getElementById("selectedView");
 const showAllBtn = document.getElementById("showAll");
 const hideAllBtn = document.getElementById("hideAll");
+const openModeInput = document.getElementById("openMode");
 
 let state = null;
 let panoImage = null;
@@ -13,6 +14,7 @@ let currentViewset = null;
 let currentViewsetName = null;
 let visibleViewIds = new Set();
 let selectedViewId = null;
+let hoveredViewId = null;
 
 async function loadState() {
   const response = await fetch("/api/state");
@@ -48,6 +50,11 @@ function populateViewsets() {
     visibleViewIds = new Set();
     draw();
   });
+  openModeInput.addEventListener("change", () => {
+    if (currentViewset) {
+      renderSelectedView(currentViewset);
+    }
+  });
 }
 
 function draw() {
@@ -59,10 +66,18 @@ function draw() {
     visibleViewIds = defaultVisibleViews(viewset);
     selectedViewId = viewset.views[0]?.id || null;
   }
+  drawCanvas(viewset);
+  renderSidebar(viewset);
+}
+
+function drawCanvas(viewset) {
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.drawImage(panoImage, 0, 0, canvas.width, canvas.height);
   drawOverlays(viewset.views.filter((view) => visibleViewIds.has(view.id)));
-  renderSidebar(viewset);
+  const hoveredView = viewset.views.find((view) => view.id === hoveredViewId);
+  if (hoveredView) {
+    drawHoverOverlay(hoveredView);
+  }
 }
 
 function defaultVisibleViews(viewset) {
@@ -95,6 +110,16 @@ function drawPolygon(polygon) {
   });
 }
 
+function drawHoverOverlay(view) {
+  const previousLineWidth = context.lineWidth;
+  const previousStrokeStyle = context.strokeStyle;
+  context.lineWidth = Math.max(3, canvas.width / 650);
+  context.strokeStyle = "rgba(248, 250, 252, 0.95)";
+  view.polygons.forEach((polygon) => drawPolygon(polygon));
+  context.lineWidth = previousLineWidth;
+  context.strokeStyle = previousStrokeStyle;
+}
+
 function renderSidebar(viewset) {
   summary.textContent = `${viewset.description || "No description"} · ${state.pano.filename} · ${state.pano.width}x${state.pano.height}`;
   renderMatrix(viewset);
@@ -103,24 +128,34 @@ function renderSidebar(viewset) {
 
 function renderMatrix(viewset) {
   viewMatrixEl.innerHTML = "";
-  const pitches = [...new Set(viewset.views.map((view) => Number(view.pitch)))].sort((a, b) => b - a);
-  const headings = [...new Set(viewset.views.map((view) => Number(view.relative_heading)))].sort((a, b) => a - b);
-  pitches.forEach((pitch) => {
+  const spatialViews = viewset.views.map((view) => ({ view, center: viewCenter(view) }));
+  const rows = groupSpatialRows(spatialViews);
+  rows.forEach((rowViews) => {
     const row = document.createElement("div");
     row.className = "matrixRow";
     const label = document.createElement("div");
     label.className = "rowLabel";
-    label.textContent = `${formatNumber(pitch)}°`;
+    label.textContent = `${Math.round(rowViews[0].center.y * 100)}%`;
     const grid = document.createElement("div");
     grid.className = "seatGrid";
-    headings.forEach((heading) => {
-      const view = findView(viewset, pitch, heading);
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.className = "seat";
-      if (view) {
-        checkbox.title = `${view.id} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)}`;
+    rowViews
+      .sort((a, b) => a.center.x - b.center.x)
+      .forEach(({ view }) => {
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "seat";
+        checkbox.title = `${view.id} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · hover previews`;
         checkbox.checked = visibleViewIds.has(view.id);
+        checkbox.addEventListener("click", (event) => {
+          if (!openModeInput.checked) {
+            return;
+          }
+          event.preventDefault();
+          selectedViewId = view.id;
+          checkbox.checked = visibleViewIds.has(view.id);
+          renderSelectedView(viewset);
+          openViewImage(viewset, view);
+        });
         checkbox.addEventListener("change", () => {
           selectedViewId = view.id;
           if (checkbox.checked) {
@@ -132,18 +167,61 @@ function renderMatrix(viewset) {
         });
         checkbox.addEventListener("mouseenter", () => {
           selectedViewId = view.id;
+          hoveredViewId = view.id;
+          drawCanvas(viewset);
           renderSelectedView(viewset);
         });
-      } else {
-        checkbox.disabled = true;
-        checkbox.title = `No view at heading ${formatNumber(heading)}, pitch ${formatNumber(pitch)}`;
-      }
-      grid.appendChild(checkbox);
-    });
+        checkbox.addEventListener("mouseleave", () => {
+          if (hoveredViewId === view.id) {
+            hoveredViewId = null;
+            drawCanvas(viewset);
+          }
+        });
+        grid.appendChild(checkbox);
+      });
     row.appendChild(label);
     row.appendChild(grid);
     viewMatrixEl.appendChild(row);
   });
+}
+
+function groupSpatialRows(spatialViews) {
+  const sorted = [...spatialViews].sort((a, b) => a.center.y - b.center.y);
+  const rows = [];
+  sorted.forEach((item) => {
+    const existing = rows.find((row) => Math.abs(row[0].center.y - item.center.y) < 0.025);
+    if (existing) {
+      existing.push(item);
+    } else {
+      rows.push([item]);
+    }
+  });
+  return rows;
+}
+
+function viewCenter(view) {
+  let best = null;
+  view.polygons.forEach((polygon) => {
+    const visiblePoints = polygon.filter((point) => point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1);
+    if (visiblePoints.length === 0) {
+      return;
+    }
+    if (best === null || visiblePoints.length > best.length) {
+      best = visiblePoints;
+    }
+  });
+  const points = best || view.polygons.flat();
+  if (points.length === 0) {
+    return { x: 0.5, y: 0.5 };
+  }
+  return {
+    x: clamp01(points.reduce((sum, point) => sum + point.x, 0) / points.length),
+    y: clamp01(points.reduce((sum, point) => sum + point.y, 0) / points.length),
+  };
+}
+
+function clamp01(value) {
+  return Math.min(1, Math.max(0, value));
 }
 
 function renderSelectedView(viewset) {
@@ -156,48 +234,15 @@ function renderSelectedView(viewset) {
     <strong>${escapeHtml(view.id)}</strong>
     <span>${escapeHtml(view.view_kind)}</span><br>
     <span>heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · fov ${formatNumber(view.fov)}</span><br>
-    <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"}</span>
+    <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"} · ${openModeInput.checked ? "open mode" : "toggle mode"}</span>
     <button type="button">Open selected view</button>
   `;
   selectedViewEl.querySelector("button").addEventListener("click", () => openViewImage(viewset, view));
 }
 
-function findView(viewset, pitch, heading) {
-  return viewset.views.find(
-    (view) => Number(view.pitch) === pitch && Number(view.relative_heading) === heading
-  );
-}
-
-canvas.addEventListener("click", (event) => {
-  if (!currentViewset) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = (event.clientX - rect.left) / rect.width;
-  const y = (event.clientY - rect.top) / rect.height;
-  const view = [...currentViewset.views]
-    .filter((candidate) => visibleViewIds.has(candidate.id))
-    .reverse()
-    .find((candidate) => candidate.polygons.some((polygon) => pointInPolygon(x, y, polygon)));
-  if (view) {
-    openViewImage(currentViewset, view);
-  }
-});
-
 function openViewImage(viewset, view) {
   const params = new URLSearchParams({ viewset: viewset.name, view: view.id });
   window.open(`/view?${params.toString()}`, "_blank", "noopener");
-}
-
-function pointInPolygon(x, y, polygon) {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-    const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
 }
 
 function formatNumber(value) {

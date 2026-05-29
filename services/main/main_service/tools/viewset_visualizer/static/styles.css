@@ -57,6 +57,21 @@ select {
   margin-bottom: 14px;
 }
 
+.modeControl {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.modeControl input {
+  accent-color: #ef4444;
+  height: 16px;
+  margin: 0;
+  width: 16px;
+}
+
 button {
   border: 1px solid #475569;
   border-radius: 6px;

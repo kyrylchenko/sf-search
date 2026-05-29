@@ -18,6 +18,7 @@ dist/
 
 .coverage
 .tox/
+.playwright-cli/
 
 .vscode/
 .idea/

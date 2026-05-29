@@ -32,6 +32,20 @@ of an actual downloaded equirectangular panorama.
 - [x] Document run command.
 - [x] Run tests and smoke check server startup.
 - [x] Commit changes.
+- [x] Replace noisy filled overlays with outline-only projected boundaries.
+- [x] Add requested viewset presets for wide, center, and small-object grids.
+- [x] Use shared processing perspective rendering when opening an individual
+  view.
+- [x] Replace the long per-view toggle list with a compact spatial matrix
+  ordered by projected polygon centers.
+- [x] Remove unreliable pano-click opening.
+- [x] Replace modifier-key opening with explicit matrix Open mode: normal click
+  toggles visibility, Open mode click opens the rendered view without changing
+  visibility.
+- [x] Preview a matrix tile outline on hover in both modes.
+- [x] Verify matrix rendering after the duplicate stale JavaScript block was
+  removed.
+- [x] Commit the matrix fix.
 
 ## Verification Commands
 

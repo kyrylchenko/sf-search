@@ -15,10 +15,25 @@ of the equirectangular pano each view covers.
   - path to a folder of `.json` viewset definitions,
   - optional host/port.
 - Serve a small browser UI.
-- UI must show the panorama image and semi-transparent red overlays for each
-  view in the selected viewset.
+- UI must show the panorama image and outline-only overlays for each view in
+  the selected viewset. Filled translucent regions are intentionally avoided
+  because they hide pano detail when many views are visible.
 - UI must list viewsets and view metadata (`relative_heading`, `pitch`, `fov`,
   `view_kind`).
+- UI must expose compact per-view toggles as a spatial matrix. The matrix order
+  must be derived from Python-computed overlay polygons, not raw heading/pitch
+  values, so a checkbox in the top/bottom/left/right area corresponds to the
+  approximate same area on the displayed pano.
+- Opening a selected view must call the same perspective rendering function that
+  processing will use for embedding images.
+- Pano canvas clicks must not open views. Opening individual rendered views is
+  done from controls: the selected-view button or a matrix Open mode toggle.
+  In normal mode, clicking a matrix checkbox toggles overlay visibility. In
+  Open mode, clicking a matrix checkbox opens the rendered view without changing
+  overlay visibility. Modifier-key shortcuts are intentionally avoided because
+  Ctrl-click conflicts with macOS secondary click behavior.
+- Hovering a matrix checkbox must preview that view's outline on the pano in
+  both normal and Open mode, without changing the saved visibility set.
 - View specs must be compatible with later Google Maps Embed usage:
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;
