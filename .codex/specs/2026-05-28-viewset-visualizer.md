@@ -29,6 +29,8 @@ of the equirectangular pano each view covers.
 - Pano canvas clicks must not open views.
 - Matrix checkboxes only toggle overlay visibility. They must not have hover
   preview, modifier-key opening, or Open mode behavior.
+- The matrix must stay above the selected-view open/search panel. The search
+  UI can grow with results, so it should not push the matrix down the sidebar.
 - Opening individual rendered views is done from the selected-view panel: the
   direct "Open selected view" button, or a fuzzy search box whose results can be
   clicked to open a matching view. Pressing Enter in the search should open the
