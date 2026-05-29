@@ -37,6 +37,13 @@ of the equirectangular pano each view covers.
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;
   - `fov` clamped/validated against `[10, 100]`.
+- Current committed sample presets:
+  - `center-no-sky-road`: one center-context view at `fov=91`;
+  - `small-object-grid-72`: 72 small-object views at `fov=40`;
+  - `v1-wide-center`: six wide-context views at `fov=100` plus one
+    center-context view at `fov=77`;
+  - `wide-triptych-front-band`: three front-band wide-context views at
+    `fov=100`.
 - Avoid geometry drift between Python and browser. Python must compute all pano
   to equirectangular 2D overlay coordinates; browser only scales normalized
   coordinates to canvas pixels.
