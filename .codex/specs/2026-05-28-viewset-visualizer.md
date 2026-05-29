@@ -34,6 +34,11 @@ of the equirectangular pano each view covers.
   Ctrl-click conflicts with macOS secondary click behavior.
 - Hovering a matrix checkbox must preview that view's outline on the pano in
   both normal and Open mode, without changing the saved visibility set.
+- Open mode clicks should be captured at the matrix container level before
+  checkbox default behavior so they cannot accidentally toggle visibility.
+- Hover preview must be triggered from the same per-checkbox hover/focus handler
+  that updates the selected-view info panel; if the panel changes to a view, the
+  canvas should preview that same view.
 - View specs must be compatible with later Google Maps Embed usage:
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;

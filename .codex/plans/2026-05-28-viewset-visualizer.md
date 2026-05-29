@@ -43,6 +43,10 @@ of an actual downloaded equirectangular panorama.
   toggles visibility, Open mode click opens the rendered view without changing
   visibility.
 - [x] Preview a matrix tile outline on hover in both modes.
+- [x] Capture Open mode clicks at the matrix container before checkbox
+  default/change behavior can toggle visibility.
+- [x] Run hover preview from the same per-checkbox hover/focus handler that
+  updates the selected-view info panel.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.

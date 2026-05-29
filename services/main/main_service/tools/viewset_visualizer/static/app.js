@@ -55,6 +55,7 @@ function populateViewsets() {
       renderSelectedView(currentViewset);
     }
   });
+  viewMatrixEl.addEventListener("click", handleMatrixClick, true);
 }
 
 function draw() {
@@ -113,11 +114,17 @@ function drawPolygon(polygon) {
 function drawHoverOverlay(view) {
   const previousLineWidth = context.lineWidth;
   const previousStrokeStyle = context.strokeStyle;
+  const previousShadowBlur = context.shadowBlur;
+  const previousShadowColor = context.shadowColor;
   context.lineWidth = Math.max(3, canvas.width / 650);
-  context.strokeStyle = "rgba(248, 250, 252, 0.95)";
+  context.strokeStyle = "rgba(250, 204, 21, 0.98)";
+  context.shadowBlur = Math.max(4, canvas.width / 900);
+  context.shadowColor = "rgba(2, 6, 23, 0.8)";
   view.polygons.forEach((polygon) => drawPolygon(polygon));
   context.lineWidth = previousLineWidth;
   context.strokeStyle = previousStrokeStyle;
+  context.shadowBlur = previousShadowBlur;
+  context.shadowColor = previousShadowColor;
 }
 
 function renderSidebar(viewset) {
@@ -144,20 +151,17 @@ function renderMatrix(viewset) {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "seat";
+        checkbox.dataset.viewId = view.id;
         checkbox.title = `${view.id} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · hover previews`;
         checkbox.checked = visibleViewIds.has(view.id);
-        checkbox.addEventListener("click", (event) => {
-          if (!openModeInput.checked) {
+        checkbox.addEventListener("change", (event) => {
+          selectedViewId = view.id;
+          if (openModeInput.checked) {
+            event.preventDefault();
+            checkbox.checked = visibleViewIds.has(view.id);
+            renderSelectedView(viewset);
             return;
           }
-          event.preventDefault();
-          selectedViewId = view.id;
-          checkbox.checked = visibleViewIds.has(view.id);
-          renderSelectedView(viewset);
-          openViewImage(viewset, view);
-        });
-        checkbox.addEventListener("change", () => {
-          selectedViewId = view.id;
           if (checkbox.checked) {
             visibleViewIds.add(view.id);
           } else {
@@ -166,16 +170,16 @@ function renderMatrix(viewset) {
           draw();
         });
         checkbox.addEventListener("mouseenter", () => {
-          selectedViewId = view.id;
-          hoveredViewId = view.id;
-          drawCanvas(viewset);
-          renderSelectedView(viewset);
+          previewMatrixView(viewset, view);
+        });
+        checkbox.addEventListener("focus", () => {
+          previewMatrixView(viewset, view);
         });
         checkbox.addEventListener("mouseleave", () => {
-          if (hoveredViewId === view.id) {
-            hoveredViewId = null;
-            drawCanvas(viewset);
-          }
+          clearMatrixPreview(viewset, view.id);
+        });
+        checkbox.addEventListener("blur", () => {
+          clearMatrixPreview(viewset, view.id);
         });
         grid.appendChild(checkbox);
       });
@@ -183,6 +187,45 @@ function renderMatrix(viewset) {
     row.appendChild(grid);
     viewMatrixEl.appendChild(row);
   });
+}
+
+function handleMatrixClick(event) {
+  const checkbox = event.target.closest?.(".seat");
+  if (!checkbox || !openModeInput.checked || !currentViewset) {
+    return;
+  }
+  const view = findCurrentViewById(checkbox.dataset.viewId);
+  if (!view) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  selectedViewId = view.id;
+  checkbox.checked = visibleViewIds.has(view.id);
+  renderSelectedView(currentViewset);
+  openViewImage(currentViewset, view);
+}
+
+function previewMatrixView(viewset, view) {
+  selectedViewId = view.id;
+  hoveredViewId = view.id;
+  drawCanvas(viewset);
+  renderSelectedView(viewset);
+}
+
+function clearMatrixPreview(viewset, viewId) {
+  if (hoveredViewId !== viewId) {
+    return;
+  }
+  hoveredViewId = null;
+  drawCanvas(viewset);
+}
+
+function findCurrentViewById(viewId) {
+  if (!currentViewset || !viewId) {
+    return null;
+  }
+  return currentViewset.views.find((view) => view.id === viewId) || null;
 }
 
 function groupSpatialRows(spatialViews) {
