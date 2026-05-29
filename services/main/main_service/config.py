@@ -31,7 +31,14 @@ class Settings(BaseSettings):
     pano_processing_stream: str = Field(default="PANO_PROCESSING")
     pano_processing_subject: str = Field(default="pano.processing.requested")
     pano_downloader_consumer: str = Field(default="pano-downloader")
+    pano_processing_consumer: str = Field(default="pano-processor")
     max_processing_queue_depth: int = Field(default=50)
+    pano_viewsets_dir: str = Field(default="../../docs/data/viewsets")
+    pano_view_storage_dir: str = Field(default=".local/panorama-views")
+    pano_processing_concurrency: int = Field(default=1)
+    pano_view_render_scale: int = Field(default=2)
+    pano_view_output_format: str = Field(default="jpeg")
+    pano_view_jpeg_quality: int = Field(default=95)
 
 
 CONFIG: Final[Settings] = Settings()  # type: ignore

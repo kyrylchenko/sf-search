@@ -11,6 +11,29 @@ The downloader consumes durable NATS JetStream jobs from
 `.local/panoramas`, and publishes small processing jobs to
 `pano.processing.requested`.
 
+Run a bounded panorama preprocessing batch:
+
+```bash
+uv run python -m main_service.processing --limit 1
+```
+
+The preprocessor consumes durable NATS JetStream jobs from
+`pano.processing.requested`, loads viewsets from `../../docs/data/viewsets` by
+default, renders perspective views through the shared processing renderer, saves
+generated images under `.local/panorama-views`, and records each generated view
+in `panorama_view_table`.
+
+Useful local options:
+
+```bash
+uv run python -m main_service.processing \
+  --limit 1 \
+  --concurrency 1 \
+  --render-scale 2 \
+  --viewsets-dir ../../docs/data/viewsets \
+  --storage-dir .local/panorama-views
+```
+
 ## Viewset Visualizer
 
 Run the local browser visualizer against a downloaded pano:
@@ -32,8 +55,8 @@ Use `Show all`, `Hide all`, or the compact pitch/heading checkbox matrix to
 control overlay noise. Large presets default to hidden overlays so individual
 views can be inspected without covering the whole pano.
 
-Click a view in the sidebar, or click an overlay on the pano, to open the
-server-rendered 2D perspective view in a new browser tab.
+Select a view in the sidebar, then use `Open selected view` or the search box to
+open the server-rendered 2D perspective view in a new browser tab.
 
 That view page can toggle between the local rendered perspective image and a
 Google Maps Embed Street View iframe. Set the API key only in your local

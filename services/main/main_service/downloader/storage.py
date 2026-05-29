@@ -30,5 +30,9 @@ def sha256_file(path: Path) -> str:
 
 
 def _safe_pano_filename(pano_id: PanoramaId) -> str:
-    sanitized = _SAFE_FILENAME_CHARS.sub("_", pano_id.value).strip("._-")
-    return sanitized or "pano"
+    return safe_storage_segment(pano_id.value, fallback="pano")
+
+
+def safe_storage_segment(value: str, *, fallback: str = "item") -> str:
+    sanitized = _SAFE_FILENAME_CHARS.sub("_", value).strip("._-")
+    return sanitized or fallback

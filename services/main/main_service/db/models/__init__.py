@@ -1,9 +1,10 @@
-from . import embedding, map_tile, map_tile_panorama, panorama, tile
+from . import embedding, map_tile, map_tile_panorama, panorama, panorama_view, tile
 
 __all__ = [
     "embedding",
     "map_tile",
     "map_tile_panorama",
     "panorama",
+    "panorama_view",
     "tile",
 ]

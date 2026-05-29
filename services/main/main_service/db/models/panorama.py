@@ -11,6 +11,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .tile import Tile
+    from .panorama_view import PanoramaView
 
 
 class Panorama(Base):
@@ -33,6 +34,7 @@ class Panorama(Base):
     )
     downloaded_at: Mapped[datetime | None] = mapped_column(nullable=True)
     tiles: Mapped[List["Tile"]] = relationship(back_populates="panorama")
+    views: Mapped[List["PanoramaView"]] = relationship(back_populates="panorama")
 
     def __repr__(self) -> str:
         return (
