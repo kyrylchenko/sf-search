@@ -6,7 +6,6 @@ const viewMatrixEl = document.getElementById("viewMatrix");
 const selectedViewEl = document.getElementById("selectedView");
 const showAllBtn = document.getElementById("showAll");
 const hideAllBtn = document.getElementById("hideAll");
-const openModeInput = document.getElementById("openMode");
 
 let state = null;
 let panoImage = null;
@@ -14,7 +13,6 @@ let currentViewset = null;
 let currentViewsetName = null;
 let visibleViewIds = new Set();
 let selectedViewId = null;
-let hoveredViewId = null;
 
 async function loadState() {
   const response = await fetch("/api/state");
@@ -50,12 +48,6 @@ function populateViewsets() {
     visibleViewIds = new Set();
     draw();
   });
-  openModeInput.addEventListener("change", () => {
-    if (currentViewset) {
-      renderSelectedView(currentViewset);
-    }
-  });
-  viewMatrixEl.addEventListener("click", handleMatrixClick, true);
 }
 
 function draw() {
@@ -75,10 +67,6 @@ function drawCanvas(viewset) {
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.drawImage(panoImage, 0, 0, canvas.width, canvas.height);
   drawOverlays(viewset.views.filter((view) => visibleViewIds.has(view.id)));
-  const hoveredView = viewset.views.find((view) => view.id === hoveredViewId);
-  if (hoveredView) {
-    drawHoverOverlay(hoveredView);
-  }
 }
 
 function defaultVisibleViews(viewset) {
@@ -111,22 +99,6 @@ function drawPolygon(polygon) {
   });
 }
 
-function drawHoverOverlay(view) {
-  const previousLineWidth = context.lineWidth;
-  const previousStrokeStyle = context.strokeStyle;
-  const previousShadowBlur = context.shadowBlur;
-  const previousShadowColor = context.shadowColor;
-  context.lineWidth = Math.max(3, canvas.width / 650);
-  context.strokeStyle = "rgba(250, 204, 21, 0.98)";
-  context.shadowBlur = Math.max(4, canvas.width / 900);
-  context.shadowColor = "rgba(2, 6, 23, 0.8)";
-  view.polygons.forEach((polygon) => drawPolygon(polygon));
-  context.lineWidth = previousLineWidth;
-  context.strokeStyle = previousStrokeStyle;
-  context.shadowBlur = previousShadowBlur;
-  context.shadowColor = previousShadowColor;
-}
-
 function renderSidebar(viewset) {
   summary.textContent = `${viewset.description || "No description"} · ${state.pano.filename} · ${state.pano.width}x${state.pano.height}`;
   renderMatrix(viewset);
@@ -151,17 +123,10 @@ function renderMatrix(viewset) {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "seat";
-        checkbox.dataset.viewId = view.id;
-        checkbox.title = `${view.id} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · hover previews`;
+        checkbox.title = `${view.id} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)}`;
         checkbox.checked = visibleViewIds.has(view.id);
-        checkbox.addEventListener("change", (event) => {
+        checkbox.addEventListener("change", () => {
           selectedViewId = view.id;
-          if (openModeInput.checked) {
-            event.preventDefault();
-            checkbox.checked = visibleViewIds.has(view.id);
-            renderSelectedView(viewset);
-            return;
-          }
           if (checkbox.checked) {
             visibleViewIds.add(view.id);
           } else {
@@ -169,63 +134,12 @@ function renderMatrix(viewset) {
           }
           draw();
         });
-        checkbox.addEventListener("mouseenter", () => {
-          previewMatrixView(viewset, view);
-        });
-        checkbox.addEventListener("focus", () => {
-          previewMatrixView(viewset, view);
-        });
-        checkbox.addEventListener("mouseleave", () => {
-          clearMatrixPreview(viewset, view.id);
-        });
-        checkbox.addEventListener("blur", () => {
-          clearMatrixPreview(viewset, view.id);
-        });
         grid.appendChild(checkbox);
       });
     row.appendChild(label);
     row.appendChild(grid);
     viewMatrixEl.appendChild(row);
   });
-}
-
-function handleMatrixClick(event) {
-  const checkbox = event.target.closest?.(".seat");
-  if (!checkbox || !openModeInput.checked || !currentViewset) {
-    return;
-  }
-  const view = findCurrentViewById(checkbox.dataset.viewId);
-  if (!view) {
-    return;
-  }
-  event.preventDefault();
-  event.stopPropagation();
-  selectedViewId = view.id;
-  checkbox.checked = visibleViewIds.has(view.id);
-  renderSelectedView(currentViewset);
-  openViewImage(currentViewset, view);
-}
-
-function previewMatrixView(viewset, view) {
-  selectedViewId = view.id;
-  hoveredViewId = view.id;
-  drawCanvas(viewset);
-  renderSelectedView(viewset);
-}
-
-function clearMatrixPreview(viewset, viewId) {
-  if (hoveredViewId !== viewId) {
-    return;
-  }
-  hoveredViewId = null;
-  drawCanvas(viewset);
-}
-
-function findCurrentViewById(viewId) {
-  if (!currentViewset || !viewId) {
-    return null;
-  }
-  return currentViewset.views.find((view) => view.id === viewId) || null;
 }
 
 function groupSpatialRows(spatialViews) {
@@ -277,10 +191,88 @@ function renderSelectedView(viewset) {
     <strong>${escapeHtml(view.id)}</strong>
     <span>${escapeHtml(view.view_kind)}</span><br>
     <span>heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · fov ${formatNumber(view.fov)}</span><br>
-    <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"} · ${openModeInput.checked ? "open mode" : "toggle mode"}</span>
+    <span>${view.output_width}x${view.output_height} · ${view.polygons.length} polygon${view.polygons.length === 1 ? "" : "s"}</span>
     <button type="button">Open selected view</button>
+    <div class="viewSearch">
+      <input id="viewSearchInput" type="search" placeholder="Search views by id, kind, heading, pitch, fov" autocomplete="off">
+      <div id="viewSearchResults" class="searchResults"></div>
+    </div>
   `;
   selectedViewEl.querySelector("button").addEventListener("click", () => openViewImage(viewset, view));
+  wireViewSearch(viewset);
+}
+
+function wireViewSearch(viewset) {
+  const input = document.getElementById("viewSearchInput");
+  const results = document.getElementById("viewSearchResults");
+  if (!input || !results) return;
+  const render = () => {
+    const matches = fuzzyViewMatches(viewset.views, input.value).slice(0, 8);
+    results.innerHTML = "";
+    matches.forEach((view) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "searchResult";
+      button.innerHTML = `
+        <strong>${escapeHtml(view.id)}</strong>
+        <span>${escapeHtml(view.view_kind)} · heading ${formatNumber(view.relative_heading)} · pitch ${formatNumber(view.pitch)} · fov ${formatNumber(view.fov)}</span>
+      `;
+      button.addEventListener("click", () => {
+        selectedViewId = view.id;
+        renderSelectedView(viewset);
+        openViewImage(viewset, view);
+      });
+      results.appendChild(button);
+    });
+  };
+  input.addEventListener("input", render);
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const [first] = fuzzyViewMatches(viewset.views, input.value);
+    if (!first) return;
+    event.preventDefault();
+    selectedViewId = first.id;
+    renderSelectedView(viewset);
+    openViewImage(viewset, first);
+  });
+  render();
+}
+
+function fuzzyViewMatches(views, query) {
+  const normalizedQuery = normalizeSearch(query);
+  return views
+    .map((view, index) => ({ view, index, score: fuzzyScore(viewSearchText(view), normalizedQuery) }))
+    .filter((item) => item.score !== null)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map((item) => item.view);
+}
+
+function fuzzyScore(value, query) {
+  if (query === "") return 1000;
+  let score = 0;
+  let position = 0;
+  const normalizedValue = normalizeSearch(value);
+  for (const character of query) {
+    const found = normalizedValue.indexOf(character, position);
+    if (found === -1) return null;
+    score += found - position;
+    position = found + 1;
+  }
+  return score + normalizedValue.length / 1000;
+}
+
+function viewSearchText(view) {
+  return [
+    view.id,
+    view.view_kind,
+    `heading ${formatNumber(view.relative_heading)}`,
+    `pitch ${formatNumber(view.pitch)}`,
+    `fov ${formatNumber(view.fov)}`,
+  ].join(" ");
+}
+
+function normalizeSearch(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9.-]+/g, "");
 }
 
 function openViewImage(viewset, view) {

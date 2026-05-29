@@ -26,19 +26,13 @@ of the equirectangular pano each view covers.
   approximate same area on the displayed pano.
 - Opening a selected view must call the same perspective rendering function that
   processing will use for embedding images.
-- Pano canvas clicks must not open views. Opening individual rendered views is
-  done from controls: the selected-view button or a matrix Open mode toggle.
-  In normal mode, clicking a matrix checkbox toggles overlay visibility. In
-  Open mode, clicking a matrix checkbox opens the rendered view without changing
-  overlay visibility. Modifier-key shortcuts are intentionally avoided because
-  Ctrl-click conflicts with macOS secondary click behavior.
-- Hovering a matrix checkbox must preview that view's outline on the pano in
-  both normal and Open mode, without changing the saved visibility set.
-- Open mode clicks should be captured at the matrix container level before
-  checkbox default behavior so they cannot accidentally toggle visibility.
-- Hover preview must be triggered from the same per-checkbox hover/focus handler
-  that updates the selected-view info panel; if the panel changes to a view, the
-  canvas should preview that same view.
+- Pano canvas clicks must not open views.
+- Matrix checkboxes only toggle overlay visibility. They must not have hover
+  preview, modifier-key opening, or Open mode behavior.
+- Opening individual rendered views is done from the selected-view panel: the
+  direct "Open selected view" button, or a fuzzy search box whose results can be
+  clicked to open a matching view. Pressing Enter in the search should open the
+  top match.
 - View specs must be compatible with later Google Maps Embed usage:
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;

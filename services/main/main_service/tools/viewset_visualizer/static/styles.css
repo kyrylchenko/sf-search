@@ -57,21 +57,6 @@ select {
   margin-bottom: 14px;
 }
 
-.modeControl {
-  align-items: center;
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.modeControl input {
-  accent-color: #ef4444;
-  height: 16px;
-  margin: 0;
-  width: 16px;
-}
-
 button {
   border: 1px solid #475569;
   border-radius: 6px;
@@ -153,6 +138,43 @@ button:focus {
 .selectedView button {
   margin-top: 8px;
   width: 100%;
+}
+
+.viewSearch {
+  margin-top: 10px;
+}
+
+.viewSearch input {
+  background: #020617;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f8fafc;
+  padding: 8px 9px;
+  width: 100%;
+}
+
+.searchResults {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.searchResult {
+  background: #111827;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  display: grid;
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 0;
+  padding: 7px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.searchResult strong {
+  color: #f8fafc;
+  font-size: 12px;
 }
 
 .stage {

@@ -39,14 +39,11 @@ of an actual downloaded equirectangular panorama.
 - [x] Replace the long per-view toggle list with a compact spatial matrix
   ordered by projected polygon centers.
 - [x] Remove unreliable pano-click opening.
-- [x] Replace modifier-key opening with explicit matrix Open mode: normal click
-  toggles visibility, Open mode click opens the rendered view without changing
-  visibility.
-- [x] Preview a matrix tile outline on hover in both modes.
-- [x] Capture Open mode clicks at the matrix container before checkbox
-  default/change behavior can toggle visibility.
-- [x] Run hover preview from the same per-checkbox hover/focus handler that
-  updates the selected-view info panel.
+- [x] Remove matrix hover preview and Open mode after browser behavior proved
+  unreliable.
+- [x] Keep matrix checkboxes scoped to overlay visibility toggling only.
+- [x] Add selected-view fuzzy search for opening rendered views by id, kind,
+  heading, pitch, or fov.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.
