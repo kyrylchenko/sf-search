@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from dataclasses import dataclass
 from io import BytesIO
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,12 @@ from main_service.tools.viewset_visualizer.viewsets import Viewset, load_viewset
 Image.MAX_IMAGE_PIXELS = None
 _POSE_HEADING_PATTERN = re.compile(rb'GPano:PoseHeadingDegrees="([^"]+)"')
 _SUPPORTED_PANO_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+@dataclass(frozen=True)
+class PanoGallery:
+    paths: list[Path]
+    initial_index: int
 
 
 def create_app_payload(
@@ -69,6 +76,7 @@ def create_app_payload(
 
 class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
     pano_paths: list[Path]
+    initial_pano_index: int
     viewsets_dir: Path
     edge_samples: int
     google_api_key: str | None
@@ -136,7 +144,7 @@ class ViewsetVisualizerHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def _query_pano_index(self, query: dict[str, list[str]]) -> int:
-        raw_index = query.get("pano", ["0"])[0]
+        raw_index = query.get("pano", [str(self.initial_pano_index)])[0]
         try:
             return _normalize_pano_index(int(raw_index), self.pano_paths)
         except ValueError as exc:
@@ -300,12 +308,13 @@ def run_server(
     longitude: float | None = None,
 ) -> None:
     static_dir = Path(__file__).parent / "static"
-    pano_paths = resolve_pano_paths(pano_path)
+    pano_gallery = resolve_pano_gallery(pano_path)
 
     class ConfiguredHandler(ViewsetVisualizerHandler):
         pass
 
-    ConfiguredHandler.pano_paths = pano_paths
+    ConfiguredHandler.pano_paths = pano_gallery.paths
+    ConfiguredHandler.initial_pano_index = pano_gallery.initial_index
     ConfiguredHandler.viewsets_dir = viewsets_dir
     ConfiguredHandler.edge_samples = edge_samples
     ConfiguredHandler.google_api_key = google_api_key or os.getenv(google_api_key_env)
@@ -316,23 +325,39 @@ def run_server(
     handler = partial(ConfiguredHandler, directory=str(static_dir))
     server = ThreadingHTTPServer((host, port), handler)
     print(f"Viewset visualizer: http://{host}:{port}")
-    print(f"Panos: {len(pano_paths)} from {pano_path}")
+    print(f"Panos: {len(pano_gallery.paths)} from {pano_path}")
+    print(f"Initial pano: {pano_gallery.paths[pano_gallery.initial_index]}")
     print(f"Viewsets: {viewsets_dir}")
     server.serve_forever()
 
 
-def resolve_pano_paths(pano_path: Path) -> list[Path]:
+def resolve_pano_gallery(pano_path: Path) -> PanoGallery:
     if pano_path.is_dir():
-        paths = sorted(
-            path
-            for path in pano_path.iterdir()
-            if path.is_file() and path.suffix.lower() in _SUPPORTED_PANO_SUFFIXES
-        )
+        paths = _sorted_supported_images(pano_path)
+        initial_index = 0
     else:
-        paths = [pano_path]
+        sibling_paths = _sorted_supported_images(pano_path.parent)
+        if pano_path in sibling_paths:
+            paths = sibling_paths
+            initial_index = paths.index(pano_path)
+        else:
+            paths = [pano_path]
+            initial_index = 0
     if not paths:
         raise ValueError(f"no pano images found: {pano_path}")
-    return paths
+    return PanoGallery(paths=paths, initial_index=initial_index)
+
+
+def resolve_pano_paths(pano_path: Path) -> list[Path]:
+    return resolve_pano_gallery(pano_path).paths
+
+
+def _sorted_supported_images(directory: Path) -> list[Path]:
+    return sorted(
+        path
+        for path in directory.iterdir()
+        if path.is_file() and path.suffix.lower() in _SUPPORTED_PANO_SUFFIXES
+    )
 
 
 def _normalize_pano_index(index: int, pano_paths: list[Path]) -> int:

@@ -37,6 +37,10 @@ of the equirectangular pano each view covers.
   controls. The selected pano index must be included in `/api/state`, `/pano`,
   `/view`, and `/api/view-image` links so the canvas image and opened rendered
   views always refer to the same pano.
+- When `--pano` points to a single image inside a directory that contains other
+  supported pano images, the visualizer should use that directory as the gallery
+  and start on the requested image. This keeps Previous/Next useful when the
+  user launches with a familiar single-file command.
 - View specs must be compatible with later Google Maps Embed usage:
   - `relative_heading` canonical in pano space, normalized to `[0, 360)`;
   - `pitch` clamped/validated against `[-90, 90]`;

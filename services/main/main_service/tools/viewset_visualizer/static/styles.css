@@ -90,6 +90,7 @@ button:focus {
 .viewMatrix {
   display: grid;
   gap: 8px;
+  margin-top: 14px;
   overflow-x: auto;
   padding-bottom: 8px;
 }
@@ -137,11 +138,12 @@ button:focus {
 
 .selectedView {
   border-top: 1px solid #334155;
+  border-bottom: 1px solid #334155;
   color: #94a3b8;
   font-size: 12px;
   line-height: 1.5;
-  margin-top: 14px;
-  padding-top: 12px;
+  margin: 14px 0;
+  padding: 12px 0;
 }
 
 .selectedView strong {

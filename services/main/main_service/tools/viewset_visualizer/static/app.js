@@ -18,8 +18,9 @@ let visibleViewIds = new Set();
 let selectedViewId = null;
 let controlsInitialized = false;
 
-async function loadState(panoIndex = 0) {
-  const response = await fetch(`/api/state?pano=${encodeURIComponent(panoIndex)}`);
+async function loadState(panoIndex = null) {
+  const url = panoIndex === null ? "/api/state" : `/api/state?pano=${encodeURIComponent(panoIndex)}`;
+  const response = await fetch(url);
   state = await response.json();
   panoImage = new Image();
   panoImage.onload = () => {

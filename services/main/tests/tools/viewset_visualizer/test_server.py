@@ -7,6 +7,7 @@ from main_service.tools.viewset_visualizer.server import (
     build_google_embed_url,
     create_app_payload,
     parse_gpano_pose_heading,
+    resolve_pano_gallery,
     resolve_pano_paths,
     render_view_page,
     render_view_image,
@@ -222,3 +223,17 @@ def test_resolve_pano_paths_returns_sorted_supported_images(tmp_path: Path) -> N
     (tmp_path / "ignore.txt").write_text("nope")
 
     assert [path.name for path in resolve_pano_paths(tmp_path)] == ["a.webp", "b.jpg"]
+
+
+def test_resolve_pano_gallery_for_file_uses_siblings_and_initial_index(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.jpg").write_bytes(b"fake")
+    selected = tmp_path / "b.jpg"
+    selected.write_bytes(b"fake")
+    (tmp_path / "ignore.txt").write_text("nope")
+
+    gallery = resolve_pano_gallery(selected)
+
+    assert [path.name for path in gallery.paths] == ["a.jpg", "b.jpg"]
+    assert gallery.initial_index == 1

@@ -47,6 +47,10 @@ of an actual downloaded equirectangular panorama.
 - [x] Add multi-pano directory support for the visualizer server.
 - [x] Add Previous/Next pano controls that keep opened rendered views pinned to
   the selected pano index.
+- [x] Move the selected-view open/search panel above the matrix so it is visible
+  without scrolling past all tile toggles.
+- [x] Treat a single pano file path as a gallery rooted at its parent directory
+  when sibling pano images exist, starting on the requested file.
 - [x] Verify matrix rendering after the duplicate stale JavaScript block was
   removed.
 - [x] Commit the matrix fix.
