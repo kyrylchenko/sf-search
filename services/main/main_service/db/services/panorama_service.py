@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from typing import Optional
 
 from sqlalchemy import Engine, func, select
@@ -16,6 +17,13 @@ from main_service.ingestion.types import (
 )
 
 from ..models.tile import Tile
+
+
+@dataclass(frozen=True)
+class DownloadQueueCandidate:
+    panorama_id: int
+    pano_id: PanoramaId
+    source_tile: MapTileKey
 
 
 class PanoramaService:
@@ -149,7 +157,23 @@ class PanoramaService:
             return tile
 
     def mark_panorama_download_queued(self, panorama_id: int) -> Panorama:
-        return self.mark_panorama_download_status(panorama_id, DownloadStatus.QUEUED)
+        with Session(self.engine) as session:
+            panorama = session.get(Panorama, panorama_id)
+            if panorama is None:
+                raise ValueError(f"Panorama does not exist: {panorama_id}")
+            if panorama.download_status in {
+                DownloadStatus.DOWNLOADED.value,
+                DownloadStatus.SKIPPED.value,
+            }:
+                session.expunge(panorama)
+                return panorama
+
+            panorama.download_status = DownloadStatus.QUEUED.value
+            session.flush()
+            session.refresh(panorama)
+            session.expunge(panorama)
+            session.commit()
+            return panorama
 
     def mark_panorama_download_status(
         self, panorama_id: int, status: DownloadStatus
@@ -293,3 +317,51 @@ class PanoramaService:
             ).all()
 
             return [PanoramaId(value=orig_id) for (orig_id,) in rows]
+
+    def list_download_queue_candidates(self, limit: int) -> list[DownloadQueueCandidate]:
+        first_tile_link = (
+            select(
+                MapTilePanorama.panorama_id.label("panorama_id"),
+                func.min(MapTilePanorama.map_tile_id).label("map_tile_id"),
+            )
+            .group_by(MapTilePanorama.panorama_id)
+            .subquery()
+        )
+        retryable_statuses = [
+            DownloadStatus.PENDING.value,
+            DownloadStatus.QUEUED.value,
+            DownloadStatus.FAILED.value,
+        ]
+        with Session(self.engine) as session:
+            rows = (
+                session.execute(
+                    select(
+                        Panorama.id,
+                        Panorama.orig_id,
+                        Panorama.latitude,
+                        Panorama.longitude,
+                        MapTile.x,
+                        MapTile.y,
+                        MapTile.z,
+                    )
+                    .join(first_tile_link, first_tile_link.c.panorama_id == Panorama.id)
+                    .join(MapTile, MapTile.id == first_tile_link.c.map_tile_id)
+                    .where(Panorama.download_status.in_(retryable_statuses))
+                    .order_by(Panorama.id)
+                    .limit(limit)
+                )
+                .all()
+            )
+
+        return [
+            DownloadQueueCandidate(
+                panorama_id=panorama_id,
+                pano_id=PanoramaId(
+                    value=orig_id,
+                    latitude=latitude,
+                    longitude=longitude,
+                ),
+                source_tile=MapTileKey(x=x, y=y, z=z),
+            )
+            for panorama_id, orig_id, latitude, longitude, x, y, z in rows
+        ]

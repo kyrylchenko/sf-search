@@ -23,6 +23,12 @@ indexes, or publish website/query data.
   projection code used by the visualizer.
 - Use the current quality path: bicubic projection, configurable `render_scale`,
   JPEG output at high quality by default.
+- Render views inside one panorama concurrently, but keep only one panorama
+  loaded per worker process. Full-resolution Google panoramas are large enough
+  that loading multiple panos or honoring very high view concurrency can create
+  runaway native memory use.
+- Cap effective render concurrency with `PANO_VIEW_MAX_RENDER_CONCURRENCY`
+  (default `4`) and log when a requested value is reduced.
 - Store generated view images under ignored local storage by default.
 - Persist every generated view in Postgres with rich provenance:
   - pano row id and original Google pano id;

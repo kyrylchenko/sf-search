@@ -27,7 +27,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--concurrency",
         type=int,
         default=None,
-        help="Number of pano processing jobs to run concurrently.",
+        help="Number of view renders to run concurrently inside one panorama.",
+    )
+    parser.add_argument(
+        "--max-view-concurrency",
+        type=int,
+        default=None,
+        help="Hard cap for view render concurrency to protect memory.",
     )
     parser.add_argument(
         "--render-scale",
@@ -115,6 +121,10 @@ async def run(args: argparse.Namespace) -> None:
                 storage_dir=Path(args.storage_dir or settings.pano_view_storage_dir),
                 limit=args.limit,
                 concurrency=args.concurrency or settings.pano_processing_concurrency,
+                max_view_concurrency=_value_or_default(
+                    args.max_view_concurrency,
+                    settings.pano_view_max_render_concurrency,
+                ),
                 render_scale=args.render_scale or settings.pano_view_render_scale,
                 output_format=args.output_format or settings.pano_view_output_format,
                 image_quality=args.jpeg_quality or settings.pano_view_jpeg_quality,

@@ -3,6 +3,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
+from main_service.logging_config import format_log_event
+
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
@@ -32,9 +34,14 @@ async def run_service_loop(
 
         if should_idle(result):
             logger.info(
-                "%s_service_idle_sleep seconds=%s batches=%s",
-                service_name,
-                idle_sleep_seconds,
-                batches,
+                "%s",
+                format_log_event(
+                    "service_idle_sleep",
+                    {
+                        "service": service_name,
+                        "seconds": idle_sleep_seconds,
+                        "batches": batches,
+                    },
+                ),
             )
             await sleep(max(0.0, idle_sleep_seconds))

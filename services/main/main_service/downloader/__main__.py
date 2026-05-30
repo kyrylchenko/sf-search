@@ -9,8 +9,12 @@ from main_service.config import CONFIG
 from main_service.db.initialize_engine import initialize_engine
 from main_service.db.services.panorama_service import PanoramaService
 from main_service.downloader.nats_source import NatsPanoDownloadJobSource
+from main_service.downloader.requeue import requeue_download_jobs_from_db
 from main_service.downloader.runner import run_downloader_batch
-from main_service.ingestion.download_queue import NatsJetStreamPanoProcessingQueue
+from main_service.ingestion.download_queue import (
+    NatsJetStreamPanoDownloadQueue,
+    NatsJetStreamPanoProcessingQueue,
+)
 from main_service.logging_config import configure_cli_logging
 from main_service.service_loop import run_service_loop
 
@@ -83,9 +87,21 @@ async def run(args: argparse.Namespace) -> None:
         subject=settings.pano_processing_subject,
         consumer_name=settings.pano_processing_consumer,
     )
+    download_queue = NatsJetStreamPanoDownloadQueue.connect(
+        servers=settings.nats_url,
+        stream_name=settings.pano_download_stream,
+        subject=settings.pano_download_subject,
+        consumer_name=settings.pano_downloader_consumer,
+    )
 
     try:
         async def run_batch() -> object:
+            if download_queue.pending_count() == 0:
+                requeue_download_jobs_from_db(
+                    panorama_service=panorama_service,
+                    download_queue=download_queue,
+                    limit=args.limit,
+                )
             result = await run_downloader_batch(
                 panorama_service=panorama_service,
                 job_source=source,
@@ -118,6 +134,7 @@ async def run(args: argparse.Namespace) -> None:
         )
     finally:
         await source.close()
+        download_queue.close()
         processing_queue.close()
         logger.info("downloader_cli_closed")
 

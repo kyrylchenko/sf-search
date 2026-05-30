@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +12,7 @@ from main_service.db.services.panorama_view_embedding_service import (
 )
 from main_service.embedding.nats_source import ReceivedPanoEmbeddingJob
 from main_service.embedding.vector_store import VectorStore
+from main_service.logging_config import format_log_event
 
 ProgressCallback = Callable[[str, dict[str, object]], None]
 logger = logging.getLogger(__name__)
@@ -189,4 +189,4 @@ def _log_event(event: str, payload: dict[str, object]) -> None:
         level = logging.INFO
     else:
         level = logging.DEBUG
-    logger.log(level, "%s %s", event, json.dumps(payload, sort_keys=True))
+    logger.log(level, "%s", format_log_event(event, payload))

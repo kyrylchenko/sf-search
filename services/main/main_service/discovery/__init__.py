@@ -1,0 +1,1 @@
+"""Coverage discovery service."""

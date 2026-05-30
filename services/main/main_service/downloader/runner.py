@@ -21,6 +21,7 @@ from main_service.downloader.streetview_client import (
 )
 from main_service.ingestion.download_queue import PanoProcessingMessage, PanoProcessingQueue
 from main_service.ingestion.types import PanoramaId
+from main_service.logging_config import format_log_event
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +82,11 @@ async def run_downloader_batch(
     )
     if pending >= max_processing_queue_depth:
         logger.warning(
-            "downloader_paused %s",
-            json.dumps({"pause_reason": "processing_queue_backlog"}, sort_keys=True),
+            "%s",
+            format_log_event(
+                "downloader_paused",
+                {"pause_reason": "processing_queue_backlog"},
+            ),
         )
         return DownloadRunResult(
             downloaded=0,
@@ -92,11 +96,11 @@ async def run_downloader_batch(
             pause_reason="processing_queue_backlog",
         )
 
-    logger.info("downloader_fetch_start %s", json.dumps({"limit": limit}, sort_keys=True))
+    logger.info("%s", format_log_event("downloader_fetch_start", {"limit": limit}))
     jobs = await job_source.fetch(limit)
     logger.info(
-        "downloader_fetch_complete %s",
-        json.dumps({"jobs": len(jobs)}, sort_keys=True),
+        "%s",
+        format_log_event("downloader_fetch_complete", {"jobs": len(jobs)}),
     )
     client = streetview_client or RealStreetViewClient()
     semaphore = asyncio.Semaphore(max(1, concurrency))
@@ -124,7 +128,7 @@ async def run_downloader_batch(
         skipped=statuses.count("skipped"),
         failed=statuses.count("failed"),
     )
-    logger.info("downloader_batch_complete %s", json.dumps(result.__dict__, sort_keys=True))
+    logger.info("%s", format_log_event("downloader_batch_complete", result.__dict__))
     return result
 
 
@@ -143,15 +147,15 @@ async def _process_download_job(
     async with semaphore:
         pano_id = received_job.job.pano_id
         logger.info(
-            "downloader_job_start %s",
-            json.dumps({"pano_id": pano_id.value}, sort_keys=True),
+            "%s",
+            format_log_event("downloader_job_start", {"pano_id": pano_id.value}),
         )
         claimed = panorama_service.claim_panorama_for_download(pano_id)
         if claimed is None:
             await received_job.ack()
             logger.warning(
-                "downloader_job_skipped %s",
-                json.dumps({"pano_id": pano_id.value}, sort_keys=True),
+                "%s",
+                format_log_event("downloader_job_skipped", {"pano_id": pano_id.value}),
             )
             return "skipped"
 
@@ -171,10 +175,10 @@ async def _process_download_job(
             )
             await received_job.ack()
             logger.info(
-                "downloader_job_complete %s",
-                json.dumps(
+                "%s",
+                format_log_event(
+                    "downloader_job_complete",
                     {"pano_id": pano_id.value, "image_path": str(final_path)},
-                    sort_keys=True,
                 ),
             )
             return "downloaded"
@@ -188,8 +192,11 @@ async def _process_download_job(
             )
             await received_job.ack()
             logger.error(
-                "downloader_job_failed %s",
-                json.dumps({"pano_id": pano_id.value, "error": str(exc)}, sort_keys=True),
+                "%s",
+                format_log_event(
+                    "downloader_job_failed",
+                    {"pano_id": pano_id.value, "error": str(exc)},
+                ),
             )
             return "failed"
 

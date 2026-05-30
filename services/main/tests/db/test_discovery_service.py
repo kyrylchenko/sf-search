@@ -92,6 +92,23 @@ def test_mark_panorama_download_queued_updates_status() -> None:
     assert updated.download_status == DownloadStatus.QUEUED.value
 
 
+def test_mark_panorama_download_queued_does_not_regress_downloaded_pano() -> None:
+    service = make_service()
+    service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
+    downloaded = service.mark_panorama_downloaded(
+        PanoramaId(value="example-pano-id"),
+        image_path=".local/panoramas/example-pano-id.jpg",
+        image_hash="abc123",
+        metadata_json={"pano_id": "example-pano-id"},
+        latitude=37.1,
+        longitude=-122.1,
+    )
+
+    updated = service.mark_panorama_download_queued(downloaded.id)
+
+    assert updated.download_status == DownloadStatus.DOWNLOADED.value
+
+
 def test_claim_panorama_for_download_marks_retryable_pano_downloading() -> None:
     service = make_service()
     pano_row = service.upsert_discovered_panorama(PanoramaId(value="example-pano-id"))
@@ -211,3 +228,28 @@ def test_list_downloadable_pano_ids_for_map_tile_excludes_terminal_download_stat
     pano_ids = service.list_downloadable_pano_ids_for_map_tile(tile_row.id)
 
     assert [pano_id.value for pano_id in pano_ids] == ["pano-pending"]
+
+
+def test_list_download_queue_candidates_returns_retryable_panos_with_source_tile() -> None:
+    service = make_service()
+    tile_row = service.upsert_map_tile(MapTileKey(x=1, y=2, z=17))
+    queued = service.upsert_discovered_panorama(
+        PanoramaId(value="pano-queued", latitude=37.1, longitude=-122.1)
+    )
+    failed = service.upsert_discovered_panorama(PanoramaId(value="pano-failed"))
+    downloaded = service.upsert_discovered_panorama(PanoramaId(value="pano-downloaded"))
+    service.link_map_tile_to_panorama(tile_row.id, queued.id)
+    service.link_map_tile_to_panorama(tile_row.id, failed.id)
+    service.link_map_tile_to_panorama(tile_row.id, downloaded.id)
+    service.mark_panorama_download_queued(queued.id)
+    service.mark_panorama_download_status(failed.id, DownloadStatus.FAILED)
+    service.mark_panorama_download_status(downloaded.id, DownloadStatus.DOWNLOADED)
+
+    candidates = service.list_download_queue_candidates(limit=10)
+
+    assert [(candidate.pano_id.value, candidate.source_tile) for candidate in candidates] == [
+        ("pano-queued", MapTileKey(x=1, y=2, z=17)),
+        ("pano-failed", MapTileKey(x=1, y=2, z=17)),
+    ]
+    assert candidates[0].pano_id.latitude == 37.1
+    assert candidates[0].pano_id.longitude == -122.1

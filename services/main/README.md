@@ -1,5 +1,16 @@
 # main service
 
+Run the coverage discovery service from this directory:
+
+```bash
+uv run python -m main_service.discovery --log-level INFO
+```
+
+It reads the configured boundary GeoJSON, queries Street View coverage tiles,
+persists tile/pano state in Postgres, and publishes downloader jobs to
+`pano.download.requested`. It keeps polling until stopped; add `--once` for one
+bounded discovery pass.
+
 Run the panorama downloader service from this directory:
 
 ```bash
@@ -38,12 +49,18 @@ Useful local options:
 ```bash
 uv run python -m main_service.processing \
   --limit 1 \
-  --concurrency 1 \
+  --concurrency 4 \
+  --max-view-concurrency 4 \
   --log-level INFO \
   --render-scale 2 \
   --viewsets-dir ../../docs/data/viewsets \
   --storage-dir .local/panorama-views
 ```
+
+`--concurrency` means simultaneous view renders inside one loaded panorama. Keep
+it low for full-resolution Google panoramas; `--max-view-concurrency` defaults
+to `4` and caps unsafe manual values because `py360convert` allocates large
+native arrays while rendering.
 
 Run the panorama view embedding service:
 

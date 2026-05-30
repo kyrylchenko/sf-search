@@ -7,7 +7,9 @@ def test_processing_entrypoint_parser_accepts_safe_manual_options() -> None:
             "--limit",
             "5",
             "--concurrency",
-            "1",
+            "8",
+            "--max-view-concurrency",
+            "4",
             "--render-scale",
             "2",
             "--viewsets-dir",
@@ -21,7 +23,8 @@ def test_processing_entrypoint_parser_accepts_safe_manual_options() -> None:
     )
 
     assert args.limit == 5
-    assert args.concurrency == 1
+    assert args.concurrency == 8
+    assert args.max_view_concurrency == 4
     assert args.render_scale == 2
     assert args.viewsets_dir == "../../docs/data/viewsets"
     assert args.storage_dir == ".local/panorama-views"

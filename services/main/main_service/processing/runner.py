@@ -1,7 +1,9 @@
 import asyncio
+import gc
 import hashlib
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
@@ -20,6 +22,7 @@ from main_service.ingestion.download_queue import (
     PanoEmbeddingQueue,
 )
 from main_service.ingestion.types import PanoramaId
+from main_service.logging_config import format_log_event
 from main_service.processing.nats_source import (
     PanoProcessingJob,
     ReceivedPanoProcessingJob,
@@ -69,6 +72,23 @@ class ProcessingJobOutcome:
     queued_embeddings: int = 0
 
 
+@dataclass(frozen=True)
+class ClaimedViewRender:
+    claim_id: int
+    pano_id: PanoramaId
+    viewset_name: str
+    view: ViewSpec
+    spec: PanoramaViewSpecRecord
+    output_path: Path
+
+
+@dataclass(frozen=True)
+class RenderedView:
+    claim: ClaimedViewRender
+    image_hash: str
+    image_bytes: int
+
+
 async def run_processing_batch(
     *,
     panorama_view_service: PanoramaViewService,
@@ -78,6 +98,7 @@ async def run_processing_batch(
     limit: int,
     concurrency: int,
     render_scale: int,
+    max_view_concurrency: int = 4,
     output_format: str = "jpeg",
     image_quality: int = 95,
     embedding_queue: PanoEmbeddingQueue | None = None,
@@ -110,24 +131,37 @@ async def run_processing_batch(
     jobs = await job_source.fetch(limit)
     _emit(progress, "processing_fetch_complete", {"jobs": len(jobs)})
     viewsets = load_viewsets(viewsets_dir)
-    semaphore = asyncio.Semaphore(max(1, concurrency))
-    outcomes = await asyncio.gather(
-        *[
-            _process_received_job(
+    view_concurrency = _bounded_view_concurrency(
+        requested=concurrency,
+        maximum=max_view_concurrency,
+    )
+    if view_concurrency != max(1, concurrency):
+        _emit(
+            progress,
+            "processing_view_concurrency_capped",
+            {
+                "requested": concurrency,
+                "maximum": max(1, max_view_concurrency),
+                "effective": view_concurrency,
+            },
+        )
+
+    outcomes = []
+    for received_job in jobs:
+        outcomes.append(
+            await _process_received_job(
                 received_job=received_job,
                 panorama_view_service=panorama_view_service,
                 viewsets=viewsets,
                 storage_dir=storage_dir,
-                semaphore=semaphore,
+                view_concurrency=view_concurrency,
                 render_scale=render_scale,
                 output_format=output_format,
                 image_quality=image_quality,
                 embedding_queue=embedding_queue,
                 progress=progress,
             )
-            for received_job in jobs
-        ]
-    )
+        )
     result = ProcessingRunResult(
         processed_jobs=sum(1 for outcome in outcomes if not outcome.failed_job),
         failed_jobs=sum(1 for outcome in outcomes if outcome.failed_job),
@@ -146,27 +180,27 @@ async def _process_received_job(
     panorama_view_service: PanoramaViewService,
     viewsets: list[Viewset],
     storage_dir: Path,
-    semaphore: asyncio.Semaphore,
+    view_concurrency: int,
     render_scale: int,
     output_format: str,
     image_quality: int,
     embedding_queue: PanoEmbeddingQueue | None,
     progress: ProgressCallback | None,
 ) -> ProcessingJobOutcome:
-    async with semaphore:
-        outcome = _process_job(
-            job=received_job.job,
-            panorama_view_service=panorama_view_service,
-            viewsets=viewsets,
-            storage_dir=storage_dir,
-            render_scale=render_scale,
-            output_format=output_format,
-            image_quality=image_quality,
-            embedding_queue=embedding_queue,
-            progress=progress,
-        )
-        await received_job.ack()
-        return outcome
+    outcome = _process_job(
+        job=received_job.job,
+        panorama_view_service=panorama_view_service,
+        viewsets=viewsets,
+        storage_dir=storage_dir,
+        view_concurrency=view_concurrency,
+        render_scale=render_scale,
+        output_format=output_format,
+        image_quality=image_quality,
+        embedding_queue=embedding_queue,
+        progress=progress,
+    )
+    await received_job.ack()
+    return outcome
 
 
 def _process_job(
@@ -175,6 +209,7 @@ def _process_job(
     panorama_view_service: PanoramaViewService,
     viewsets: list[Viewset],
     storage_dir: Path,
+    view_concurrency: int,
     render_scale: int,
     output_format: str,
     image_quality: int,
@@ -219,10 +254,8 @@ def _process_job(
         )
         return ProcessingJobOutcome(failed_job=True)
 
-    generated = 0
     skipped = 0
-    failed = 0
-    queued_embeddings = 0
+    claimed_views: list[ClaimedViewRender] = []
     for viewset in viewsets:
         for view in viewset.views:
             spec = _build_spec_record(
@@ -247,38 +280,62 @@ def _process_job(
                     },
                 )
                 continue
-            try:
-                _emit(
-                    progress,
-                    "processing_view_start",
-                    {
-                        "pano_id": job.pano_id.value,
-                        "viewset_name": viewset.name,
-                        "view_id": view.id,
-                    },
-                )
-                output_path = panorama_view_image_path(
-                    storage_dir,
+            output_path = panorama_view_image_path(
+                storage_dir,
+                pano_id=job.pano_id,
+                viewset_name=viewset.name,
+                view_id=view.id,
+                view_spec_hash=spec.view_spec_hash,
+                render_scale=render_scale,
+                output_format=normalized_format,
+            )
+            claimed_views.append(
+                ClaimedViewRender(
+                    claim_id=claim.id,
                     pano_id=job.pano_id,
                     viewset_name=viewset.name,
-                    view_id=view.id,
-                    view_spec_hash=spec.view_spec_hash,
-                    render_scale=render_scale,
-                    output_format=normalized_format,
-                )
-                _render_and_store_view(
-                    pano_array=pano_array,
                     view=view,
-                    render_scale=render_scale,
+                    spec=spec,
                     output_path=output_path,
-                    output_format=normalized_format,
-                    image_quality=image_quality,
                 )
+            )
+
+    generated = 0
+    failed = 0
+    queued_embeddings = 0
+    workers = min(max(1, view_concurrency), max(1, len(claimed_views)))
+    if claimed_views:
+        _emit(
+            progress,
+            "processing_view_render_pool_start",
+            {
+                "pano_id": job.pano_id.value,
+                "views": len(claimed_views),
+                "workers": workers,
+            },
+        )
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_claim = {
+            executor.submit(
+                _render_claimed_view,
+                pano_array=pano_array,
+                claim=claim,
+                render_scale=render_scale,
+                output_format=normalized_format,
+                image_quality=image_quality,
+                progress=progress,
+            ): claim
+            for claim in claimed_views
+        }
+        for future in as_completed(future_to_claim):
+            claim = future_to_claim[future]
+            try:
+                rendered = future.result()
                 completed = panorama_view_service.mark_view_complete(
-                    claim.id,
-                    image_path=str(output_path),
-                    image_hash=sha256_file(output_path),
-                    image_bytes=output_path.stat().st_size,
+                    rendered.claim.claim_id,
+                    image_path=str(rendered.claim.output_path),
+                    image_hash=rendered.image_hash,
+                    image_bytes=rendered.image_bytes,
                 )
                 if completed.image_path and embedding_queue is not None:
                     embedding_queue.enqueue(
@@ -300,18 +357,28 @@ def _process_job(
                     },
                 )
             except Exception as exc:
-                panorama_view_service.mark_view_failed(claim.id, str(exc))
+                panorama_view_service.mark_view_failed(claim.claim_id, str(exc))
                 failed += 1
                 _emit(
                     progress,
                     "processing_view_failed",
                     {
                         "pano_id": job.pano_id.value,
-                        "viewset_name": viewset.name,
-                        "view_id": view.id,
+                        "viewset_name": claim.viewset_name,
+                        "view_id": claim.view.id,
                         "error": str(exc),
                     },
                 )
+    if claimed_views:
+        _emit(
+            progress,
+            "processing_view_render_pool_complete",
+            {
+                "pano_id": job.pano_id.value,
+                "generated_views": generated,
+                "failed_views": failed,
+            },
+        )
     outcome = ProcessingJobOutcome(
         failed_job=False,
         generated_views=generated,
@@ -324,7 +391,42 @@ def _process_job(
         "processing_job_complete",
         {"pano_id": job.pano_id.value, **outcome.__dict__},
     )
+    del pano_array
+    gc.collect()
     return outcome
+
+
+def _render_claimed_view(
+    *,
+    pano_array: np.ndarray,
+    claim: ClaimedViewRender,
+    render_scale: int,
+    output_format: str,
+    image_quality: int,
+    progress: ProgressCallback | None,
+) -> RenderedView:
+    _emit(
+        progress,
+        "processing_view_start",
+        {
+            "pano_id": claim.pano_id.value,
+            "viewset_name": claim.viewset_name,
+            "view_id": claim.view.id,
+        },
+    )
+    _render_and_store_view(
+        pano_array=pano_array,
+        view=claim.view,
+        render_scale=render_scale,
+        output_path=claim.output_path,
+        output_format=output_format,
+        image_quality=image_quality,
+    )
+    return RenderedView(
+        claim=claim,
+        image_hash=sha256_file(claim.output_path),
+        image_bytes=claim.output_path.stat().st_size,
+    )
 
 
 def _emit(
@@ -340,13 +442,13 @@ def _emit(
 def _log_event(event: str, payload: dict[str, object]) -> None:
     if event.endswith("_failed"):
         level = logging.ERROR
-    elif event.endswith("_skipped") or event.endswith("_paused"):
+    elif event.endswith("_paused"):
         level = logging.WARNING
     elif event.endswith("_start") or event.endswith("_complete"):
         level = logging.INFO
     else:
         level = logging.DEBUG
-    logger.log(level, "%s %s", event, json.dumps(payload, sort_keys=True))
+    logger.log(level, "%s", format_log_event(event, payload))
 
 
 def _resolve_source_path(job: PanoProcessingJob, panorama: Panorama) -> Path | None:
@@ -449,3 +551,8 @@ def _normalize_output_format(output_format: str) -> str:
     if normalized not in {"jpeg", "png"}:
         raise ValueError(f"Unsupported output format: {output_format}")
     return normalized
+
+
+def _bounded_view_concurrency(*, requested: int, maximum: int) -> int:
+    safe_maximum = max(1, maximum)
+    return min(max(1, requested), safe_maximum)

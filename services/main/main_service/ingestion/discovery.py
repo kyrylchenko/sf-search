@@ -7,6 +7,7 @@ from main_service.db.services.panorama_service import PanoramaService
 from main_service.ingestion.coverage_client import CoverageClient
 from main_service.ingestion.download_queue import PanoDownloadMessage, PanoDownloadQueue
 from main_service.ingestion.types import MapTileKey, ProcessingStatus
+from main_service.logging_config import format_log_event
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,11 @@ def discover_panos_for_tiles(
         )
         if pending >= max_downloader_queue_depth:
             logger.warning(
-                "discovery_paused %s",
-                json.dumps({"pause_reason": "downloader_queue_full"}, sort_keys=True),
+                "%s",
+                format_log_event(
+                    "discovery_paused",
+                    {"pause_reason": "downloader_queue_full"},
+                ),
             )
             return DiscoveryResult(
                 tiles_processed=tiles_processed,
@@ -62,13 +66,13 @@ def discover_panos_for_tiles(
 
         tile_row = pano_service.upsert_map_tile(tile)
         logger.info(
-            "discovery_tile_start %s",
-            json.dumps({"x": tile.x, "y": tile.y, "z": tile.z}, sort_keys=True),
+            "%s",
+            format_log_event("discovery_tile_start", {"x": tile.x, "y": tile.y, "z": tile.z}),
         )
         if tile_row.discovery_status == ProcessingStatus.COMPLETE.value:
             logger.info(
-                "discovery_tile_replay_start %s",
-                json.dumps({"map_tile_id": tile_row.id}, sort_keys=True),
+                "%s",
+                format_log_event("discovery_tile_replay_start", {"map_tile_id": tile_row.id}),
             )
             pano_ids = pano_service.list_downloadable_pano_ids_for_map_tile(tile_row.id)
             for pano_id in pano_ids:
@@ -80,20 +84,29 @@ def discover_panos_for_tiles(
                 pano_service.mark_panorama_download_queued(pano_row.id)
                 enqueued_count += 1
                 logger.info(
-                    "discovery_download_enqueued %s",
-                    json.dumps({"pano_id": pano_id.value, "map_tile_id": tile_row.id}, sort_keys=True),
+                    "%s",
+                    format_log_event(
+                        "discovery_download_enqueued",
+                        {"pano_id": pano_id.value, "map_tile_id": tile_row.id},
+                    ),
                 )
             tiles_processed += 1
             continue
 
         logger.info(
-            "discovery_coverage_fetch_start %s",
-            json.dumps({"x": tile.x, "y": tile.y, "z": tile.z}, sort_keys=True),
+            "%s",
+            format_log_event(
+                "discovery_coverage_fetch_start",
+                {"x": tile.x, "y": tile.y, "z": tile.z},
+            ),
         )
         pano_ids = coverage_client.get_pano_ids_for_tile(tile)
         logger.info(
-            "discovery_coverage_fetch_complete %s",
-            json.dumps({"x": tile.x, "y": tile.y, "z": tile.z, "pano_ids": len(pano_ids)}, sort_keys=True),
+            "%s",
+            format_log_event(
+                "discovery_coverage_fetch_complete",
+                {"x": tile.x, "y": tile.y, "z": tile.z, "pano_ids": len(pano_ids)},
+            ),
         )
         for pano_id in pano_ids:
             pano_row = pano_service.upsert_discovered_panorama(pano_id)
@@ -105,14 +118,20 @@ def discover_panos_for_tiles(
             pano_service.mark_panorama_download_queued(pano_row.id)
             enqueued_count += 1
             logger.info(
-                "discovery_download_enqueued %s",
-                json.dumps({"pano_id": pano_id.value, "map_tile_id": tile_row.id}, sort_keys=True),
+                "%s",
+                format_log_event(
+                    "discovery_download_enqueued",
+                    {"pano_id": pano_id.value, "map_tile_id": tile_row.id},
+                ),
             )
         pano_service.mark_map_tile_discovery_complete(tile_row.id)
         tiles_processed += 1
         logger.info(
-            "discovery_tile_complete %s",
-            json.dumps({"map_tile_id": tile_row.id, "pano_ids": len(pano_ids)}, sort_keys=True),
+            "%s",
+            format_log_event(
+                "discovery_tile_complete",
+                {"map_tile_id": tile_row.id, "pano_ids": len(pano_ids)},
+            ),
         )
 
     result = DiscoveryResult(
@@ -121,5 +140,5 @@ def discover_panos_for_tiles(
         tile_pano_links_created=link_count,
         enqueued_downloads=enqueued_count,
     )
-    logger.info("discovery_complete %s", json.dumps(result.__dict__, sort_keys=True))
+    logger.info("%s", format_log_event("discovery_complete", result.__dict__))
     return result

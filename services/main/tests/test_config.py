@@ -13,3 +13,30 @@ def test_settings_accepts_existing_geojson_filepath_env_name() -> None:
     )
 
     assert settings.area_to_process_geojson_filepath == "city.geojson"
+
+
+def test_settings_include_discovery_backpressure_default() -> None:
+    settings = Settings(
+        _env_file=None,
+        db_user="user",
+        db_password="password",
+        db_host="localhost",
+        db_port=3306,
+        db_name="sf_search",
+    )
+
+    assert settings.max_downloader_queue_depth == 1000
+
+
+def test_settings_include_processing_render_concurrency_cap() -> None:
+    settings = Settings(
+        _env_file=None,
+        db_user="user",
+        db_password="password",
+        db_host="localhost",
+        db_port=3306,
+        db_name="sf_search",
+    )
+
+    assert settings.pano_processing_concurrency == 4
+    assert settings.pano_view_max_render_concurrency == 4

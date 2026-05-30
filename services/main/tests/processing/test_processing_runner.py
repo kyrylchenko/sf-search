@@ -1,5 +1,7 @@
 import asyncio
 import json
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +20,7 @@ from main_service.processing.nats_source import (
     ReceivedPanoProcessingJob,
 )
 from main_service.processing.runner import ProcessingRunResult, run_processing_batch
+from main_service.processing.runner import _bounded_view_concurrency
 
 
 def make_services() -> tuple[PanoramaService, PanoramaViewService]:
@@ -53,6 +56,30 @@ def write_viewset(path: Path) -> None:
                         "output_width": 16,
                         "output_height": 12,
                     }
+                ],
+            }
+        )
+    )
+
+
+def write_multi_viewset(path: Path, view_count: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "name": "candidate",
+                "description": "test viewset",
+                "views": [
+                    {
+                        "id": f"view-{index:03d}",
+                        "relative_heading": index * 10,
+                        "pitch": 0,
+                        "fov": 60,
+                        "view_kind": "small_object",
+                        "output_width": 16,
+                        "output_height": 12,
+                    }
+                    for index in range(view_count)
                 ],
             }
         )
@@ -184,6 +211,101 @@ def test_runner_enqueues_embedding_job_for_completed_view(tmp_path: Path) -> Non
             image_path=rows[0].image_path or "",
         )
     ]
+
+
+def test_runner_renders_views_in_parallel_within_one_panorama(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from main_service.processing import runner
+
+    panorama_service, view_service = make_services()
+    pano_path = tmp_path / "panoramas" / "pano-a.jpg"
+    write_test_pano(pano_path)
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-a"))
+    panorama_service.mark_panorama_downloaded(
+        PanoramaId("pano-a"),
+        image_path=str(pano_path),
+        image_hash=sha256_file(pano_path),
+        metadata_json={"pano_id": "pano-a"},
+        latitude=37.1,
+        longitude=-122.1,
+    )
+    viewsets_dir = tmp_path / "viewsets"
+    write_multi_viewset(viewsets_dir / "candidate.json", view_count=4)
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    def fake_render_and_store_view(**kwargs: object) -> None:
+        nonlocal active, max_active
+        output_path = kwargs["output_path"]
+        assert isinstance(output_path, Path)
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        try:
+            time.sleep(0.05)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            Image.new("RGB", (8, 8), color=(20, 40, 80)).save(output_path)
+        finally:
+            with lock:
+                active -= 1
+
+    monkeypatch.setattr(runner, "_render_and_store_view", fake_render_and_store_view)
+
+    result = asyncio.run(
+        run_processing_batch(
+            panorama_view_service=view_service,
+            job_source=FakeJobSource(
+                [
+                    FakeReceivedJob(
+                        PanoProcessingJob(PanoramaId("pano-a"), image_path=str(pano_path))
+                    )
+                ]
+            ),
+            viewsets_dir=viewsets_dir,
+            storage_dir=tmp_path / "views",
+            limit=5,
+            concurrency=4,
+            render_scale=2,
+        )
+    )
+
+    assert result.generated_views == 4
+    assert max_active > 1
+
+
+def test_bounded_view_concurrency_caps_unsafe_user_values() -> None:
+    assert _bounded_view_concurrency(requested=100, maximum=4) == 4
+    assert _bounded_view_concurrency(requested=0, maximum=4) == 1
+    assert _bounded_view_concurrency(requested=4, maximum=0) == 1
+
+
+def test_runner_reports_capped_view_concurrency(tmp_path: Path) -> None:
+    _, view_service = make_services()
+    viewsets_dir = tmp_path / "viewsets"
+    write_viewset(viewsets_dir / "candidate.json")
+    events: list[tuple[str, dict[str, object]]] = []
+
+    asyncio.run(
+        run_processing_batch(
+            panorama_view_service=view_service,
+            job_source=FakeJobSource([]),
+            viewsets_dir=viewsets_dir,
+            storage_dir=tmp_path / "views",
+            limit=5,
+            concurrency=100,
+            max_view_concurrency=4,
+            render_scale=2,
+            progress=lambda event, payload: events.append((event, payload)),
+        )
+    )
+
+    assert (
+        "processing_view_concurrency_capped",
+        {"requested": 100, "maximum": 4, "effective": 4},
+    ) in events
 
 
 def test_runner_pauses_before_fetching_when_embedding_queue_is_backed_up(
