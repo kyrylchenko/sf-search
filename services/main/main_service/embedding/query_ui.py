@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, urlencode, unquote, urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from sqlalchemy import Engine, select
@@ -36,6 +36,9 @@ class QueryResult:
     rendered_height: int
     model_id: str
     vector_id: str
+    latitude: float | None = None
+    longitude: float | None = None
+    pano_heading: float | None = None
 
 
 class LocalQueryService:
@@ -98,6 +101,9 @@ def _results_for_hits(
             rendered_height=view.rendered_height,
             model_id=embedding.model_id,
             vector_id=embedding.vector_id or "",
+            latitude=panorama.latitude,
+            longitude=panorama.longitude,
+            pano_heading=_extract_pano_heading(panorama.metadata_json),
         )
         for embedding, view, panorama in rows
     }
@@ -179,6 +185,10 @@ def render_results_page(*, query: str, results: list[QueryResult]) -> str:
       display: block;
       background: #0c111a;
     }}
+    .thumb-link {{
+      display: block;
+      cursor: pointer;
+    }}
     .meta {{
       padding: 12px;
       display: grid;
@@ -188,6 +198,14 @@ def render_results_page(*, query: str, results: list[QueryResult]) -> str:
     }}
     .meta strong {{
       color: #fff;
+    }}
+    .meta a {{
+      color: #8ab8ff;
+      text-decoration: none;
+      font-weight: 700;
+    }}
+    .meta a:hover {{
+      text-decoration: underline;
     }}
     .empty {{
       color: #b6c4d5;
@@ -211,8 +229,18 @@ def render_results_page(*, query: str, results: list[QueryResult]) -> str:
 def _render_result_card(result: QueryResult) -> str:
     image_path = html.escape(result.image_path)
     image_url = "/image?path=" + quote(result.image_path)
+    maps_url = google_maps_street_view_url(result)
+    escaped_maps_url = html.escape(maps_url, quote=True)
+    image_markup = (
+        f'<a class="thumb-link" href="{escaped_maps_url}" target="_blank" '
+        f'rel="noopener noreferrer"><img src="{image_url}" alt="{image_path}"></a>'
+    )
+    maps_link = (
+        f'<a href="{escaped_maps_url}" target="_blank" '
+        f'rel="noopener noreferrer">Open in Google Maps</a>'
+    )
     return f"""<article class="card" data-path="{image_path}">
-  <img src="{image_url}" alt="{image_path}">
+  {image_markup}
   <div class="meta">
     <strong>{html.escape(result.pano_id)}</strong>
     <span>{html.escape(result.viewset_name)} / {html.escape(result.view_id)}</span>
@@ -220,8 +248,47 @@ def _render_result_card(result: QueryResult) -> str:
     <span>heading {result.relative_heading:.1f} · pitch {result.pitch:.1f} · fov {result.fov:.1f}</span>
     <span>{result.rendered_width}x{result.rendered_height}</span>
     <span>{html.escape(result.model_id)} · vector {html.escape(result.vector_id)}</span>
+    <span>{maps_link}</span>
   </div>
 </article>"""
+
+
+def google_maps_street_view_url(result: QueryResult) -> str:
+    heading = _google_heading(result)
+    params: dict[str, str] = {
+        "api": "1",
+        "map_action": "pano",
+        "pano": result.pano_id,
+        "heading": f"{heading:.6f}",
+        "pitch": f"{_clamp(result.pitch, -90.0, 90.0):.6f}",
+        "fov": f"{_clamp(result.fov, 10.0, 100.0):.6f}",
+    }
+    if result.latitude is not None and result.longitude is not None:
+        params["viewpoint"] = f"{result.latitude:.7f},{result.longitude:.7f}"
+    return "https://www.google.com/maps/@" + "?" + urlencode(params)
+
+
+def _google_heading(result: QueryResult) -> float:
+    return ((result.pano_heading or 0.0) + result.relative_heading) % 360.0
+
+
+def _extract_pano_heading(metadata: dict[str, object] | None) -> float | None:
+    if not metadata:
+        return None
+    for key in ("heading", "pose_heading", "PoseHeadingDegrees"):
+        value = metadata.get(key)
+        if isinstance(value, int | float):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except ValueError:
+                continue
+    return None
+
+
+def _clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
 
 
 def build_parser() -> argparse.ArgumentParser:

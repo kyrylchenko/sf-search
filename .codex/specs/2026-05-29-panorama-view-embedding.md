@@ -135,6 +135,10 @@ shows result cards with:
 - viewset and view ID;
 - heading, pitch, FOV, rendered dimensions;
 - embedding model and vector ID.
+- Google Maps Street View link for opening the original pano location and
+  camera direction. Convert stored pano-relative heading to north-based Google
+  heading with `(pano_metadata.heading + view.relative_heading) % 360`, and pass
+  pitch/FOV through Google Maps URL parameters.
 
 The UI must use the same text embedding adapter as the embedding worker uses for
 image embeddings, so score behavior matches the production path.
