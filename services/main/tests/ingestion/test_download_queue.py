@@ -105,9 +105,15 @@ class FakeStreamInfo:
     state = FakeStreamState()
 
 
+class FakeConsumerInfo:
+    num_pending = 4
+    num_ack_pending = 3
+
+
 class FakeJetStream:
     def __init__(self) -> None:
         self.stream_names: list[str] = []
+        self.consumer_names: list[tuple[str, str]] = []
         self.published: list[dict[str, object]] = []
         self.loop_ids: list[int] = []
 
@@ -115,6 +121,11 @@ class FakeJetStream:
         self.loop_ids.append(id(asyncio.get_running_loop()))
         self.stream_names.append(stream_name)
         return FakeStreamInfo()
+
+    async def consumer_info(self, stream_name: str, consumer_name: str) -> FakeConsumerInfo:
+        self.loop_ids.append(id(asyncio.get_running_loop()))
+        self.consumer_names.append((stream_name, consumer_name))
+        return FakeConsumerInfo()
 
     async def publish(self, subject: str, payload: bytes) -> None:
         self.loop_ids.append(id(asyncio.get_running_loop()))
@@ -131,6 +142,20 @@ def test_nats_queue_reads_pending_count_from_stream_state() -> None:
 
     assert queue.pending_count() == 7
     assert jetstream.stream_names == ["PANO_DOWNLOADS"]
+
+
+def test_nats_queue_reads_pending_count_from_durable_consumer_when_configured() -> None:
+    jetstream = FakeJetStream()
+    queue = NatsJetStreamPanoDownloadQueue(
+        jetstream=jetstream,
+        stream_name="PANO_DOWNLOADS",
+        subject="pano.download.requested",
+        consumer_name="pano-downloader",
+    )
+
+    assert queue.pending_count() == 7
+    assert jetstream.consumer_names == [("PANO_DOWNLOADS", "pano-downloader")]
+    assert jetstream.stream_names == []
 
 
 def test_nats_queue_publishes_json_download_message() -> None:

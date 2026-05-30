@@ -12,6 +12,9 @@ def test_embedding_entrypoint_parser_accepts_safe_manual_options() -> None:
             ".local/embedding-indexes",
             "--model-id",
             "google/siglip2-so400m-patch14-384",
+            "--idle-sleep-seconds",
+            "0.25",
+            "--once",
         ]
     )
 
@@ -19,3 +22,5 @@ def test_embedding_entrypoint_parser_accepts_safe_manual_options() -> None:
     assert args.concurrency == 1
     assert args.vector_store_dir == ".local/embedding-indexes"
     assert args.model_id == "google/siglip2-so400m-patch14-384"
+    assert args.idle_sleep_seconds == 0.25
+    assert args.once is True

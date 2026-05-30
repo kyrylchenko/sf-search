@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -6,6 +7,8 @@ from typing import Protocol
 import numpy as np
 
 from main_service.downloader.storage import safe_storage_segment
+
+logger = logging.getLogger(__name__)
 
 
 class VectorStore(Protocol):
@@ -50,10 +53,21 @@ class LocalHnswVectorStore:
         state = self._read_metadata()
         key = str(vector_id)
         if key in state.items:
+            logger.info(
+                "vector_store_add_skipped_existing vector_id=%s index_path=%s",
+                key,
+                self.index_path,
+            )
             state.items[key] = metadata
             self._write_metadata(state)
             return key
 
+        logger.info(
+            "vector_store_add_start vector_id=%s dimension=%s index_path=%s",
+            vector_id,
+            self.dimension,
+            self.index_path,
+        )
         index = self._load_or_create_index(hnswlib, state)
         if len(state.items) >= state.max_elements:
             state = HnswMetadata(
@@ -67,14 +81,27 @@ class LocalHnswVectorStore:
         self.root_dir.mkdir(parents=True, exist_ok=True)
         index.save_index(str(self.index_path))
         self._write_metadata(state)
+        logger.info(
+            "vector_store_add_complete vector_id=%s total_items=%s index_path=%s",
+            key,
+            len(state.items),
+            self.index_path,
+        )
         return key
 
     def search(self, vector: np.ndarray, limit: int) -> list[tuple[str, float]]:
         hnswlib = _import_hnswlib()
         state = self._read_metadata()
         if not self.index_path.exists() or not state.items:
+            logger.warning("vector_store_search_empty index_path=%s", self.index_path)
             return []
         normalized = _as_vector(vector, state.dimension)
+        logger.info(
+            "vector_store_search_start limit=%s total_items=%s index_path=%s",
+            limit,
+            len(state.items),
+            self.index_path,
+        )
         index = hnswlib.Index(space="cosine", dim=state.dimension)
         index.load_index(str(self.index_path), max_elements=state.max_elements)
         index.set_ef(max(50, limit))
@@ -82,10 +109,16 @@ class LocalHnswVectorStore:
             normalized.reshape(1, -1),
             k=min(limit, len(state.items)),
         )
-        return [
+        results = [
             (str(label), float(1.0 - distance))
             for label, distance in zip(labels[0], distances[0], strict=True)
         ]
+        logger.info(
+            "vector_store_search_complete results=%s index_path=%s",
+            len(results),
+            self.index_path,
+        )
+        return results
 
     def _load_or_create_index(self, hnswlib: object, state: HnswMetadata) -> object:
         index = hnswlib.Index(space="cosine", dim=state.dimension)

@@ -244,3 +244,29 @@ def test_embedding_runner_marks_model_failure_and_acks(tmp_path: Path) -> None:
     assert received.acked
     assert rows[0].embedding_status == ProcessingStatus.FAILED.value
     assert rows[0].last_error == "model failed"
+
+
+def test_embedding_runner_reports_progress_events(tmp_path: Path) -> None:
+    view_id, embedding_service = create_completed_view(tmp_path)
+    received = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-a"), view_id, str(tmp_path / "views" / "center.jpg"))
+    )
+    events: list[tuple[str, dict[str, object]]] = []
+
+    asyncio.run(
+        run_embedding_batch(
+            embedding_service=embedding_service,
+            job_source=FakeJobSource([received]),
+            image_embedder=FakeImageEmbedder(),
+            vector_store=FakeVectorStore(),
+            model_spec=make_model_spec(),
+            limit=5,
+            concurrency=1,
+            progress=lambda event, payload: events.append((event, payload)),
+        )
+    )
+
+    event_names = [name for name, _ in events]
+    assert event_names[:2] == ["embedding_fetch_start", "embedding_fetch_complete"]
+    assert "embedding_job_start" in event_names
+    assert "embedding_job_complete" in event_names

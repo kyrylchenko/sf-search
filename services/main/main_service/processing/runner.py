@@ -1,9 +1,10 @@
 import asyncio
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Callable, Protocol
 
 import numpy as np
 from PIL import Image
@@ -38,6 +39,8 @@ Image.MAX_IMAGE_PIXELS = None
 
 INTERPOLATION_MODE = "bicubic"
 RENDERER_VERSION = "py360convert.e2p"
+ProgressCallback = Callable[[str, dict[str, object]], None]
+logger = logging.getLogger(__name__)
 
 
 class PanoProcessingJobSource(Protocol):
@@ -79,12 +82,19 @@ async def run_processing_batch(
     image_quality: int = 95,
     embedding_queue: PanoEmbeddingQueue | None = None,
     max_embedding_queue_depth: int | None = None,
+    progress: ProgressCallback | None = None,
 ) -> ProcessingRunResult:
+    _emit(progress, "processing_backpressure_check", {})
     if (
         embedding_queue is not None
         and max_embedding_queue_depth is not None
         and embedding_queue.pending_count() >= max_embedding_queue_depth
     ):
+        _emit(
+            progress,
+            "processing_paused",
+            {"pause_reason": "embedding_queue_backlog"},
+        )
         return ProcessingRunResult(
             processed_jobs=0,
             failed_jobs=0,
@@ -96,7 +106,9 @@ async def run_processing_batch(
             pause_reason="embedding_queue_backlog",
         )
 
+    _emit(progress, "processing_fetch_start", {"limit": limit})
     jobs = await job_source.fetch(limit)
+    _emit(progress, "processing_fetch_complete", {"jobs": len(jobs)})
     viewsets = load_viewsets(viewsets_dir)
     semaphore = asyncio.Semaphore(max(1, concurrency))
     outcomes = await asyncio.gather(
@@ -111,11 +123,12 @@ async def run_processing_batch(
                 output_format=output_format,
                 image_quality=image_quality,
                 embedding_queue=embedding_queue,
+                progress=progress,
             )
             for received_job in jobs
         ]
     )
-    return ProcessingRunResult(
+    result = ProcessingRunResult(
         processed_jobs=sum(1 for outcome in outcomes if not outcome.failed_job),
         failed_jobs=sum(1 for outcome in outcomes if outcome.failed_job),
         generated_views=sum(outcome.generated_views for outcome in outcomes),
@@ -123,6 +136,8 @@ async def run_processing_batch(
         failed_views=sum(outcome.failed_views for outcome in outcomes),
         queued_embeddings=sum(outcome.queued_embeddings for outcome in outcomes),
     )
+    _emit(progress, "processing_batch_complete", result.__dict__)
+    return result
 
 
 async def _process_received_job(
@@ -136,6 +151,7 @@ async def _process_received_job(
     output_format: str,
     image_quality: int,
     embedding_queue: PanoEmbeddingQueue | None,
+    progress: ProgressCallback | None,
 ) -> ProcessingJobOutcome:
     async with semaphore:
         outcome = _process_job(
@@ -147,6 +163,7 @@ async def _process_received_job(
             output_format=output_format,
             image_quality=image_quality,
             embedding_queue=embedding_queue,
+            progress=progress,
         )
         await received_job.ack()
         return outcome
@@ -162,16 +179,28 @@ def _process_job(
     output_format: str,
     image_quality: int,
     embedding_queue: PanoEmbeddingQueue | None,
+    progress: ProgressCallback | None,
 ) -> ProcessingJobOutcome:
+    _emit(progress, "processing_job_start", {"pano_id": job.pano_id.value})
     if render_scale < 1:
         raise ValueError("render_scale must be positive")
     normalized_format = _normalize_output_format(output_format)
     panorama = panorama_view_service.get_downloaded_panorama(job.pano_id)
     if panorama is None:
+        _emit(
+            progress,
+            "processing_job_failed",
+            {"pano_id": job.pano_id.value, "reason": "panorama_not_downloaded"},
+        )
         return ProcessingJobOutcome(failed_job=True)
 
     source_path = _resolve_source_path(job, panorama)
     if source_path is None:
+        _emit(
+            progress,
+            "processing_job_failed",
+            {"pano_id": job.pano_id.value, "reason": "source_image_missing"},
+        )
         return ProcessingJobOutcome(failed_job=True)
 
     source_hash = (
@@ -183,6 +212,11 @@ def _process_job(
         with Image.open(source_path) as image:
             pano_array = np.asarray(image.convert("RGB"))
     except Exception:
+        _emit(
+            progress,
+            "processing_job_failed",
+            {"pano_id": job.pano_id.value, "reason": "source_image_unreadable"},
+        )
         return ProcessingJobOutcome(failed_job=True)
 
     generated = 0
@@ -203,8 +237,26 @@ def _process_job(
             claim = panorama_view_service.claim_view_for_processing(job.pano_id, spec)
             if claim is None:
                 skipped += 1
+                _emit(
+                    progress,
+                    "processing_view_skipped",
+                    {
+                        "pano_id": job.pano_id.value,
+                        "viewset_name": viewset.name,
+                        "view_id": view.id,
+                    },
+                )
                 continue
             try:
+                _emit(
+                    progress,
+                    "processing_view_start",
+                    {
+                        "pano_id": job.pano_id.value,
+                        "viewset_name": viewset.name,
+                        "view_id": view.id,
+                    },
+                )
                 output_path = panorama_view_image_path(
                     storage_dir,
                     pano_id=job.pano_id,
@@ -238,16 +290,63 @@ def _process_job(
                     )
                     queued_embeddings += 1
                 generated += 1
+                _emit(
+                    progress,
+                    "processing_view_complete",
+                    {
+                        "pano_id": job.pano_id.value,
+                        "view_id": completed.id,
+                        "image_path": completed.image_path or "",
+                    },
+                )
             except Exception as exc:
                 panorama_view_service.mark_view_failed(claim.id, str(exc))
                 failed += 1
-    return ProcessingJobOutcome(
+                _emit(
+                    progress,
+                    "processing_view_failed",
+                    {
+                        "pano_id": job.pano_id.value,
+                        "viewset_name": viewset.name,
+                        "view_id": view.id,
+                        "error": str(exc),
+                    },
+                )
+    outcome = ProcessingJobOutcome(
         failed_job=False,
         generated_views=generated,
         skipped_views=skipped,
         failed_views=failed,
         queued_embeddings=queued_embeddings,
     )
+    _emit(
+        progress,
+        "processing_job_complete",
+        {"pano_id": job.pano_id.value, **outcome.__dict__},
+    )
+    return outcome
+
+
+def _emit(
+    progress: ProgressCallback | None,
+    event: str,
+    payload: dict[str, object],
+) -> None:
+    _log_event(event, payload)
+    if progress is not None:
+        progress(event, payload)
+
+
+def _log_event(event: str, payload: dict[str, object]) -> None:
+    if event.endswith("_failed"):
+        level = logging.ERROR
+    elif event.endswith("_skipped") or event.endswith("_paused"):
+        level = logging.WARNING
+    elif event.endswith("_start") or event.endswith("_complete"):
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+    logger.log(level, "%s %s", event, json.dumps(payload, sort_keys=True))
 
 
 def _resolve_source_path(job: PanoProcessingJob, panorama: Panorama) -> Path | None:

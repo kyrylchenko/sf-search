@@ -1,6 +1,7 @@
 import argparse
 import html
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
@@ -16,6 +17,9 @@ from main_service.db.models.panorama_view import PanoramaView
 from main_service.db.models.panorama_view_embedding import PanoramaViewEmbedding
 from main_service.embedding.model import ImageTextEmbedder, TransformersSiglipEmbedder
 from main_service.embedding.vector_store import LocalHnswVectorStore, VectorStore
+from main_service.logging_config import configure_cli_logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -47,9 +51,17 @@ class LocalQueryService:
         self.vector_store = vector_store
 
     def search(self, query: str, limit: int) -> list[QueryResult]:
+        logger.info("query_ui_search_start query=%r limit=%s", query, limit)
         vector = self.embedder.embed_text(query)
         hits = self.vector_store.search(vector, limit)
-        return _results_for_hits(self.engine, hits)
+        results = _results_for_hits(self.engine, hits)
+        logger.info(
+            "query_ui_search_complete query=%r hits=%s results=%s",
+            query,
+            len(hits),
+            len(results),
+        )
+        return results
 
 
 def _results_for_hits(
@@ -219,12 +231,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--vector-store-dir", default=None)
     parser.add_argument("--model-id", default=None)
+    parser.add_argument("--log-level", default=None)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
     settings = CONFIG
+    configure_cli_logging(args.log_level or settings.log_level)
     engine = initialize_engine(settings)
     model_id = args.model_id or settings.embedding_model_id
     embedder = TransformersSiglipEmbedder(
@@ -252,9 +266,11 @@ def main() -> None:
             params = parse_qs(parsed.query)
             query = params.get("q", [""])[0].strip()
             try:
+                logger.info("query_ui_request path=%s query=%r", parsed.path, query)
                 results = service.search(query, args.limit) if query else []
                 html_body = render_results_page(query=query, results=results)
             except Exception as exc:
+                logger.exception("query_ui_request_failed query=%r", query)
                 html_body = render_results_page(query=query, results=[])
                 html_body += f"\n<!-- {html.escape(str(exc))} -->"
             self._send_html(html_body)
@@ -271,9 +287,11 @@ def main() -> None:
             path_value = parse_qs(query).get("path", [""])[0]
             path = Path(unquote(path_value))
             if not path.exists() or not path.is_file():
+                logger.warning("query_ui_image_missing path=%s", path)
                 self.send_error(404)
                 return
             data = path.read_bytes()
+            logger.info("query_ui_image_served path=%s bytes=%s", path, len(data))
             self.send_response(200)
             self.send_header("Content-Type", _content_type(path))
             self.send_header("Content-Length", str(len(data)))
@@ -284,6 +302,7 @@ def main() -> None:
             return
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
+    logger.info("query_ui_start url=http://%s:%s/", args.host, args.port)
     print(json.dumps({"url": f"http://{args.host}:{args.port}/"}, sort_keys=True))
     server.serve_forever()
 

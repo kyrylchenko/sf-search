@@ -230,6 +230,46 @@ def test_runner_pauses_before_fetching_when_embedding_queue_is_backed_up(
     assert source.fetch_calls == []
 
 
+def test_runner_reports_progress_events(tmp_path: Path) -> None:
+    panorama_service, view_service = make_services()
+    pano_path = tmp_path / "panoramas" / "pano-a.jpg"
+    write_test_pano(pano_path)
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-a"))
+    panorama_service.mark_panorama_downloaded(
+        PanoramaId("pano-a"),
+        image_path=str(pano_path),
+        image_hash=sha256_file(pano_path),
+        metadata_json={"pano_id": "pano-a"},
+        latitude=None,
+        longitude=None,
+    )
+    viewsets_dir = tmp_path / "viewsets"
+    write_viewset(viewsets_dir / "candidate.json")
+    events: list[tuple[str, dict[str, object]]] = []
+
+    asyncio.run(
+        run_processing_batch(
+            panorama_view_service=view_service,
+            job_source=FakeJobSource(
+                [FakeReceivedJob(PanoProcessingJob(PanoramaId("pano-a"), str(pano_path)))]
+            ),
+            viewsets_dir=viewsets_dir,
+            storage_dir=tmp_path / "views",
+            limit=5,
+            concurrency=1,
+            render_scale=1,
+            progress=lambda event, payload: events.append((event, payload)),
+        )
+    )
+
+    event_names = [name for name, _ in events]
+    assert "processing_fetch_start" in event_names
+    assert "processing_fetch_complete" in event_names
+    assert "processing_job_start" in event_names
+    assert "processing_view_complete" in event_names
+    assert "processing_job_complete" in event_names
+
+
 def test_runner_skips_duplicate_completed_view(tmp_path: Path) -> None:
     panorama_service, view_service = make_services()
     pano_path = tmp_path / "panoramas" / "pano-a.jpg"

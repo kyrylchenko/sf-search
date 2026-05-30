@@ -100,6 +100,13 @@ results.
   row failed with a truncated error.
 - The worker remains stateless; durable queue messages plus Postgres status are
   the source of truth.
+- Downloader, processing, and embedding CLIs are long-running services by
+  default. A bounded one-shot run must be requested explicitly with `--once`.
+- After an empty or backpressure-paused batch, services sleep briefly and poll
+  again. After skipped duplicate jobs, they immediately fetch again so old queue
+  messages do not prevent fresh jobs from being reached.
+- Queue backpressure uses durable consumer backlog when possible, not retained
+  JetStream stream message count.
 
 ## Verification
 
@@ -131,3 +138,15 @@ shows result cards with:
 
 The UI must use the same text embedding adapter as the embedding worker uses for
 image embeddings, so score behavior matches the production path.
+
+## SigLIP Adapter Notes
+
+For `google/siglip2-so400m-patch14-384`, text inputs must use
+`padding="max_length"` with truncation. The Transformers SigLIP implementation
+documents this as the training-time text padding mode, and local retrieval tests
+showed that plain `padding=True` can move relevant street-level tiles below sky
+or unrelated results.
+
+Automatic device selection should prefer CUDA first, then Apple MPS, then CPU.
+This keeps local Mac runs off CPU when MPS is available while preserving the same
+adapter path for Linux GPU servers.

@@ -1,6 +1,6 @@
 # main service
 
-Run a bounded panorama downloader batch from this directory:
+Run the panorama downloader service from this directory:
 
 ```bash
 uv run python -m main_service.downloader --limit 5
@@ -11,7 +11,12 @@ The downloader consumes durable NATS JetStream jobs from
 `.local/panoramas`, and publishes small processing jobs to
 `pano.processing.requested`.
 
-Run a bounded panorama preprocessing batch:
+Worker commands run continuously until stopped. They log progress to stderr and
+write one JSON summary line to stdout per batch. Use `--once` only for an
+explicit bounded smoke run. Use `--log-level DEBUG` when you need queue depth
+checks, storage paths, and detailed job state.
+
+Run the panorama preprocessing service:
 
 ```bash
 uv run python -m main_service.processing --limit 1
@@ -34,22 +39,29 @@ Useful local options:
 uv run python -m main_service.processing \
   --limit 1 \
   --concurrency 1 \
+  --log-level INFO \
   --render-scale 2 \
   --viewsets-dir ../../docs/data/viewsets \
   --storage-dir .local/panorama-views
 ```
 
-Run a bounded panorama view embedding batch:
+Run the panorama view embedding service:
 
 ```bash
 uv sync --group embedding
-uv run python -m main_service.embedding --limit 10
+uv run python -m main_service.embedding --limit 10 --log-level INFO
 ```
 
 The embedder consumes durable NATS JetStream jobs from
 `pano.embedding.requested`, claims model-specific rows in
 `panorama_view_embedding_table`, embeds local generated view images, and writes
 vectors to a local HNSW index under `.local/embedding-indexes`.
+
+For one-shot checks, add `--once`:
+
+```bash
+uv run python -m main_service.embedding --limit 10 --once --log-level INFO
+```
 
 The default model settings target `google/siglip2-so400m-patch14-384`:
 
@@ -65,7 +77,7 @@ Run the local test-only query UI:
 
 ```bash
 uv sync --group embedding
-uv run python -m main_service.embedding.query_ui
+uv run python -m main_service.embedding.query_ui --log-level INFO
 ```
 
 Open `http://127.0.0.1:8787`. The UI embeds the text query with the same local

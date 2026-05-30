@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import logging
 from dataclasses import asdict
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from main_service.embedding.model import TransformersSiglipEmbedder
 from main_service.embedding.nats_source import NatsPanoEmbeddingJobSource
 from main_service.embedding.runner import run_embedding_batch
 from main_service.embedding.vector_store import LocalHnswVectorStore
+from main_service.logging_config import configure_cli_logging
+from main_service.service_loop import run_service_loop
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,11 +48,36 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Embedding model revision.",
     )
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        help="Console log level: DEBUG, INFO, WARNING, ERROR.",
+    )
+    parser.add_argument(
+        "--idle-sleep-seconds",
+        type=float,
+        default=None,
+        help="Seconds to sleep after an empty batch.",
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Run one bounded batch and exit. Default is to keep polling forever.",
+    )
     return parser
 
 
 async def run(args: argparse.Namespace) -> None:
     settings = CONFIG
+    configure_cli_logging(args.log_level or settings.log_level)
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "embedding_cli_start limit=%s concurrency=%s model_id=%s vector_store_dir=%s",
+        args.limit,
+        args.concurrency or settings.pano_embedding_concurrency,
+        args.model_id or settings.embedding_model_id,
+        args.vector_store_dir or settings.embedding_vector_store_dir,
+    )
     engine = initialize_engine(settings)
     embedding_service = PanoramaViewEmbeddingService(engine)
     model_spec = EmbeddingModelSpec(
@@ -78,22 +106,52 @@ async def run(args: argparse.Namespace) -> None:
         dimension=model_spec.embedding_dimension,
     )
     try:
-        result = await run_embedding_batch(
-            embedding_service=embedding_service,
-            job_source=source,
-            image_embedder=embedder,
-            vector_store=vector_store,
-            model_spec=model_spec,
-            limit=args.limit,
-            concurrency=args.concurrency or settings.pano_embedding_concurrency,
+        async def run_batch() -> object:
+            result = await run_embedding_batch(
+                embedding_service=embedding_service,
+                job_source=source,
+                image_embedder=embedder,
+                vector_store=vector_store,
+                model_spec=model_spec,
+                limit=args.limit,
+                concurrency=args.concurrency or settings.pano_embedding_concurrency,
+            )
+            logger.info(
+                "embedding_cli_batch_complete result=%s",
+                json.dumps(asdict(result), sort_keys=True),
+            )
+            print(json.dumps(asdict(result), sort_keys=True), flush=True)
+            return result
+
+        await run_service_loop(
+            service_name="embedding",
+            run_batch=run_batch,
+            should_idle=lambda result: _embedding_should_idle(result),
+            idle_sleep_seconds=_value_or_default(
+                args.idle_sleep_seconds,
+                settings.service_idle_sleep_seconds,
+            ),
+            once=args.once,
         )
-        print(json.dumps(asdict(result), sort_keys=True))
     finally:
         await source.close()
+        logger.info("embedding_cli_closed")
 
 
 def main() -> None:
     asyncio.run(run(build_parser().parse_args()))
+
+
+def _value_or_default[T](value: T | None, default: T) -> T:
+    return default if value is None else value
+
+
+def _embedding_should_idle(result: object) -> bool:
+    return (
+        getattr(result, "embedded", 0) == 0
+        and getattr(result, "skipped", 0) == 0
+        and getattr(result, "failed", 0) == 0
+    )
 
 
 if __name__ == "__main__":

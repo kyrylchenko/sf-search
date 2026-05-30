@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -8,6 +9,8 @@ from nats.js.api import ConsumerConfig, StreamConfig
 from nats.js.errors import NotFoundError
 
 from main_service.ingestion.types import PanoramaId
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,12 @@ class NatsPanoEmbeddingJobSource:
         durable_consumer: str,
     ) -> "NatsPanoEmbeddingJobSource":
         server_list = [servers] if isinstance(servers, str) else servers
+        logger.info(
+            "embedding_nats_connect_start stream=%s subject=%s durable=%s",
+            stream_name,
+            subject,
+            durable_consumer,
+        )
         nats_client = await nats.connect(servers=server_list)
         jetstream = nats_client.jetstream()
         await _ensure_stream(jetstream, stream_name, subject)
@@ -74,12 +83,20 @@ class NatsPanoEmbeddingJobSource:
             stream=stream_name,
             config=ConsumerConfig(durable_name=durable_consumer),
         )
+        logger.info(
+            "embedding_nats_connect_complete stream=%s subject=%s durable=%s",
+            stream_name,
+            subject,
+            durable_consumer,
+        )
         return cls(nats_client=nats_client, subscription=subscription)
 
     async def fetch(self, limit: int) -> list[ReceivedPanoEmbeddingJob]:
         try:
+            logger.info("embedding_nats_fetch_start limit=%s", limit)
             messages = await self._subscription.fetch(limit, timeout=1.0)
         except NatsTimeoutError:
+            logger.info("embedding_nats_fetch_timeout limit=%s", limit)
             return []
 
         received_jobs: list[ReceivedPanoEmbeddingJob] = []
@@ -91,11 +108,13 @@ class NatsPanoEmbeddingJobSource:
                     _message=message,
                 )
             )
+        logger.info("embedding_nats_fetch_complete jobs=%s", len(received_jobs))
         return received_jobs
 
     async def close(self) -> None:
         if self._nats_client is not None:
             await self._nats_client.close()
+            logger.info("embedding_nats_closed")
 
 
 async def _ensure_stream(jetstream: Any, stream_name: str, subject: str) -> None:

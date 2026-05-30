@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     embedding_dimension: int = Field(default=1152)
     embedding_dtype: str = Field(default="float16")
     embedding_vector_store_dir: str = Field(default=".local/embedding-indexes")
+    log_level: str = Field(default="INFO")
+    service_idle_sleep_seconds: float = Field(default=5.0)
 
 
 CONFIG: Final[Settings] = Settings()  # type: ignore
