@@ -33,6 +33,7 @@ from main_service.processing.storage import (
 )
 from main_service.processing.view_rendering import (
     PerspectiveViewSpec,
+    perspective_renderer_backend,
     render_perspective_view,
 )
 from main_service.tools.viewset_visualizer.geometry import ViewSpec
@@ -128,6 +129,15 @@ async def run_processing_batch(
         )
 
     _emit(progress, "processing_fetch_start", {"limit": limit})
+    _emit(
+        progress,
+        "processing_renderer_backend",
+        {
+            "renderer_version": RENDERER_VERSION,
+            "backend": perspective_renderer_backend(),
+            "interpolation_mode": INTERPOLATION_MODE,
+        },
+    )
     jobs = await job_source.fetch(limit)
     _emit(progress, "processing_fetch_complete", {"jobs": len(jobs)})
     viewsets = load_viewsets(viewsets_dir)

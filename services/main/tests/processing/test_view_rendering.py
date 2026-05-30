@@ -3,6 +3,7 @@ import numpy as np
 from main_service.processing import view_rendering
 from main_service.processing.view_rendering import (
     PerspectiveViewSpec,
+    perspective_renderer_backend,
     render_perspective_view,
     vertical_fov_degrees,
 )
@@ -66,3 +67,11 @@ def test_vertical_fov_degrees_accounts_for_output_aspect_ratio() -> None:
         output_width=768,
         output_height=512,
     ) < 90
+
+
+def test_perspective_renderer_backend_reports_available_sampler(monkeypatch) -> None:
+    monkeypatch.setattr(view_rendering.py360_utils, "cv2", object())
+    assert perspective_renderer_backend() == "opencv"
+
+    monkeypatch.setattr(view_rendering.py360_utils, "cv2", None)
+    assert perspective_renderer_backend() == "scipy"

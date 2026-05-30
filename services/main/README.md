@@ -62,6 +62,11 @@ it low for full-resolution Google panoramas; `--max-view-concurrency` defaults
 to `4` and caps unsafe manual values because `py360convert` allocates large
 native arrays while rendering.
 
+The renderer uses the same `py360convert.e2p` projection and bicubic
+interpolation as the visualizer. `opencv-python-headless` is installed so
+`py360convert` can use its OpenCV sampler path; processing logs include
+`processing_renderer_backend` and should report `backend="opencv"`.
+
 Run the panorama view embedding service:
 
 ```bash

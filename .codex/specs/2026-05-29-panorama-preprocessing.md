@@ -23,6 +23,10 @@ indexes, or publish website/query data.
   projection code used by the visualizer.
 - Use the current quality path: bicubic projection, configurable `render_scale`,
   JPEG output at high quality by default.
+- Install OpenCV for `py360convert` so the renderer uses the OpenCV remap
+  sampler instead of the much slower SciPy fallback. This keeps the same
+  perspective projection and bicubic interpolation request while changing the
+  backend used for sampling.
 - Render views inside one panorama concurrently, but keep only one panorama
   loaded per worker process. Full-resolution Google panoramas are large enough
   that loading multiple panos or honoring very high view concurrency can create

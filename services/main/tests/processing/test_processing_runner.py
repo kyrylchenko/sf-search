@@ -386,6 +386,7 @@ def test_runner_reports_progress_events(tmp_path: Path) -> None:
 
     event_names = [name for name, _ in events]
     assert "processing_fetch_start" in event_names
+    assert "processing_renderer_backend" in event_names
     assert "processing_fetch_complete" in event_names
     assert "processing_job_start" in event_names
     assert "processing_view_complete" in event_names

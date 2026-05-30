@@ -3,6 +3,7 @@ from math import atan, degrees, radians, tan
 
 import numpy as np
 from py360convert import e2p
+from py360convert import utils as py360_utils
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,10 @@ def render_perspective_view(
         (spec.output_height, spec.output_width),
         mode="bicubic",
     )
+
+
+def perspective_renderer_backend() -> str:
+    return "opencv" if py360_utils.cv2 else "scipy"
 
 
 def _py360_heading(relative_heading: float) -> float:

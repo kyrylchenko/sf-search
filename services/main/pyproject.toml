@@ -8,6 +8,7 @@ dependencies = [
     "mercantile>=1.2.1",
     "peewee>=3.18.3",
     "nats-py>=2.10.0",
+    "opencv-python-headless>=4.12.0.88",
     "py360convert>=1.0.4",
     "pydantic-settings>=2.12.0",
     "psycopg[binary]>=3.2.13",

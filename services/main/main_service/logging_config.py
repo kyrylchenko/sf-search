@@ -34,6 +34,7 @@ EVENT_MARKERS = {
     "processing_job_failed": "❌",
     "processing_job_start": "🧭",
     "processing_paused": "⏸️",
+    "processing_renderer_backend": "⚙️",
     "processing_view_complete": "✅",
     "processing_view_concurrency_capped": "🧯",
     "processing_view_failed": "❌",
