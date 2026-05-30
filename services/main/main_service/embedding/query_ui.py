@@ -5,6 +5,7 @@ import logging
 from math import degrees, tau
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from urllib.parse import parse_qs, quote, urlencode, unquote, urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -55,15 +56,34 @@ class LocalQueryService:
         self.vector_store = vector_store
 
     def search(self, query: str, limit: int) -> list[QueryResult]:
+        started_at = perf_counter()
         logger.info("query_ui_search_start query=%r limit=%s", query, limit)
+        stage_started_at = perf_counter()
         vector = self.embedder.embed_text(query)
+        embed_seconds = perf_counter() - stage_started_at
+        stage_started_at = perf_counter()
         hits = self.vector_store.search(vector, limit)
+        vector_search_seconds = perf_counter() - stage_started_at
+        stage_started_at = perf_counter()
         results = _results_for_hits(self.engine, hits)
+        db_seconds = perf_counter() - stage_started_at
+        total_seconds = perf_counter() - started_at
         logger.info(
             "query_ui_search_complete query=%r hits=%s results=%s",
             query,
             len(hits),
             len(results),
+        )
+        logger.info(
+            (
+                "query_ui_search_timing query=%r embed_seconds=%.3f "
+                "vector_search_seconds=%.3f db_seconds=%.3f total_seconds=%.3f"
+            ),
+            query,
+            embed_seconds,
+            vector_search_seconds,
+            db_seconds,
+            total_seconds,
         )
         return results
 
@@ -339,6 +359,7 @@ def main() -> None:
         embedder=embedder,
         vector_store=vector_store,
     )
+    _warm_query_service(service)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -388,6 +409,24 @@ def main() -> None:
     logger.info("query_ui_start url=http://%s:%s/", args.host, args.port)
     print(json.dumps({"url": f"http://{args.host}:{args.port}/"}, sort_keys=True))
     server.serve_forever()
+
+
+def _warm_query_service(service: LocalQueryService) -> None:
+    started_at = perf_counter()
+    logger.info("query_ui_warmup_start")
+    try:
+        results = service.search("street view warmup", 1)
+    except Exception:
+        logger.exception(
+            "query_ui_warmup_failed seconds=%.3f",
+            perf_counter() - started_at,
+        )
+        return
+    logger.info(
+        "query_ui_warmup_complete seconds=%.3f results=%s",
+        perf_counter() - started_at,
+        len(results),
+    )
 
 
 def _content_type(path: Path) -> str:

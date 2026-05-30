@@ -65,6 +65,9 @@ use HNSW semantics so the query UI exercises the retrieval shape we expect later
 - a metadata JSON file mapping vector IDs to embedding row IDs and view IDs;
 - a short in-memory search cache for the local query UI so repeated searches do
   not reload `index.bin` from disk on every request;
+- atomic temp-file replacement for index and metadata writes so query UI does
+  not try to read a partially overwritten `index.bin` while embedding is
+  running;
 - a small fallback/test implementation for unit tests that does not require
   heavyweight model downloads.
 
@@ -146,6 +149,11 @@ shows result cards with:
 
 The UI must use the same text embedding adapter as the embedding worker uses for
 image embeddings, so score behavior matches the production path.
+
+The UI performs a startup warmup query to load the model, compile the first text
+embedding path, and populate the local HNSW cache when an index exists. It logs
+per-query timings for text embedding, vector search, DB hydration, and total
+search time so query latency can be attributed to the correct stage.
 
 ## SigLIP Adapter Notes
 

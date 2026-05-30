@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
@@ -94,7 +95,7 @@ class LocalHnswVectorStore:
         index.add_items(normalized.reshape(1, -1), np.array([vector_id], dtype=np.int64))
         state.items[key] = metadata
         self.root_dir.mkdir(parents=True, exist_ok=True)
-        index.save_index(str(self.index_path))
+        self._write_index(index)
         self._write_metadata(state)
         self._invalidate_search_cache()
         logger.info(
@@ -187,6 +188,14 @@ class LocalHnswVectorStore:
     def _invalidate_search_cache(self) -> None:
         self._search_cache = None
 
+    def _write_index(self, index: object) -> None:
+        self.root_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = self._temp_path_for(self.index_path)
+        if temp_path.exists():
+            temp_path.unlink()
+        index.save_index(str(temp_path))
+        temp_path.replace(self.index_path)
+
     def _load_or_create_index(self, hnswlib: object, state: HnswMetadata) -> object:
         index = hnswlib.Index(space="cosine", dim=state.dimension)
         if self.index_path.exists():
@@ -221,16 +230,22 @@ class LocalHnswVectorStore:
 
     def _write_metadata(self, state: HnswMetadata) -> None:
         self.root_dir.mkdir(parents=True, exist_ok=True)
-        self.metadata_path.write_text(
-            json.dumps(
-                {
-                    "dimension": state.dimension,
-                    "max_elements": state.max_elements,
-                    "items": state.items,
-                },
-                sort_keys=True,
-            )
+        temp_path = self._temp_path_for(self.metadata_path)
+        temp_path.write_text(
+            json.dumps(_metadata_payload(state), sort_keys=True)
         )
+        temp_path.replace(self.metadata_path)
+
+    def _temp_path_for(self, path: Path) -> Path:
+        return path.with_name(f".{path.name}.{os.getpid()}.tmp")
+
+
+def _metadata_payload(state: HnswMetadata) -> dict[str, object]:
+    return {
+        "dimension": state.dimension,
+        "max_elements": state.max_elements,
+        "items": state.items,
+    }
 
 
 def _import_hnswlib() -> object:

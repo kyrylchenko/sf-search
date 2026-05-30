@@ -1,5 +1,6 @@
 from pathlib import Path
 import logging
+from time import perf_counter
 from typing import Protocol
 
 import numpy as np
@@ -34,6 +35,7 @@ class TransformersSiglipEmbedder:
         self._torch = None
 
     def embed_image(self, image_path: Path) -> np.ndarray:
+        started_at = perf_counter()
         self._load()
         assert self._torch is not None
         assert self._processor is not None
@@ -50,14 +52,19 @@ class TransformersSiglipEmbedder:
             features = self._model.get_image_features(**inputs)
         vector = _normalized_numpy(features, self._torch)
         logger.info(
-            "embedding_model_image_encode_complete image_path=%s model_id=%s dimension=%s",
+            (
+                "embedding_model_image_encode_complete image_path=%s model_id=%s "
+                "dimension=%s seconds=%.3f"
+            ),
             image_path,
             self.model_id,
             vector.shape[0],
+            perf_counter() - started_at,
         )
         return vector
 
     def embed_text(self, text: str) -> np.ndarray:
+        started_at = perf_counter()
         self._load()
         assert self._torch is not None
         assert self._processor is not None
@@ -78,15 +85,17 @@ class TransformersSiglipEmbedder:
             features = self._model.get_text_features(**inputs)
         vector = _normalized_numpy(features, self._torch)
         logger.info(
-            "embedding_model_text_encode_complete model_id=%s dimension=%s",
+            "embedding_model_text_encode_complete model_id=%s dimension=%s seconds=%.3f",
             self.model_id,
             vector.shape[0],
+            perf_counter() - started_at,
         )
         return vector
 
     def _load(self) -> None:
         if self._model is not None and self._processor is not None:
             return
+        started_at = perf_counter()
         logger.info(
             "embedding_model_load_start model_id=%s revision=%s dtype=%s",
             self.model_id,
@@ -118,9 +127,10 @@ class TransformersSiglipEmbedder:
         self._processor = processor
         self._model = model
         logger.info(
-            "embedding_model_load_complete model_id=%s device=%s",
+            "embedding_model_load_complete model_id=%s device=%s seconds=%.3f",
             self.model_id,
             device,
+            perf_counter() - started_at,
         )
 
 

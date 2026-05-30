@@ -13,6 +13,7 @@ class FakeIndex:
     add_calls = 0
     save_calls = 0
     resize_calls = 0
+    save_paths: list[str] = []
 
     def __init__(self, *, space: str, dim: int) -> None:
         self.space = space
@@ -46,6 +47,7 @@ class FakeIndex:
 
     def save_index(self, path: str) -> None:
         FakeIndex.save_calls += 1
+        FakeIndex.save_paths.append(path)
         Path(path).touch()
 
 
@@ -59,6 +61,7 @@ def reset_fake_index() -> None:
     FakeIndex.add_calls = 0
     FakeIndex.save_calls = 0
     FakeIndex.resize_calls = 0
+    FakeIndex.save_paths = []
 
 
 def write_existing_index(root_dir: Path) -> None:
@@ -144,3 +147,11 @@ def test_add_invalidates_cached_search_index(
     assert FakeIndex.load_calls == 3
     assert FakeIndex.add_calls == 1
     assert FakeIndex.save_calls == 1
+    assert Path(FakeIndex.save_paths[0]).name.startswith(".index.bin.")
+    assert Path(FakeIndex.save_paths[0]).name.endswith(".tmp")
+    assert (tmp_path / "test_model" / "index.bin").exists()
+    assert not [
+        path
+        for path in (tmp_path / "test_model").iterdir()
+        if path.name.endswith(".tmp")
+    ]
