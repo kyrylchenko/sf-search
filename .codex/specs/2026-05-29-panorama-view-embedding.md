@@ -63,6 +63,8 @@ use HNSW semantics so the query UI exercises the retrieval shape we expect later
 - one directory per model key under `.local/embedding-indexes`;
 - an HNSW index file;
 - a metadata JSON file mapping vector IDs to embedding row IDs and view IDs;
+- a short in-memory search cache for the local query UI so repeated searches do
+  not reload `index.bin` from disk on every request;
 - a small fallback/test implementation for unit tests that does not require
   heavyweight model downloads.
 
@@ -137,8 +139,10 @@ shows result cards with:
 - embedding model and vector ID.
 - Google Maps Street View link for opening the original pano location and
   camera direction. Convert stored pano-relative heading to north-based Google
-  heading with `(pano_metadata.heading + view.relative_heading) % 360`, and pass
-  pitch/FOV through Google Maps URL parameters.
+  heading with `(pano_heading_degrees + view.relative_heading) % 360`, and pass
+  pitch/FOV through Google Maps URL parameters. `streetlevel` panorama metadata
+  stores `heading` in radians, so the query UI must convert that value to
+  degrees before building Google Maps URLs.
 
 The UI must use the same text embedding adapter as the embedding worker uses for
 image embeddings, so score behavior matches the production path.

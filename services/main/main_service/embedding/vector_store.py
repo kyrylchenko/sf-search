@@ -2,6 +2,8 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
+from collections.abc import Callable
 from typing import Protocol
 
 import numpy as np
@@ -29,6 +31,13 @@ class HnswMetadata:
     items: dict[str, dict[str, object]]
 
 
+@dataclass
+class CachedSearchIndex:
+    index: object
+    state: HnswMetadata
+    loaded_at: float
+
+
 class LocalHnswVectorStore:
     kind = "local_hnsw"
 
@@ -39,6 +48,8 @@ class LocalHnswVectorStore:
         model_id: str,
         dimension: int,
         max_elements: int = 100_000,
+        search_cache_ttl_seconds: float = 300.0,
+        clock: Callable[[], float] = monotonic,
     ) -> None:
         self.root_dir = root_dir / safe_storage_segment(model_id)
         self.dimension = dimension
@@ -46,6 +57,9 @@ class LocalHnswVectorStore:
         self.index_path = self.root_dir / "index.bin"
         self.metadata_path = self.root_dir / "metadata.json"
         self.path = str(self.index_path)
+        self.search_cache_ttl_seconds = search_cache_ttl_seconds
+        self._clock = clock
+        self._search_cache: CachedSearchIndex | None = None
 
     def add(self, *, vector_id: int, vector: np.ndarray, metadata: dict[str, object]) -> str:
         hnswlib = _import_hnswlib()
@@ -60,6 +74,7 @@ class LocalHnswVectorStore:
             )
             state.items[key] = metadata
             self._write_metadata(state)
+            self._invalidate_search_cache()
             return key
 
         logger.info(
@@ -81,6 +96,7 @@ class LocalHnswVectorStore:
         self.root_dir.mkdir(parents=True, exist_ok=True)
         index.save_index(str(self.index_path))
         self._write_metadata(state)
+        self._invalidate_search_cache()
         logger.info(
             "vector_store_add_complete vector_id=%s total_items=%s index_path=%s",
             key,
@@ -91,8 +107,35 @@ class LocalHnswVectorStore:
 
     def search(self, vector: np.ndarray, limit: int) -> list[tuple[str, float]]:
         hnswlib = _import_hnswlib()
-        state = self._read_metadata()
-        if not self.index_path.exists() or not state.items:
+        cached = self._get_cached_search_index()
+        if cached is None:
+            state = self._read_metadata()
+            if not self.index_path.exists() or not state.items:
+                logger.warning("vector_store_search_empty index_path=%s", self.index_path)
+                return []
+            index = self._load_search_index(hnswlib, state)
+            cached = CachedSearchIndex(
+                index=index,
+                state=state,
+                loaded_at=self._clock(),
+            )
+            self._search_cache = cached
+            logger.info(
+                "vector_store_search_cache_loaded total_items=%s ttl_seconds=%s index_path=%s",
+                len(state.items),
+                self.search_cache_ttl_seconds,
+                self.index_path,
+            )
+        else:
+            state = cached.state
+            index = cached.index
+            logger.info(
+                "vector_store_search_cache_hit total_items=%s index_path=%s",
+                len(state.items),
+                self.index_path,
+            )
+
+        if not state.items:
             logger.warning("vector_store_search_empty index_path=%s", self.index_path)
             return []
         normalized = _as_vector(vector, state.dimension)
@@ -102,8 +145,6 @@ class LocalHnswVectorStore:
             len(state.items),
             self.index_path,
         )
-        index = hnswlib.Index(space="cosine", dim=state.dimension)
-        index.load_index(str(self.index_path), max_elements=state.max_elements)
         index.set_ef(max(50, limit))
         labels, distances = index.knn_query(
             normalized.reshape(1, -1),
@@ -119,6 +160,32 @@ class LocalHnswVectorStore:
             self.index_path,
         )
         return results
+
+    def _get_cached_search_index(self) -> CachedSearchIndex | None:
+        if self._search_cache is None:
+            return None
+        if self.search_cache_ttl_seconds <= 0:
+            self._invalidate_search_cache()
+            return None
+        age = self._clock() - self._search_cache.loaded_at
+        if age >= self.search_cache_ttl_seconds:
+            logger.info(
+                "vector_store_search_cache_expired age_seconds=%.3f ttl_seconds=%s index_path=%s",
+                age,
+                self.search_cache_ttl_seconds,
+                self.index_path,
+            )
+            self._invalidate_search_cache()
+            return None
+        return self._search_cache
+
+    def _load_search_index(self, hnswlib: object, state: HnswMetadata) -> object:
+        index = hnswlib.Index(space="cosine", dim=state.dimension)
+        index.load_index(str(self.index_path), max_elements=state.max_elements)
+        return index
+
+    def _invalidate_search_cache(self) -> None:
+        self._search_cache = None
 
     def _load_or_create_index(self, hnswlib: object, state: HnswMetadata) -> object:
         index = hnswlib.Index(space="cosine", dim=state.dimension)

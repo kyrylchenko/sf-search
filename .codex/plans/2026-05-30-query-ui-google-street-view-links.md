@@ -18,6 +18,9 @@ panorama at the same view direction as the generated tile.
 
 - Extend query UI result metadata with latitude, longitude, and pano north
   heading.
+- Treat `panorama_table.metadata_json["heading"]` from `streetlevel` as radians
+  and convert it to degrees before generating Google Maps links. Explicit
+  `heading_degrees` / `PoseHeadingDegrees` values stay in degrees.
 - Convert pano-relative heading to Google north-based heading:
   `google_heading = (pano_heading + relative_heading) % 360`.
 - Generate a Google Maps Street View URL for every result with a pano id.

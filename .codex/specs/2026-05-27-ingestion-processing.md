@@ -47,6 +47,13 @@ Out of scope:
 8. For each downloaded panorama, load/normalize the equirectangular image and generate configured views.
 9. Store one row per generated panorama view with yaw, pitch, roll, FOV, dimensions, and image path.
 
+## Current Local Target
+
+`services/main/target.geojson` is currently a small Haight-Ashbury smoke-test
+boundary around Haight Street and Ashbury Street, not the final citywide San
+Francisco polygon. At zoom 17 it produces 40 map tiles in range
+`x=20950..20957`, `y=50662..50666`.
+
 ## Storage Model
 
 Use relational state tables first. A later plan may add object storage, vector stores, or queue-specific tables.

@@ -11,8 +11,12 @@ def test_generate_tiles_for_target_geojson_returns_expected_count() -> None:
 
     tiles = generate_tiles_given_geojson(data, 17)
 
-    assert len(tiles) == 598
+    assert len(tiles) == 40
     assert all(tile.z == 17 for tile in tiles)
+    assert min(tile.x for tile in tiles) == 20950
+    assert max(tile.x for tile in tiles) == 20957
+    assert min(tile.y for tile in tiles) == 50662
+    assert max(tile.y for tile in tiles) == 50666
 
 
 def test_generate_tiles_rejects_empty_feature_collection() -> None:

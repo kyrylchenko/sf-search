@@ -1,5 +1,6 @@
 from main_service.embedding.query_ui import (
     QueryResult,
+    _extract_pano_heading,
     google_maps_street_view_url,
     render_results_page,
 )
@@ -70,3 +71,11 @@ def test_google_maps_street_view_url_uses_north_based_heading() -> None:
     assert "heading=115.000000" in url
     assert "pitch=10.000000" in url
     assert "fov=77.000000" in url
+
+
+def test_extract_pano_heading_converts_streetlevel_radians_to_degrees() -> None:
+    assert _extract_pano_heading({"heading": 1.5707963267948966}) == 90.0
+
+
+def test_extract_pano_heading_keeps_explicit_degree_metadata() -> None:
+    assert _extract_pano_heading({"heading_degrees": 100.0, "heading": 1.0}) == 100.0

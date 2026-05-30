@@ -2,6 +2,7 @@ import argparse
 import html
 import json
 import logging
+from math import degrees, tau
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlencode, unquote, urlparse
@@ -275,15 +276,30 @@ def _google_heading(result: QueryResult) -> float:
 def _extract_pano_heading(metadata: dict[str, object] | None) -> float | None:
     if not metadata:
         return None
-    for key in ("heading", "pose_heading", "PoseHeadingDegrees"):
+    for key in ("heading_degrees", "pose_heading_degrees", "PoseHeadingDegrees"):
         value = metadata.get(key)
-        if isinstance(value, int | float):
+        parsed = _optional_float(value)
+        if parsed is not None:
+            return parsed
+
+    heading = _optional_float(metadata.get("heading"))
+    if heading is not None:
+        return degrees(heading) if abs(heading) <= tau else heading
+
+    pose_heading = _optional_float(metadata.get("pose_heading"))
+    if pose_heading is not None:
+        return pose_heading
+    return None
+
+
+def _optional_float(value: object) -> float | None:
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, str):
+        try:
             return float(value)
-        if isinstance(value, str):
-            try:
-                return float(value)
-            except ValueError:
-                continue
+        except ValueError:
+            return None
     return None
 
 

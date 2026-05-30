@@ -7,8 +7,12 @@ from main_service.ingestion.boundary_loader import load_map_tiles_from_geojson
 def test_load_map_tiles_from_geojson_uses_existing_geo_logic() -> None:
     tiles = load_map_tiles_from_geojson(Path("target.geojson"), zoom=17)
 
-    assert len(tiles) == 598
+    assert len(tiles) == 40
     assert tiles[0].z == 17
+    assert min(tile.x for tile in tiles) == 20950
+    assert max(tile.x for tile in tiles) == 20957
+    assert min(tile.y for tile in tiles) == 50662
+    assert max(tile.y for tile in tiles) == 50666
     assert tiles == sorted(tiles, key=lambda tile: (tile.z, tile.x, tile.y))
 
 

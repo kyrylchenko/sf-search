@@ -3,15 +3,18 @@
   "features": [
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {
+        "name": "Haight-Ashbury smoke boundary",
+        "note": "Approximate local test boundary around Haight Street and Ashbury Street, not a final citywide SF polygon."
+      },
       "geometry": {
         "coordinates": [
           [
-            [-122.31134922427556, 37.89278695802837],
-            [-122.31134922427556, 37.84508587206493],
-            [-122.24243982725812, 37.84508587206493],
-            [-122.24243982725812, 37.89278695802837],
-            [-122.31134922427556, 37.89278695802837]
+            [-122.458, 37.7745],
+            [-122.458, 37.7643],
+            [-122.438, 37.7643],
+            [-122.438, 37.7745],
+            [-122.458, 37.7745]
           ]
         ],
         "type": "Polygon"
@@ -19,4 +22,3 @@
     }
   ]
 }
-
