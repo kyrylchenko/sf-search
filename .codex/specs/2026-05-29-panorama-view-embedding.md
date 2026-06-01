@@ -166,3 +166,38 @@ or unrelated results.
 Automatic device selection should prefer CUDA first, then Apple MPS, then CPU.
 This keeps local Mac runs off CPU when MPS is available while preserving the same
 adapter path for Linux GPU servers.
+
+## Server-Ready Runtime
+
+The embedding runtime must be configurable without code changes because local
+Mac, CPU server, and CUDA server behavior differ substantially. Supported
+runtime settings include:
+
+- `EMBEDDING_DEVICE`: `auto`, `cuda`, `mps`, or `cpu`;
+- `EMBEDDING_DTYPE`: `float16`, `bfloat16`, or `float32`;
+- `EMBEDDING_BATCH_SIZE`: number of view images encoded in one model forward
+  pass;
+- `EMBEDDING_VECTOR_STORE_DIR`: local HNSW artifact directory.
+
+The default batch size remains 1 to preserve previous behavior. GPU servers can
+raise the batch size after a smoke benchmark confirms VRAM headroom. In batch
+mode the worker should claim rows individually, encode images together, add
+vectors to HNSW in one batch operation, then mark every row complete. If model or
+vector-store work fails, every claimed row in that batch is marked failed and
+the NATS messages are acked so DB state remains the recovery source.
+
+Docker Compose runs Postgres, NATS, discovery, downloader, processing,
+embedding, and the local query UI through profiles. The app image must exclude
+local `.env`, `.local`, logs, virtualenvs, and generated artifacts from the
+build context because this is a public repo and runtime data can be large or
+private. A CUDA override Compose file may add GPU access and CUDA-specific
+environment values without changing the base local stack.
+
+Operational requeue commands rebuild queue state from Postgres:
+
+- downloaded panos missing completed views can be requeued for processing;
+- completed views missing embeddings for the configured model/source hash can be
+  requeued for embedding.
+
+These commands are intentionally idempotent. Duplicate queue messages are safe
+because workers dedupe through Postgres claims.

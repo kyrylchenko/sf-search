@@ -334,6 +334,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--vector-store-dir", default=None)
     parser.add_argument("--model-id", default=None)
+    parser.add_argument("--device", default=None)
     parser.add_argument("--log-level", default=None)
     return parser
 
@@ -348,6 +349,7 @@ def main() -> None:
         model_id=model_id,
         revision=settings.embedding_model_revision,
         dtype=settings.embedding_dtype,
+        device=_device_or_none(args.device or settings.embedding_device),
     )
     vector_store = LocalHnswVectorStore(
         root_dir=Path(args.vector_store_dir or settings.embedding_vector_store_dir),
@@ -435,6 +437,10 @@ def _content_type(path: Path) -> str:
     if path.suffix.lower() == ".png":
         return "image/png"
     return "application/octet-stream"
+
+
+def _device_or_none(device: str | None) -> str | None:
+    return None if device is None or device == "auto" else device
 
 
 if __name__ == "__main__":

@@ -21,8 +21,18 @@ class VectorStore(Protocol):
     def add(self, *, vector_id: int, vector: np.ndarray, metadata: dict[str, object]) -> str:
         ...
 
+    def add_many(self, records: list["VectorStoreRecord"]) -> list[str]:
+        ...
+
     def search(self, vector: np.ndarray, limit: int) -> list[tuple[str, float]]:
         ...
+
+
+@dataclass(frozen=True)
+class VectorStoreRecord:
+    vector_id: int
+    vector: np.ndarray
+    metadata: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -63,48 +73,72 @@ class LocalHnswVectorStore:
         self._search_cache: CachedSearchIndex | None = None
 
     def add(self, *, vector_id: int, vector: np.ndarray, metadata: dict[str, object]) -> str:
+        return self.add_many(
+            [VectorStoreRecord(vector_id=vector_id, vector=vector, metadata=metadata)]
+        )[0]
+
+    def add_many(self, records: list[VectorStoreRecord]) -> list[str]:
+        if not records:
+            return []
         hnswlib = _import_hnswlib()
-        normalized = _as_vector(vector, self.dimension)
         state = self._read_metadata()
-        key = str(vector_id)
-        if key in state.items:
-            logger.info(
-                "vector_store_add_skipped_existing vector_id=%s index_path=%s",
-                key,
-                self.index_path,
-            )
-            state.items[key] = metadata
+        keys: list[str] = []
+        new_records: list[VectorStoreRecord] = []
+        for record in records:
+            key = str(record.vector_id)
+            keys.append(key)
+            if key in state.items:
+                logger.info(
+                    "vector_store_add_skipped_existing vector_id=%s index_path=%s",
+                    key,
+                    self.index_path,
+                )
+                state.items[key] = record.metadata
+                continue
+            new_records.append(record)
+
+        if not new_records:
             self._write_metadata(state)
             self._invalidate_search_cache()
-            return key
+            return keys
 
+        vectors = np.stack(
+            [_as_vector(record.vector, self.dimension) for record in new_records]
+        )
+        labels = np.array([record.vector_id for record in new_records], dtype=np.int64)
         logger.info(
-            "vector_store_add_start vector_id=%s dimension=%s index_path=%s",
-            vector_id,
+            "vector_store_add_many_start records=%s dimension=%s index_path=%s",
+            len(new_records),
             self.dimension,
             self.index_path,
         )
         index = self._load_or_create_index(hnswlib, state)
-        if len(state.items) >= state.max_elements:
+        required_elements = len(state.items) + len(new_records)
+        if required_elements > state.max_elements:
+            grown_max_elements = state.max_elements
+            while required_elements > grown_max_elements:
+                grown_max_elements += self.max_elements
             state = HnswMetadata(
                 dimension=state.dimension,
-                max_elements=state.max_elements + self.max_elements,
+                max_elements=grown_max_elements,
                 items=state.items,
             )
             index.resize_index(state.max_elements)
-        index.add_items(normalized.reshape(1, -1), np.array([vector_id], dtype=np.int64))
-        state.items[key] = metadata
+        index.add_items(vectors, labels)
+        for record in new_records:
+            key = str(record.vector_id)
+            state.items[key] = record.metadata
         self.root_dir.mkdir(parents=True, exist_ok=True)
         self._write_index(index)
         self._write_metadata(state)
         self._invalidate_search_cache()
         logger.info(
-            "vector_store_add_complete vector_id=%s total_items=%s index_path=%s",
-            key,
+            "vector_store_add_many_complete records=%s total_items=%s index_path=%s",
+            len(new_records),
             len(state.items),
             self.index_path,
         )
-        return key
+        return keys
 
     def search(self, vector: np.ndarray, limit: int) -> list[tuple[str, float]]:
         hnswlib = _import_hnswlib()

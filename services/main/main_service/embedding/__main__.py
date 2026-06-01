@@ -49,6 +49,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Embedding model revision.",
     )
     parser.add_argument(
+        "--device",
+        default=None,
+        help="Embedding device: auto, cuda, mps, or cpu.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=None,
+        help="Number of images to encode in one model forward pass.",
+    )
+    parser.add_argument(
         "--log-level",
         default=None,
         help="Console log level: DEBUG, INFO, WARNING, ERROR.",
@@ -72,10 +83,16 @@ async def run(args: argparse.Namespace) -> None:
     configure_cli_logging(args.log_level or settings.log_level)
     logger = logging.getLogger(__name__)
     logger.info(
-        "embedding_cli_start limit=%s concurrency=%s model_id=%s vector_store_dir=%s",
+        (
+            "embedding_cli_start limit=%s concurrency=%s batch_size=%s "
+            "model_id=%s device=%s dtype=%s vector_store_dir=%s"
+        ),
         args.limit,
         args.concurrency or settings.pano_embedding_concurrency,
+        args.batch_size or settings.embedding_batch_size,
         args.model_id or settings.embedding_model_id,
+        args.device or settings.embedding_device,
+        settings.embedding_dtype,
         args.vector_store_dir or settings.embedding_vector_store_dir,
     )
     engine = initialize_engine(settings)
@@ -99,6 +116,7 @@ async def run(args: argparse.Namespace) -> None:
         model_id=model_spec.model_id,
         revision=model_spec.model_revision,
         dtype=model_spec.embedding_dtype,
+        device=_device_or_none(args.device or settings.embedding_device),
     )
     vector_store = LocalHnswVectorStore(
         root_dir=Path(args.vector_store_dir or settings.embedding_vector_store_dir),
@@ -115,6 +133,7 @@ async def run(args: argparse.Namespace) -> None:
                 model_spec=model_spec,
                 limit=args.limit,
                 concurrency=args.concurrency or settings.pano_embedding_concurrency,
+                batch_size=args.batch_size or settings.embedding_batch_size,
             )
             logger.info(
                 "embedding_cli_batch_complete result=%s",
@@ -144,6 +163,10 @@ def main() -> None:
 
 def _value_or_default[T](value: T | None, default: T) -> T:
     return default if value is None else value
+
+
+def _device_or_none(device: str | None) -> str | None:
+    return None if device is None or device == "auto" else device
 
 
 def _embedding_should_idle(result: object) -> bool:

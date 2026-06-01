@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     embedding_preprocess_version: str = Field(default="siglip2-384-rgb-v1")
     embedding_dimension: int = Field(default=1152)
     embedding_dtype: str = Field(default="float16")
+    embedding_device: str = Field(default="auto")
+    embedding_batch_size: int = Field(default=1)
     embedding_vector_store_dir: str = Field(default=".local/embedding-indexes")
     log_level: str = Field(default="INFO")
     service_idle_sleep_seconds: float = Field(default=5.0)

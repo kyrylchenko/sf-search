@@ -18,6 +18,7 @@ from main_service.db.services.panorama_view_service import (
 )
 from main_service.embedding.nats_source import PanoEmbeddingJob, ReceivedPanoEmbeddingJob
 from main_service.embedding.runner import EmbeddingRunResult, run_embedding_batch
+from main_service.embedding.vector_store import VectorStoreRecord
 from main_service.ingestion.types import PanoramaId, ProcessingStatus
 
 
@@ -121,12 +122,19 @@ class FakeImageEmbedder:
         self.vector = vector if vector is not None else np.array([1, 0, 0, 0], dtype=np.float32)
         self.error = error
         self.image_paths: list[Path] = []
+        self.image_batches: list[list[Path]] = []
 
     def embed_image(self, image_path: Path) -> np.ndarray:
         self.image_paths.append(image_path)
         if self.error is not None:
             raise self.error
         return self.vector
+
+    def embed_images(self, image_paths: list[Path]) -> list[np.ndarray]:
+        self.image_batches.append(image_paths)
+        if self.error is not None:
+            raise self.error
+        return [self.vector for _ in image_paths]
 
 
 class FakeVectorStore:
@@ -135,16 +143,24 @@ class FakeVectorStore:
 
     def __init__(self) -> None:
         self.added: list[dict[str, object]] = []
+        self.add_many_calls: list[int] = []
 
     def add(self, *, vector_id: int, vector: np.ndarray, metadata: dict[str, object]) -> str:
-        self.added.append(
-            {
-                "vector_id": vector_id,
-                "vector": vector,
-                "metadata": metadata,
-            }
-        )
-        return str(vector_id)
+        return self.add_many(
+            [VectorStoreRecord(vector_id=vector_id, vector=vector, metadata=metadata)]
+        )[0]
+
+    def add_many(self, records: list[VectorStoreRecord]) -> list[str]:
+        self.add_many_calls.append(len(records))
+        for record in records:
+            self.added.append(
+                {
+                    "vector_id": record.vector_id,
+                    "vector": record.vector,
+                    "metadata": record.metadata,
+                }
+            )
+        return [str(record.vector_id) for record in records]
 
 
 def test_embedding_runner_embeds_view_stores_vector_marks_complete_and_acks(
@@ -270,3 +286,54 @@ def test_embedding_runner_reports_progress_events(tmp_path: Path) -> None:
     assert event_names[:2] == ["embedding_fetch_start", "embedding_fetch_complete"]
     assert "embedding_job_start" in event_names
     assert "embedding_job_complete" in event_names
+
+
+def test_embedding_runner_batches_image_embedding(tmp_path: Path) -> None:
+    first_view_id, embedding_service = create_completed_view(tmp_path)
+    engine = embedding_service.engine
+    panorama_service = PanoramaService(engine)
+    view_service = PanoramaViewService(engine)
+    second_image_path = tmp_path / "views" / "second.jpg"
+    second_hash = write_image(second_image_path)
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-b"))
+    second_claim = view_service.claim_view_for_processing(
+        PanoramaId("pano-b"),
+        make_view_spec(str(second_image_path), second_hash),
+    )
+    assert second_claim is not None
+    second_view = view_service.mark_view_complete(
+        second_claim.id,
+        image_path=str(second_image_path),
+        image_hash=second_hash,
+        image_bytes=second_image_path.stat().st_size,
+    )
+    first = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-a"), first_view_id, str(tmp_path / "views" / "center.jpg"))
+    )
+    second = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-b"), second_view.id, str(second_image_path))
+    )
+    embedder = FakeImageEmbedder()
+    vector_store = FakeVectorStore()
+
+    result = asyncio.run(
+        run_embedding_batch(
+            embedding_service=embedding_service,
+            job_source=FakeJobSource([first, second]),
+            image_embedder=embedder,
+            vector_store=vector_store,
+            model_spec=make_model_spec(),
+            limit=5,
+            concurrency=1,
+            batch_size=2,
+        )
+    )
+
+    assert result == EmbeddingRunResult(embedded=2, skipped=0, failed=0)
+    assert first.acked
+    assert second.acked
+    assert embedder.image_batches == [
+        [tmp_path / "views" / "center.jpg", second_image_path]
+    ]
+    assert len(vector_store.added) == 2
+    assert vector_store.add_many_calls == [2]

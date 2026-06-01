@@ -1,0 +1,13 @@
+services:
+  embedding:
+    gpus: all
+    environment:
+      EMBEDDING_DEVICE: cuda
+      EMBEDDING_DTYPE: ${EMBEDDING_DTYPE:-float16}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-1}
+
+  query-ui:
+    gpus: all
+    environment:
+      EMBEDDING_DEVICE: cuda
+      EMBEDDING_DTYPE: ${EMBEDDING_DTYPE:-float16}

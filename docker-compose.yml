@@ -1,3 +1,28 @@
+x-main-service: &main-service
+  build:
+    context: .
+    dockerfile: services/main/Dockerfile
+  env_file:
+    - path: services/main/.env
+      required: false
+  environment:
+    DB_USER: ${POSTGRES_USER:-sf_search}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:-sf_search_dev_password}
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_NAME: ${POSTGRES_DB:-sf_search}
+    DB_DRIVER: postgresql+psycopg
+    NATS_URL: nats://nats:4222
+  volumes:
+    - ./services/main/.local:/app/services/main/.local
+    - ./services/main/target.geojson:/app/services/main/target.geojson:ro
+    - ./docs:/app/docs:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+    nats:
+      condition: service_healthy
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -28,6 +53,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  discovery:
+    <<: *main-service
+    command: ["uv", "run", "python", "-m", "main_service.discovery"]
+    profiles: ["pipeline"]
+    restart: unless-stopped
+
+  downloader:
+    <<: *main-service
+    command: ["uv", "run", "python", "-m", "main_service.downloader"]
+    profiles: ["pipeline"]
+    restart: unless-stopped
+
+  processing:
+    <<: *main-service
+    command: ["uv", "run", "python", "-m", "main_service.processing"]
+    profiles: ["pipeline"]
+    restart: unless-stopped
+
+  embedding:
+    <<: *main-service
+    command: ["uv", "run", "python", "-m", "main_service.embedding"]
+    profiles: ["pipeline"]
+    restart: unless-stopped
+
+  query-ui:
+    <<: *main-service
+    command: ["uv", "run", "python", "-m", "main_service.embedding.query_ui", "--host", "0.0.0.0"]
+    ports:
+      - "${QUERY_UI_PORT:-8787}:8787"
+    profiles: ["query"]
+    restart: unless-stopped
 
 volumes:
   nats-data:

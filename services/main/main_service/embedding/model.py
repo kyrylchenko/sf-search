@@ -13,6 +13,9 @@ class ImageTextEmbedder(Protocol):
     def embed_image(self, image_path: Path) -> np.ndarray:
         ...
 
+    def embed_images(self, image_paths: list[Path]) -> list[np.ndarray]:
+        ...
+
     def embed_text(self, text: str) -> np.ndarray:
         ...
 
@@ -35,33 +38,41 @@ class TransformersSiglipEmbedder:
         self._torch = None
 
     def embed_image(self, image_path: Path) -> np.ndarray:
+        return self.embed_images([image_path])[0]
+
+    def embed_images(self, image_paths: list[Path]) -> list[np.ndarray]:
         started_at = perf_counter()
         self._load()
         assert self._torch is not None
         assert self._processor is not None
         assert self._model is not None
+        if not image_paths:
+            return []
         logger.info(
-            "embedding_model_image_encode_start image_path=%s model_id=%s",
-            image_path,
+            "embedding_model_image_batch_encode_start images=%s model_id=%s",
+            len(image_paths),
             self.model_id,
         )
-        with Image.open(image_path) as image:
-            inputs = self._processor(images=image.convert("RGB"), return_tensors="pt")
+        images = []
+        for image_path in image_paths:
+            with Image.open(image_path) as image:
+                images.append(image.convert("RGB"))
+        inputs = self._processor(images=images, return_tensors="pt")
         inputs = {key: value.to(self._model.device) for key, value in inputs.items()}
         with self._torch.no_grad():
             features = self._model.get_image_features(**inputs)
-        vector = _normalized_numpy(features, self._torch)
+        vectors = _normalized_batch_numpy(features, self._torch)
         logger.info(
             (
-                "embedding_model_image_encode_complete image_path=%s model_id=%s "
+                "embedding_model_image_batch_encode_complete images=%s model_id=%s "
                 "dimension=%s seconds=%.3f"
             ),
-            image_path,
+            len(image_paths),
             self.model_id,
-            vector.shape[0],
+            vectors.shape[1],
             perf_counter() - started_at,
         )
-        return vector
+        return [vector for vector in vectors]
 
     def embed_text(self, text: str) -> np.ndarray:
         started_at = perf_counter()
@@ -120,16 +131,22 @@ class TransformersSiglipEmbedder:
             revision=self.revision,
             torch_dtype=torch_dtype,
         )
-        device = self.device or _select_device(torch)
+        device = _resolve_device(torch, self.device)
         model = model.to(device)
         model.eval()
         self._torch = torch
         self._processor = processor
         self._model = model
+        first_param = next(model.parameters())
         logger.info(
-            "embedding_model_load_complete model_id=%s device=%s seconds=%.3f",
+            (
+                "embedding_model_load_complete model_id=%s requested_device=%s "
+                "actual_device=%s dtype=%s seconds=%.3f"
+            ),
             self.model_id,
+            self.device or "auto",
             device,
+            first_param.dtype,
             perf_counter() - started_at,
         )
 
@@ -156,10 +173,20 @@ def _select_device(torch_module: object) -> str:
     return "cpu"
 
 
+def _resolve_device(torch_module: object, requested_device: str | None) -> str:
+    if requested_device is None or requested_device == "auto":
+        return _select_device(torch_module)
+    return requested_device
+
+
 def _normalized_numpy(features: object, torch_module: object) -> np.ndarray:
+    return _normalized_batch_numpy(features, torch_module)[0]
+
+
+def _normalized_batch_numpy(features: object, torch_module: object) -> np.ndarray:
     selected = _select_feature_tensor(features)
     normalized = selected / selected.norm(dim=-1, keepdim=True)
-    return normalized.detach().cpu().numpy()[0].astype(np.float32)
+    return normalized.detach().cpu().numpy().astype(np.float32)
 
 
 def _select_feature_tensor(features: object) -> object:

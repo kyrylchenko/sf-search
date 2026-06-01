@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from main_service.embedding import vector_store
-from main_service.embedding.vector_store import LocalHnswVectorStore
+from main_service.embedding.vector_store import LocalHnswVectorStore, VectorStoreRecord
 
 
 class FakeIndex:
@@ -155,3 +155,38 @@ def test_add_invalidates_cached_search_index(
         for path in (tmp_path / "test_model").iterdir()
         if path.name.endswith(".tmp")
     ]
+
+
+def test_add_many_writes_multiple_records_in_one_index_update(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    reset_fake_index()
+    monkeypatch.setattr(vector_store, "_import_hnswlib", lambda: FakeHnswLib)
+    now = [1000.0]
+    store = make_store(tmp_path, now)
+
+    vector_ids = store.add_many(
+        [
+            VectorStoreRecord(
+                vector_id=10,
+                vector=np.array([1.0, 0.0, 0.0]),
+                metadata={"embedding_id": 10, "view_id": 100},
+            ),
+            VectorStoreRecord(
+                vector_id=11,
+                vector=np.array([0.0, 1.0, 0.0]),
+                metadata={"embedding_id": 11, "view_id": 110},
+            ),
+        ]
+    )
+
+    metadata = json.loads((tmp_path / "test_model" / "metadata.json").read_text())
+    assert vector_ids == ["10", "11"]
+    assert FakeIndex.init_calls == 1
+    assert FakeIndex.add_calls == 1
+    assert FakeIndex.save_calls == 1
+    assert metadata["items"] == {
+        "10": {"embedding_id": 10, "view_id": 100},
+        "11": {"embedding_id": 11, "view_id": 110},
+    }
