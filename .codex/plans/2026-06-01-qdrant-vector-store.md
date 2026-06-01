@@ -66,3 +66,19 @@ uv run pytest -q
 cd ../..
 docker compose config --quiet
 ```
+
+## Implementation Notes
+
+- `QdrantVectorStore` writes directly from the embedding service and returns DB
+  embedding IDs as Qdrant point IDs.
+- `QDRANT_UPSERT_WAIT` defaults to `true`; if an upsert raises, the existing
+  embedding runner failure path marks every claimed row in that batch failed.
+- `EMBEDDING_VECTOR_STORE_KIND=local_hnsw` keeps the old local index available.
+- Compose persists Qdrant data under `./.local/qdrant-storage` and points app
+  containers at `http://qdrant:6333`.
+- Verification completed after implementation:
+  - `uv run pytest -q`
+  - `docker compose config --quiet`
+  - `docker compose -f docker-compose.yml -f docker-compose.gpu.yml config --quiet`
+  - `docker compose -f docker-compose.yml -f docker-compose.observability.yml config --quiet`
+  - `docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.observability.yml config --quiet`

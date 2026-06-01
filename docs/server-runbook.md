@@ -14,7 +14,8 @@ credentials.
   - NATS JetStream state;
   - downloaded panos;
   - generated panorama view tiles;
-  - embedding index files;
+  - Qdrant vector storage;
+  - optional local HNSW embedding index files;
   - optional monitoring snapshots and telemetry export state.
 
 ## Configure
@@ -31,6 +32,13 @@ NATS_URL=nats://nats:4222
 EMBEDDING_DEVICE=auto
 EMBEDDING_DTYPE=float16
 EMBEDDING_BATCH_SIZE=1
+EMBEDDING_VECTOR_STORE_KIND=qdrant
+QDRANT_URL=http://qdrant:6333
+QDRANT_COLLECTION=panorama_view_embeddings_siglip2
+QDRANT_VECTOR_ON_DISK=true
+QDRANT_HNSW_ON_DISK=false
+QDRANT_ON_DISK_PAYLOAD=true
+QDRANT_UPSERT_WAIT=true
 PANO_DOWNLOAD_STORAGE_DIR=.local/panoramas
 PANO_VIEW_STORAGE_DIR=.local/panorama-views
 EMBEDDING_VECTOR_STORE_DIR=.local/embedding-indexes
@@ -53,8 +61,18 @@ until throughput stops improving or VRAM gets tight.
 ## Start Infrastructure
 
 ```bash
-docker compose up -d postgres nats
+docker compose up -d postgres nats qdrant
 ```
+
+Qdrant is also started automatically with the pipeline or query UI profiles. To
+start it by itself:
+
+```bash
+docker compose up -d qdrant
+```
+
+Qdrant HTTP is exposed on `http://localhost:6333`, and its storage is persisted
+under `./.local/qdrant-storage`.
 
 ## Build App Image
 
@@ -168,7 +186,9 @@ docker compose logs -f discovery downloader processing embedding monitoring
 ```
 
 Embedding startup logs should include requested device, actual device, dtype,
-and batch size.
+batch size, vector store kind, and vector store path. Qdrant writes emit
+`qdrant_upsert_start` and `qdrant_upsert_complete`; SigNoz timings for
+`embedding_vector_store_batch` show if Qdrant writes are slowing embedding.
 
 When observability is enabled, services also export logs through OpenTelemetry to
 SigNoz. The monitor service emits snapshots containing:

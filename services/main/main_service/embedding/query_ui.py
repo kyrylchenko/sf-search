@@ -12,13 +12,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from main_service.config import CONFIG
+from main_service.config import CONFIG, Settings
 from main_service.db.initialize_engine import initialize_engine
 from main_service.db.models.panorama import Panorama
 from main_service.db.models.panorama_view import PanoramaView
 from main_service.db.models.panorama_view_embedding import PanoramaViewEmbedding
+from main_service.db.services.panorama_view_embedding_service import EmbeddingModelSpec
 from main_service.embedding.model import ImageTextEmbedder, TransformersSiglipEmbedder
-from main_service.embedding.vector_store import LocalHnswVectorStore, VectorStore
+from main_service.embedding.vector_store import VectorStore
+from main_service.embedding.vector_store_factory import create_vector_store
 from main_service.logging_config import configure_cli_logging
 from main_service.observability import NoopTelemetry, configure_observability
 from main_service.observability.telemetry import PipelineTelemetry
@@ -364,6 +366,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--vector-store-dir", default=None)
+    parser.add_argument(
+        "--vector-store-kind",
+        default=None,
+        choices=["qdrant", "local_hnsw"],
+    )
+    parser.add_argument("--qdrant-url", default=None)
+    parser.add_argument("--qdrant-collection", default=None)
     parser.add_argument("--model-id", default=None)
     parser.add_argument("--device", default=None)
     parser.add_argument("--log-level", default=None)
@@ -383,10 +392,13 @@ def main() -> None:
         dtype=settings.embedding_dtype,
         device=_device_or_none(args.device or settings.embedding_device),
     )
-    vector_store = LocalHnswVectorStore(
-        root_dir=Path(args.vector_store_dir or settings.embedding_vector_store_dir),
-        model_id=model_id,
-        dimension=settings.embedding_dimension,
+    vector_store = create_vector_store(
+        settings=settings,
+        model_spec=_query_model_spec(settings, model_id),
+        vector_store_kind=args.vector_store_kind,
+        vector_store_dir=Path(args.vector_store_dir) if args.vector_store_dir else None,
+        qdrant_url=args.qdrant_url,
+        qdrant_collection=args.qdrant_collection,
     )
     service = LocalQueryService(
         engine=engine,
@@ -477,6 +489,18 @@ def _content_type(path: Path) -> str:
 
 def _device_or_none(device: str | None) -> str | None:
     return None if device is None or device == "auto" else device
+
+
+def _query_model_spec(settings: Settings, model_id: str) -> EmbeddingModelSpec:
+    return EmbeddingModelSpec(
+        model_provider=settings.embedding_model_provider,
+        model_id=model_id,
+        model_revision=settings.embedding_model_revision,
+        preprocess_version=settings.embedding_preprocess_version,
+        embedding_dimension=settings.embedding_dimension,
+        embedding_dtype=settings.embedding_dtype,
+        embedding_normalized=True,
+    )
 
 
 if __name__ == "__main__":

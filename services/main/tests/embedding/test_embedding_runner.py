@@ -141,7 +141,8 @@ class FakeVectorStore:
     kind = "local_hnsw"
     path = ".local/embedding-indexes/test/index.bin"
 
-    def __init__(self) -> None:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
         self.added: list[dict[str, object]] = []
         self.add_many_calls: list[int] = []
 
@@ -151,6 +152,8 @@ class FakeVectorStore:
         )[0]
 
     def add_many(self, records: list[VectorStoreRecord]) -> list[str]:
+        if self.error is not None:
+            raise self.error
         self.add_many_calls.append(len(records))
         for record in records:
             self.added.append(
@@ -337,3 +340,53 @@ def test_embedding_runner_batches_image_embedding(tmp_path: Path) -> None:
     ]
     assert len(vector_store.added) == 2
     assert vector_store.add_many_calls == [2]
+
+
+def test_embedding_runner_marks_batch_failed_when_vector_store_fails(tmp_path: Path) -> None:
+    first_view_id, embedding_service = create_completed_view(tmp_path)
+    engine = embedding_service.engine
+    panorama_service = PanoramaService(engine)
+    view_service = PanoramaViewService(engine)
+    second_image_path = tmp_path / "views" / "second.jpg"
+    second_hash = write_image(second_image_path)
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-b"))
+    second_claim = view_service.claim_view_for_processing(
+        PanoramaId("pano-b"),
+        make_view_spec(str(second_image_path), second_hash),
+    )
+    assert second_claim is not None
+    second_view = view_service.mark_view_complete(
+        second_claim.id,
+        image_path=str(second_image_path),
+        image_hash=second_hash,
+        image_bytes=second_image_path.stat().st_size,
+    )
+    first = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-a"), first_view_id, str(tmp_path / "views" / "center.jpg"))
+    )
+    second = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-b"), second_view.id, str(second_image_path))
+    )
+
+    result = asyncio.run(
+        run_embedding_batch(
+            embedding_service=embedding_service,
+            job_source=FakeJobSource([first, second]),
+            image_embedder=FakeImageEmbedder(),
+            vector_store=FakeVectorStore(error=RuntimeError("qdrant unavailable")),
+            model_spec=make_model_spec(),
+            limit=5,
+            concurrency=1,
+            batch_size=2,
+        )
+    )
+
+    first_rows = embedding_service.list_embeddings_for_view(first_view_id)
+    second_rows = embedding_service.list_embeddings_for_view(second_view.id)
+    assert result == EmbeddingRunResult(embedded=0, skipped=0, failed=2)
+    assert first.acked
+    assert second.acked
+    assert first_rows[0].embedding_status == ProcessingStatus.FAILED.value
+    assert second_rows[0].embedding_status == ProcessingStatus.FAILED.value
+    assert first_rows[0].last_error == "qdrant unavailable"
+    assert second_rows[0].last_error == "qdrant unavailable"

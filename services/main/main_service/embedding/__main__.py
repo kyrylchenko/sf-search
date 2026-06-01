@@ -5,7 +5,7 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 
-from main_service.config import CONFIG
+from main_service.config import CONFIG, Settings
 from main_service.db.initialize_engine import initialize_engine
 from main_service.db.services.panorama_view_embedding_service import (
     EmbeddingModelSpec,
@@ -14,7 +14,7 @@ from main_service.db.services.panorama_view_embedding_service import (
 from main_service.embedding.model import TransformersSiglipEmbedder
 from main_service.embedding.nats_source import NatsPanoEmbeddingJobSource
 from main_service.embedding.runner import run_embedding_batch
-from main_service.embedding.vector_store import LocalHnswVectorStore
+from main_service.embedding.vector_store_factory import create_vector_store
 from main_service.logging_config import configure_cli_logging
 from main_service.observability import TimedProgressReporter, configure_observability
 from main_service.service_loop import run_service_loop
@@ -38,6 +38,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--vector-store-dir",
         default=None,
         help="Directory where local HNSW vector indexes are stored.",
+    )
+    parser.add_argument(
+        "--vector-store-kind",
+        default=None,
+        choices=["qdrant", "local_hnsw"],
+        help="Vector store backend to use.",
+    )
+    parser.add_argument(
+        "--qdrant-url",
+        default=None,
+        help="Qdrant HTTP URL.",
+    )
+    parser.add_argument(
+        "--qdrant-collection",
+        default=None,
+        help="Qdrant collection name for panorama view embeddings.",
     )
     parser.add_argument(
         "--model-id",
@@ -91,7 +107,7 @@ async def run(args: argparse.Namespace) -> None:
     logger.info(
         (
             "embedding_cli_start limit=%s concurrency=%s batch_size=%s "
-            "model_id=%s device=%s dtype=%s vector_store_dir=%s"
+            "model_id=%s device=%s dtype=%s vector_store_kind=%s vector_store_path=%s"
         ),
         args.limit,
         args.concurrency or settings.pano_embedding_concurrency,
@@ -99,7 +115,8 @@ async def run(args: argparse.Namespace) -> None:
         args.model_id or settings.embedding_model_id,
         args.device or settings.embedding_device,
         settings.embedding_dtype,
-        args.vector_store_dir or settings.embedding_vector_store_dir,
+        args.vector_store_kind or settings.embedding_vector_store_kind,
+        _vector_store_log_path(args, settings),
     )
     engine = initialize_engine(settings)
     embedding_service = PanoramaViewEmbeddingService(engine)
@@ -124,10 +141,13 @@ async def run(args: argparse.Namespace) -> None:
         dtype=model_spec.embedding_dtype,
         device=_device_or_none(args.device or settings.embedding_device),
     )
-    vector_store = LocalHnswVectorStore(
-        root_dir=Path(args.vector_store_dir or settings.embedding_vector_store_dir),
-        model_id=model_spec.model_id,
-        dimension=model_spec.embedding_dimension,
+    vector_store = create_vector_store(
+        settings=settings,
+        model_spec=model_spec,
+        vector_store_kind=args.vector_store_kind,
+        vector_store_dir=Path(args.vector_store_dir) if args.vector_store_dir else None,
+        qdrant_url=args.qdrant_url,
+        qdrant_collection=args.qdrant_collection,
     )
     try:
         async def run_batch() -> object:
@@ -176,6 +196,15 @@ def _value_or_default[T](value: T | None, default: T) -> T:
 
 def _device_or_none(device: str | None) -> str | None:
     return None if device is None or device == "auto" else device
+
+
+def _vector_store_log_path(args: argparse.Namespace, settings: Settings) -> str:
+    kind = args.vector_store_kind or settings.embedding_vector_store_kind
+    if kind == "qdrant":
+        url = (args.qdrant_url or settings.qdrant_url).rstrip("/")
+        collection = args.qdrant_collection or settings.qdrant_collection
+        return f"{url}/{collection}"
+    return args.vector_store_dir or settings.embedding_vector_store_dir
 
 
 def _embedding_should_idle(result: object) -> bool:

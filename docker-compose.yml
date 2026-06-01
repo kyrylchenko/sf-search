@@ -18,6 +18,14 @@ x-main-service: &main-service
     OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
     OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-local}
     DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-local}
+    EMBEDDING_VECTOR_STORE_KIND: ${EMBEDDING_VECTOR_STORE_KIND:-qdrant}
+    QDRANT_URL: http://qdrant:6333
+    QDRANT_COLLECTION: ${QDRANT_COLLECTION:-panorama_view_embeddings_siglip2}
+    QDRANT_VECTOR_ON_DISK: ${QDRANT_VECTOR_ON_DISK:-true}
+    QDRANT_HNSW_ON_DISK: ${QDRANT_HNSW_ON_DISK:-false}
+    QDRANT_ON_DISK_PAYLOAD: ${QDRANT_ON_DISK_PAYLOAD:-true}
+    QDRANT_UPSERT_WAIT: ${QDRANT_UPSERT_WAIT:-true}
+    QDRANT_TIMEOUT_SECONDS: ${QDRANT_TIMEOUT_SECONDS:-30}
   volumes:
     - ./services/main/.local:/app/services/main/.local
     - ./services/main/target.geojson:/app/services/main/target.geojson:ro
@@ -59,6 +67,15 @@ services:
       timeout: 5s
       retries: 10
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - ./.local/qdrant-storage:/qdrant/storage
+    restart: unless-stopped
+
   discovery:
     <<: *main-service
     command: ["uv", "run", "python", "-m", "main_service.discovery"]
@@ -80,6 +97,13 @@ services:
   embedding:
     <<: *main-service
     command: ["uv", "run", "python", "-m", "main_service.embedding"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     profiles: ["pipeline"]
     restart: unless-stopped
 
@@ -92,6 +116,13 @@ services:
   query-ui:
     <<: *main-service
     command: ["uv", "run", "python", "-m", "main_service.embedding.query_ui", "--host", "0.0.0.0"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     ports:
       - "${QUERY_UI_PORT:-8787}:8787"
     profiles: ["query"]

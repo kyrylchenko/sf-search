@@ -77,7 +77,7 @@ uv run python -m main_service.embedding --limit 10 --log-level INFO
 The embedder consumes durable NATS JetStream jobs from
 `pano.embedding.requested`, claims model-specific rows in
 `panorama_view_embedding_table`, embeds local generated view images, and writes
-vectors to a local HNSW index under `.local/embedding-indexes`.
+vectors to Qdrant by default.
 
 For one-shot checks, add `--once`:
 
@@ -93,7 +93,16 @@ EMBEDDING_MODEL_ID=google/siglip2-so400m-patch14-384
 EMBEDDING_PREPROCESS_VERSION=siglip2-384-rgb-v1
 EMBEDDING_DIMENSION=1152
 EMBEDDING_DTYPE=float16
+EMBEDDING_VECTOR_STORE_KIND=qdrant
+QDRANT_URL=http://localhost:6333
+QDRANT_COLLECTION=panorama_view_embeddings_siglip2
+QDRANT_UPSERT_WAIT=true
 ```
+
+`QDRANT_UPSERT_WAIT=true` keeps DB state strict: an embedding row is marked
+complete only after Qdrant accepts the point write. To use the old file-backed
+index for a local experiment, set `EMBEDDING_VECTOR_STORE_KIND=local_hnsw`; it
+stores indexes under `EMBEDDING_VECTOR_STORE_DIR`.
 
 Run the local test-only query UI:
 
@@ -103,8 +112,9 @@ uv run python -m main_service.embedding.query_ui --log-level INFO
 ```
 
 Open `http://127.0.0.1:8787`. The UI embeds the text query with the same local
-model, searches the local HNSW index, and displays locally stored generated view
-images with pano/view/model metadata. This is not the future public website.
+model, searches the configured vector store, and displays locally stored
+generated view images with pano/view/model metadata. This is not the future
+public website.
 
 ## Viewset Visualizer
 
