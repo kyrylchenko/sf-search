@@ -292,8 +292,12 @@ def test_embedding_runner_reports_progress_events(tmp_path: Path) -> None:
         "embedding_fetch_complete",
     ]
     assert "embedding_job_start" in event_names
+    assert "embedding_claim_start" in event_names
+    assert "embedding_model_encode_start" in event_names
     assert "embedding_image_complete" in event_names
     assert "embedding_vector_store_complete" in event_names
+    assert "embedding_db_update_start" in event_names
+    assert "embedding_ack_start" in event_names
     assert "embedding_job_complete" in event_names
     complete_payload = dict(events[event_names.index("embedding_job_complete")][1])
     assert complete_payload["pano_id"] == "pano-a"

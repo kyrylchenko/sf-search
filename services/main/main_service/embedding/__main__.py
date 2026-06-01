@@ -148,21 +148,22 @@ async def run(args: argparse.Namespace) -> None:
         vector_store_dir=Path(args.vector_store_dir) if args.vector_store_dir else None,
         qdrant_url=args.qdrant_url,
         qdrant_collection=args.qdrant_collection,
+        telemetry=telemetry,
     )
     try:
         async def run_batch() -> object:
-            with telemetry.span("embedding.batch"):
-                result = await run_embedding_batch(
-                    embedding_service=embedding_service,
-                    job_source=source,
-                    image_embedder=embedder,
-                    vector_store=vector_store,
-                    model_spec=model_spec,
-                    limit=args.limit,
-                    concurrency=args.concurrency or settings.pano_embedding_concurrency,
-                    batch_size=args.batch_size or settings.embedding_batch_size,
-                    progress=progress,
-                )
+            result = await run_embedding_batch(
+                embedding_service=embedding_service,
+                job_source=source,
+                image_embedder=embedder,
+                vector_store=vector_store,
+                model_spec=model_spec,
+                limit=args.limit,
+                concurrency=args.concurrency or settings.pano_embedding_concurrency,
+                batch_size=args.batch_size or settings.embedding_batch_size,
+                progress=progress,
+                telemetry=telemetry,
+            )
             logger.info(
                 "embedding_cli_batch_complete result=%s",
                 json.dumps(asdict(result), sort_keys=True),

@@ -17,5 +17,23 @@ Useful services for the dashboard:
 - `sf-search-monitoring`
 - `sf-search-query-ui`
 
+Trace spans are nested so a high-level operation can be expanded into its
+internal work. The intended shape is:
+
+```text
+*.batch
+  *.fetch
+  *.job
+    *.claim
+    *.resolve / *.download / *.source_load / *.render / *.model_encode
+    *.db_update
+    *.enqueue_processing / *.enqueue_embedding / *.qdrant_upsert
+    *.ack
+```
+
+Latency panels use `sf_search_pipeline_duration_seconds_bucket` and the
+`operation` label. Trace drilldowns should use the dotted span names such as
+`embedding.job`, `embedding.model_encode`, and `embedding.qdrant_upsert`.
+
 No private SigNoz URL, API key, or host-specific value belongs in this file or
 the dashboard JSON.

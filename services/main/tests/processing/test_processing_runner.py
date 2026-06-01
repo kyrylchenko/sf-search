@@ -380,6 +380,7 @@ def test_runner_reports_progress_events(tmp_path: Path) -> None:
             limit=5,
             concurrency=1,
             render_scale=1,
+            embedding_queue=FakeEmbeddingQueue(),
             progress=lambda event, payload: events.append((event, payload)),
         )
     )
@@ -390,6 +391,10 @@ def test_runner_reports_progress_events(tmp_path: Path) -> None:
     assert "processing_renderer_backend" in event_names
     assert "processing_fetch_complete" in event_names
     assert "processing_job_start" in event_names
+    assert "processing_source_load_start" in event_names
+    assert "processing_render_start" in event_names
+    assert "processing_db_update_start" in event_names
+    assert "processing_enqueue_embedding_start" in event_names
     assert "processing_view_complete" in event_names
     assert "processing_job_complete" in event_names
     view_complete_payload = dict(events[event_names.index("processing_view_complete")][1])

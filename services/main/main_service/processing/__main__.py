@@ -141,6 +141,7 @@ async def run(args: argparse.Namespace) -> None:
                         settings.max_embedding_queue_depth,
                     ),
                     progress=progress,
+                    telemetry=telemetry,
                 )
             logger.info(
                 "processing_cli_batch_complete result=%s",

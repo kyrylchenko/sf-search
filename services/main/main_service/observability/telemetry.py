@@ -29,6 +29,26 @@ def recorded_duration(
         )
 
 
+@contextlib.contextmanager
+def observed_span(
+    telemetry: "PipelineTelemetry",
+    span_name: str,
+    duration_name: str,
+    attributes: dict[str, object],
+    *,
+    metric_attributes: dict[str, object] | None = None,
+    clock: Callable[[], float] | None = None,
+) -> Iterator[None]:
+    with telemetry.span(span_name, attributes):
+        with recorded_duration(
+            telemetry,
+            duration_name,
+            metric_attributes or attributes,
+            clock=clock,
+        ):
+            yield
+
+
 class PipelineTelemetry(Protocol):
     enabled: bool
 

@@ -5,6 +5,8 @@ import numpy as np
 
 from main_service.embedding.vector_store import VectorStoreRecord, _as_vector
 from main_service.logging_config import format_log_event
+from main_service.observability import NoopTelemetry
+from main_service.observability.telemetry import PipelineTelemetry, observed_span
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ class QdrantVectorStore:
         timeout_seconds: float = 30.0,
         client: object | None = None,
         models: object | None = None,
+        telemetry: PipelineTelemetry | None = None,
     ) -> None:
         self.url = url.rstrip("/")
         self.collection_name = collection_name
@@ -37,6 +40,7 @@ class QdrantVectorStore:
         self.path = f"{self.url}/{self.collection_name}"
         self._client = client
         self._models = models
+        self._telemetry = telemetry or NoopTelemetry()
         self._collection_ready = False
 
     def add(self, *, vector_id: int, vector: np.ndarray, metadata: dict[str, object]) -> str:
@@ -69,11 +73,27 @@ class QdrantVectorStore:
                 },
             ),
         )
-        self._get_client().upsert(
-            collection_name=self.collection_name,
-            points=points,
-            wait=self.upsert_wait,
-        )
+        with observed_span(
+            self._telemetry,
+            "embedding.qdrant_upsert",
+            "embedding_qdrant_upsert",
+            {
+                "service": "embedding",
+                "collection": self.collection_name,
+                "records": len(points),
+            },
+            metric_attributes={
+                "service": "embedding",
+                "stage": "qdrant_upsert",
+                "collection": self.collection_name,
+                "batch_size": len(points),
+            },
+        ):
+            self._get_client().upsert(
+                collection_name=self.collection_name,
+                points=points,
+                wait=self.upsert_wait,
+            )
         logger.info(
             "%s",
             format_log_event(

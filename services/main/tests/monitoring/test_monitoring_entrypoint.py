@@ -62,3 +62,28 @@ def test_emit_snapshot_metrics_includes_numeric_qdrant_fields() -> None:
             "field": "indexed_vectors_count",
         },
     ) in telemetry.gauges
+
+
+def test_emit_snapshot_metrics_includes_embedding_progress() -> None:
+    telemetry = FakeTelemetry()
+
+    _emit_snapshot_metrics(
+        telemetry,  # type: ignore[arg-type]
+        {
+            "embedding_progress": {
+                "panos_fully_embedded": 8,
+                "embeddings_complete": 20,
+            }
+        },
+    )
+
+    assert (
+        "sf_search_embedding_progress",
+        8,
+        {"field": "panos_fully_embedded"},
+    ) in telemetry.gauges
+    assert (
+        "sf_search_embedding_progress",
+        20,
+        {"field": "embeddings_complete"},
+    ) in telemetry.gauges

@@ -14,6 +14,8 @@ from main_service.db.models.panorama_view_embedding import PanoramaViewEmbedding
 from main_service.embedding.nats_source import ReceivedPanoEmbeddingJob
 from main_service.embedding.vector_store import VectorStore, VectorStoreRecord
 from main_service.logging_config import format_log_event
+from main_service.observability import NoopTelemetry
+from main_service.observability.telemetry import PipelineTelemetry, observed_span
 
 ProgressCallback = Callable[[str, dict[str, object]], None]
 logger = logging.getLogger(__name__)
@@ -57,45 +59,67 @@ async def run_embedding_batch(
     concurrency: int,
     batch_size: int = 1,
     progress: ProgressCallback | None = None,
+    telemetry: PipelineTelemetry | None = None,
 ) -> EmbeddingRunResult:
+    telemetry = telemetry or NoopTelemetry()
     _emit(progress, "embedding_batch_start", {"limit": limit, "batch_size": batch_size})
-    _emit(progress, "embedding_fetch_start", {"limit": limit})
-    jobs = await job_source.fetch(limit)
-    _emit(progress, "embedding_fetch_complete", {"jobs": len(jobs)})
-    if batch_size <= 1:
-        semaphore = asyncio.Semaphore(max(1, concurrency))
-        statuses = await asyncio.gather(
-            *[
-                _process_received_job(
-                    received_job=received_job,
-                    embedding_service=embedding_service,
-                    image_embedder=image_embedder,
-                    vector_store=vector_store,
-                    model_spec=model_spec,
-                    semaphore=semaphore,
-                    progress=progress,
-                )
-                for received_job in jobs
-            ]
-        )
-    else:
-        statuses = []
-        for batch in _chunks(jobs, batch_size):
-            statuses.extend(
-                await _process_received_job_batch(
-                    received_jobs=batch,
-                    embedding_service=embedding_service,
-                    image_embedder=image_embedder,
-                    vector_store=vector_store,
-                    model_spec=model_spec,
-                    progress=progress,
-                )
+    with observed_span(
+        telemetry,
+        "embedding.batch",
+        "embedding_batch",
+        {"service": "embedding", "limit": limit, "batch_size": batch_size},
+        metric_attributes={
+            "service": "embedding",
+            "stage": "batch",
+            "batch_size": batch_size,
+        },
+    ):
+        _emit(progress, "embedding_fetch_start", {"limit": limit})
+        with observed_span(
+            telemetry,
+            "embedding.fetch",
+            "embedding_fetch",
+            {"service": "embedding", "limit": limit},
+            metric_attributes={"service": "embedding", "stage": "fetch"},
+        ):
+            jobs = await job_source.fetch(limit)
+        _emit(progress, "embedding_fetch_complete", {"jobs": len(jobs)})
+        if batch_size <= 1:
+            semaphore = asyncio.Semaphore(max(1, concurrency))
+            statuses = await asyncio.gather(
+                *[
+                    _process_received_job(
+                        received_job=received_job,
+                        embedding_service=embedding_service,
+                        image_embedder=image_embedder,
+                        vector_store=vector_store,
+                        model_spec=model_spec,
+                        semaphore=semaphore,
+                        progress=progress,
+                        telemetry=telemetry,
+                    )
+                    for received_job in jobs
+                ]
             )
-    result = EmbeddingRunResult(
-        embedded=statuses.count("embedded"),
-        skipped=statuses.count("skipped"),
-        failed=statuses.count("failed"),
-    )
+        else:
+            statuses = []
+            for batch in _chunks(jobs, batch_size):
+                statuses.extend(
+                    await _process_received_job_batch(
+                        received_jobs=batch,
+                        embedding_service=embedding_service,
+                        image_embedder=image_embedder,
+                        vector_store=vector_store,
+                        model_spec=model_spec,
+                        progress=progress,
+                        telemetry=telemetry,
+                    )
+                )
+        result = EmbeddingRunResult(
+            embedded=statuses.count("embedded"),
+            skipped=statuses.count("skipped"),
+            failed=statuses.count("failed"),
+        )
     _emit(
         progress,
         "embedding_batch_complete",
@@ -113,117 +137,156 @@ async def _process_received_job(
     model_spec: EmbeddingModelSpec,
     semaphore: asyncio.Semaphore,
     progress: ProgressCallback | None,
+    telemetry: PipelineTelemetry,
 ) -> str:
     async with semaphore:
-        _emit(
-            progress,
-            "embedding_job_start",
-            {
-                "pano_id": received_job.job.pano_id.value,
-                "view_id": received_job.job.view_id,
-            },
-        )
-        claim = embedding_service.claim_embedding_for_view(
-            received_job.job.view_id,
-            model_spec,
-        )
-        if claim is None:
-            await received_job.ack()
-            _emit(
-                progress,
-                "embedding_job_skipped",
-                {
-                    "pano_id": received_job.job.pano_id.value,
-                    "view_id": received_job.job.view_id,
-                },
-            )
-            return "skipped"
+        job_payload = {
+            "pano_id": received_job.job.pano_id.value,
+            "view_id": received_job.job.view_id,
+        }
+        _emit(progress, "embedding_job_start", job_payload)
+        with observed_span(
+            telemetry,
+            "embedding.job",
+            "embedding_job",
+            {"service": "embedding", **job_payload},
+            metric_attributes={"service": "embedding", "stage": "job"},
+        ):
+            _emit(progress, "embedding_claim_start", job_payload)
+            with observed_span(
+                telemetry,
+                "embedding.claim",
+                "embedding_claim",
+                {"service": "embedding", **job_payload},
+                metric_attributes={"service": "embedding", "stage": "claim"},
+            ):
+                claim = embedding_service.claim_embedding_for_view(
+                    received_job.job.view_id,
+                    model_spec,
+                )
+            _emit(progress, "embedding_claim_complete", job_payload)
+            if claim is None:
+                _emit(progress, "embedding_ack_start", job_payload)
+                with observed_span(
+                    telemetry,
+                    "embedding.ack",
+                    "embedding_ack",
+                    {"service": "embedding", **job_payload},
+                    metric_attributes={"service": "embedding", "stage": "ack"},
+                ):
+                    await received_job.ack()
+                _emit(progress, "embedding_ack_complete", job_payload)
+                _emit(progress, "embedding_job_skipped", job_payload)
+                return "skipped"
 
-        try:
-            image_path = Path(claim.source_image_path)
-            if not image_path.exists():
-                raise FileNotFoundError(str(image_path))
-            _emit(
-                progress,
-                "embedding_image_start",
-                {
+            try:
+                image_path = Path(claim.source_image_path)
+                if not image_path.exists():
+                    raise FileNotFoundError(str(image_path))
+                image_payload = {
+                    **job_payload,
                     "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
                     "image_path": str(image_path),
                     "model_id": claim.model_id,
-                },
-            )
-            vector = image_embedder.embed_image(image_path)
-            _emit(
-                progress,
-                "embedding_image_complete",
-                {
+                }
+                _emit(progress, "embedding_image_start", image_payload)
+                _emit(progress, "embedding_model_encode_start", image_payload)
+                with observed_span(
+                    telemetry,
+                    "embedding.model_encode",
+                    "embedding_model_encode",
+                    {"service": "embedding", **image_payload},
+                    metric_attributes={
+                        "service": "embedding",
+                        "stage": "model_encode",
+                        "model_id": claim.model_id,
+                    },
+                ):
+                    vector = image_embedder.embed_image(image_path)
+                _emit(progress, "embedding_model_encode_complete", image_payload)
+                _emit(progress, "embedding_image_complete", image_payload)
+                vector_payload = {
+                    **job_payload,
                     "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
-                    "image_path": str(image_path),
-                    "model_id": claim.model_id,
-                },
-            )
-            _emit(
-                progress,
-                "embedding_vector_store_start",
-                {
-                    "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
                     "dimension": int(vector.shape[0]),
-                },
-            )
-            vector_id = vector_store.add(
-                vector_id=claim.id,
-                vector=vector,
-                metadata={
-                    "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
-                    "model_id": claim.model_id,
-                    "source_image_hash": claim.source_image_hash,
-                },
-            )
-            _emit(
-                progress,
-                "embedding_vector_store_complete",
-                {
-                    "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
-                    "dimension": int(vector.shape[0]),
-                },
-            )
-            embedding_service.mark_embedding_complete(
-                claim.id,
-                vector_store_kind=vector_store.kind,
-                vector_store_path=vector_store.path,
-                vector_id=vector_id,
-            )
-            await received_job.ack()
-            _emit(
-                progress,
-                "embedding_job_complete",
-                {
-                    "pano_id": received_job.job.pano_id.value,
-                    "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
-                    "vector_id": vector_id,
-                },
-            )
-            return "embedded"
-        except Exception as exc:
-            embedding_service.mark_embedding_failed(claim.id, str(exc))
-            await received_job.ack()
-            _emit(
-                progress,
-                "embedding_job_failed",
-                {
-                    "pano_id": received_job.job.pano_id.value,
-                    "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
-                    "error": str(exc),
-                },
-            )
-            return "failed"
+                }
+                _emit(progress, "embedding_vector_store_start", vector_payload)
+                with observed_span(
+                    telemetry,
+                    "embedding.vector_store",
+                    "embedding_vector_store",
+                    {"service": "embedding", **vector_payload},
+                    metric_attributes={"service": "embedding", "stage": "vector_store"},
+                ):
+                    vector_id = vector_store.add(
+                        vector_id=claim.id,
+                        vector=vector,
+                        metadata={
+                            "embedding_id": claim.id,
+                            "view_id": claim.panorama_view_id,
+                            "model_id": claim.model_id,
+                            "source_image_hash": claim.source_image_hash,
+                        },
+                    )
+                _emit(progress, "embedding_vector_store_complete", vector_payload)
+                db_payload = {**job_payload, "embedding_id": claim.id, "vector_id": vector_id}
+                _emit(progress, "embedding_db_update_start", db_payload)
+                with observed_span(
+                    telemetry,
+                    "embedding.db_update",
+                    "embedding_db_update",
+                    {"service": "embedding", **db_payload},
+                    metric_attributes={"service": "embedding", "stage": "db_update"},
+                ):
+                    embedding_service.mark_embedding_complete(
+                        claim.id,
+                        vector_store_kind=vector_store.kind,
+                        vector_store_path=vector_store.path,
+                        vector_id=vector_id,
+                    )
+                _emit(progress, "embedding_db_update_complete", db_payload)
+                _emit(progress, "embedding_ack_start", job_payload)
+                with observed_span(
+                    telemetry,
+                    "embedding.ack",
+                    "embedding_ack",
+                    {"service": "embedding", **job_payload},
+                    metric_attributes={"service": "embedding", "stage": "ack"},
+                ):
+                    await received_job.ack()
+                _emit(progress, "embedding_ack_complete", job_payload)
+                _emit(
+                    progress,
+                    "embedding_job_complete",
+                    {
+                        **job_payload,
+                        "embedding_id": claim.id,
+                        "vector_id": vector_id,
+                    },
+                )
+                return "embedded"
+            except Exception as exc:
+                embedding_service.mark_embedding_failed(claim.id, str(exc))
+                _emit(progress, "embedding_ack_start", job_payload)
+                with observed_span(
+                    telemetry,
+                    "embedding.ack",
+                    "embedding_ack",
+                    {"service": "embedding", **job_payload},
+                    metric_attributes={"service": "embedding", "stage": "ack"},
+                ):
+                    await received_job.ack()
+                _emit(progress, "embedding_ack_complete", job_payload)
+                _emit(
+                    progress,
+                    "embedding_job_failed",
+                    {
+                        **job_payload,
+                        "embedding_id": claim.id,
+                        "error": str(exc),
+                    },
+                )
+                return "failed"
 
 
 async def _process_received_job_batch(
@@ -234,32 +297,49 @@ async def _process_received_job_batch(
     vector_store: VectorStore,
     model_spec: EmbeddingModelSpec,
     progress: ProgressCallback | None,
+    telemetry: PipelineTelemetry,
 ) -> list[str]:
     claimed_jobs: list[ClaimedEmbeddingJob] = []
     statuses: list[str] = []
     for received_job in received_jobs:
+        job_payload = {
+            "pano_id": received_job.job.pano_id.value,
+            "view_id": received_job.job.view_id,
+        }
         _emit(
             progress,
             "embedding_job_start",
-            {
-                "pano_id": received_job.job.pano_id.value,
-                "view_id": received_job.job.view_id,
-            },
+            job_payload,
         )
-        claim = embedding_service.claim_embedding_for_view(
-            received_job.job.view_id,
-            model_spec,
-        )
+        _emit(progress, "embedding_claim_start", job_payload)
+        with observed_span(
+            telemetry,
+            "embedding.claim",
+            "embedding_claim",
+            {"service": "embedding", **job_payload},
+            metric_attributes={"service": "embedding", "stage": "claim"},
+        ):
+            claim = embedding_service.claim_embedding_for_view(
+                received_job.job.view_id,
+                model_spec,
+            )
+        _emit(progress, "embedding_claim_complete", job_payload)
         if claim is None:
-            await received_job.ack()
+            _emit(progress, "embedding_ack_start", job_payload)
+            with observed_span(
+                telemetry,
+                "embedding.ack",
+                "embedding_ack",
+                {"service": "embedding", **job_payload},
+                metric_attributes={"service": "embedding", "stage": "ack"},
+            ):
+                await received_job.ack()
+            _emit(progress, "embedding_ack_complete", job_payload)
             statuses.append("skipped")
             _emit(
                 progress,
                 "embedding_job_skipped",
-                {
-                    "pano_id": received_job.job.pano_id.value,
-                    "view_id": received_job.job.view_id,
-                },
+                job_payload,
             )
             continue
 
@@ -267,14 +347,23 @@ async def _process_received_job_batch(
         if not image_path.exists():
             error = str(FileNotFoundError(str(image_path)))
             embedding_service.mark_embedding_failed(claim.id, error)
-            await received_job.ack()
+            _emit(progress, "embedding_ack_start", job_payload)
+            with observed_span(
+                telemetry,
+                "embedding.ack",
+                "embedding_ack",
+                {"service": "embedding", **job_payload},
+                metric_attributes={"service": "embedding", "stage": "ack"},
+            ):
+                await received_job.ack()
+            _emit(progress, "embedding_ack_complete", job_payload)
             statuses.append("failed")
             _emit(
                 progress,
                 "embedding_job_failed",
                 {
+                    **job_payload,
                     "embedding_id": claim.id,
-                    "view_id": claim.panorama_view_id,
                     "error": error,
                 },
             )
@@ -299,8 +388,29 @@ async def _process_received_job_batch(
             "model_id": model_spec.model_id,
         },
     )
+    _emit(
+        progress,
+        "embedding_model_encode_start",
+        {"batch_size": len(claimed_jobs), "model_id": model_spec.model_id},
+    )
     try:
-        vectors = image_embedder.embed_images([job.image_path for job in claimed_jobs])
+        with observed_span(
+            telemetry,
+            "embedding.model_encode",
+            "embedding_model_encode",
+            {
+                "service": "embedding",
+                "batch_size": len(claimed_jobs),
+                "model_id": model_spec.model_id,
+            },
+            metric_attributes={
+                "service": "embedding",
+                "stage": "model_encode",
+                "model_id": model_spec.model_id,
+                "batch_size": len(claimed_jobs),
+            },
+        ):
+            vectors = image_embedder.embed_images([job.image_path for job in claimed_jobs])
         if len(vectors) != len(claimed_jobs):
             raise ValueError(
                 f"Embedder returned {len(vectors)} vectors for {len(claimed_jobs)} images."
@@ -308,7 +418,26 @@ async def _process_received_job_batch(
     except Exception as exc:
         for job in claimed_jobs:
             embedding_service.mark_embedding_failed(job.claim.id, str(exc))
-            await job.received_job.ack()
+            _emit(
+                progress,
+                "embedding_ack_start",
+                {
+                    "pano_id": job.received_job.job.pano_id.value,
+                    "view_id": job.claim.panorama_view_id,
+                },
+            )
+            with observed_span(
+                telemetry,
+                "embedding.ack",
+                "embedding_ack",
+                {
+                    "service": "embedding",
+                    "pano_id": job.received_job.job.pano_id.value,
+                    "view_id": job.claim.panorama_view_id,
+                },
+                metric_attributes={"service": "embedding", "stage": "ack"},
+            ):
+                await job.received_job.ack()
             statuses.append("failed")
             _emit(
                 progress,
@@ -321,6 +450,11 @@ async def _process_received_job_batch(
                 },
             )
         return statuses
+    _emit(
+        progress,
+        "embedding_model_encode_complete",
+        {"batch_size": len(claimed_jobs), "model_id": model_spec.model_id},
+    )
 
     _emit(
         progress,
@@ -352,7 +486,23 @@ async def _process_received_job_batch(
                 "dimension": int(vectors[0].shape[0]),
             },
         )
-        vector_ids = vector_store.add_many(records)
+        with observed_span(
+            telemetry,
+            "embedding.vector_store",
+            "embedding_vector_store",
+            {
+                "service": "embedding",
+                "batch_size": len(records),
+                "vector_store_kind": vector_store.kind,
+            },
+            metric_attributes={
+                "service": "embedding",
+                "stage": "vector_store",
+                "batch_size": len(records),
+                "vector_store_kind": vector_store.kind,
+            },
+        ):
+            vector_ids = vector_store.add_many(records)
         if len(vector_ids) != len(claimed_jobs):
             raise ValueError(
                 f"Vector store returned {len(vector_ids)} IDs for {len(claimed_jobs)} vectors."
@@ -360,7 +510,26 @@ async def _process_received_job_batch(
     except Exception as exc:
         for job in claimed_jobs:
             embedding_service.mark_embedding_failed(job.claim.id, str(exc))
-            await job.received_job.ack()
+            _emit(
+                progress,
+                "embedding_ack_start",
+                {
+                    "pano_id": job.received_job.job.pano_id.value,
+                    "view_id": job.claim.panorama_view_id,
+                },
+            )
+            with observed_span(
+                telemetry,
+                "embedding.ack",
+                "embedding_ack",
+                {
+                    "service": "embedding",
+                    "pano_id": job.received_job.job.pano_id.value,
+                    "view_id": job.claim.panorama_view_id,
+                },
+                metric_attributes={"service": "embedding", "stage": "ack"},
+            ):
+                await job.received_job.ack()
             statuses.append("failed")
             _emit(
                 progress,
@@ -383,23 +552,60 @@ async def _process_received_job_batch(
         },
     )
     for job, vector_id in zip(claimed_jobs, vector_ids, strict=True):
-        embedding_service.mark_embedding_complete(
-            job.claim.id,
-            vector_store_kind=vector_store.kind,
-            vector_store_path=vector_store.path,
-            vector_id=vector_id,
+        job_payload = {
+            "pano_id": job.received_job.job.pano_id.value,
+            "view_id": job.claim.panorama_view_id,
+            "embedding_id": job.claim.id,
+            "vector_id": vector_id,
+        }
+        _emit(progress, "embedding_db_update_start", job_payload)
+        with observed_span(
+            telemetry,
+            "embedding.db_update",
+            "embedding_db_update",
+            {"service": "embedding", **job_payload},
+            metric_attributes={"service": "embedding", "stage": "db_update"},
+        ):
+            embedding_service.mark_embedding_complete(
+                job.claim.id,
+                vector_store_kind=vector_store.kind,
+                vector_store_path=vector_store.path,
+                vector_id=vector_id,
+            )
+        _emit(progress, "embedding_db_update_complete", job_payload)
+        _emit(
+            progress,
+            "embedding_ack_start",
+            {
+                "pano_id": job.received_job.job.pano_id.value,
+                "view_id": job.claim.panorama_view_id,
+            },
         )
-        await job.received_job.ack()
+        with observed_span(
+            telemetry,
+            "embedding.ack",
+            "embedding_ack",
+            {
+                "service": "embedding",
+                "pano_id": job.received_job.job.pano_id.value,
+                "view_id": job.claim.panorama_view_id,
+            },
+            metric_attributes={"service": "embedding", "stage": "ack"},
+        ):
+            await job.received_job.ack()
+        _emit(
+            progress,
+            "embedding_ack_complete",
+            {
+                "pano_id": job.received_job.job.pano_id.value,
+                "view_id": job.claim.panorama_view_id,
+            },
+        )
         statuses.append("embedded")
         _emit(
             progress,
             "embedding_job_complete",
-            {
-                "pano_id": job.received_job.job.pano_id.value,
-                "embedding_id": job.claim.id,
-                "view_id": job.claim.panorama_view_id,
-                "vector_id": vector_id,
-            },
+            job_payload,
         )
     return statuses
 

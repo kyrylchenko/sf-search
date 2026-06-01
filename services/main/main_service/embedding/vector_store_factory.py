@@ -4,6 +4,7 @@ from main_service.config import Settings
 from main_service.db.services.panorama_view_embedding_service import EmbeddingModelSpec
 from main_service.embedding.qdrant_store import QdrantVectorStore
 from main_service.embedding.vector_store import LocalHnswVectorStore, VectorStore
+from main_service.observability.telemetry import PipelineTelemetry
 
 
 def create_vector_store(
@@ -14,6 +15,7 @@ def create_vector_store(
     vector_store_dir: Path | None = None,
     qdrant_url: str | None = None,
     qdrant_collection: str | None = None,
+    telemetry: PipelineTelemetry | None = None,
 ) -> VectorStore:
     kind = vector_store_kind or settings.embedding_vector_store_kind
     if kind == "qdrant":
@@ -26,6 +28,7 @@ def create_vector_store(
             on_disk_payload=settings.qdrant_on_disk_payload,
             upsert_wait=settings.qdrant_upsert_wait,
             timeout_seconds=settings.qdrant_timeout_seconds,
+            telemetry=telemetry,
         )
     if kind == "local_hnsw":
         return LocalHnswVectorStore(

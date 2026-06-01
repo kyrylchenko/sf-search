@@ -195,6 +195,12 @@ def test_runner_reports_progress_events(tmp_path: Path) -> None:
     assert "downloader_fetch_start" in event_names
     assert "downloader_fetch_complete" in event_names
     assert "downloader_job_start" in event_names
+    assert "downloader_claim_start" in event_names
+    assert "downloader_resolve_start" in event_names
+    assert "downloader_download_start" in event_names
+    assert "downloader_db_update_start" in event_names
+    assert "downloader_enqueue_processing_start" in event_names
+    assert "downloader_ack_start" in event_names
     assert "downloader_job_complete" in event_names
     assert "downloader_batch_complete" in event_names
 

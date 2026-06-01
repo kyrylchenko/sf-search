@@ -58,6 +58,7 @@ def test_factory_creates_qdrant_store_by_default(monkeypatch) -> None:
         "on_disk_payload": True,
         "upsert_wait": True,
         "timeout_seconds": 30.0,
+        "telemetry": None,
     }
 
 

@@ -122,6 +122,80 @@ def test_build_pipeline_snapshot_counts_database_statuses() -> None:
     assert snapshot.coverage["panos_with_location"] == 1
 
 
+def test_build_pipeline_snapshot_includes_embedding_progress() -> None:
+    engine = make_engine()
+    with Session(engine) as session:
+        pano = Panorama(
+            orig_id="pano-a",
+            image_hash="hash-a",
+            download_status=DownloadStatus.DOWNLOADED.value,
+        )
+        session.add(pano)
+        session.flush()
+        views = []
+        for index in range(2):
+            view = PanoramaView(
+                panorama_id=pano.id,
+                viewset_name="small",
+                viewset_description="small views",
+                view_id=f"small-{index:03d}",
+                view_kind="object",
+                view_spec_json={"id": f"small-{index:03d}"},
+                view_spec_hash=f"spec-hash-{index}",
+                relative_heading=0,
+                pitch=0,
+                fov=40,
+                output_width=512,
+                output_height=512,
+                render_scale=2,
+                rendered_width=1024,
+                rendered_height=1024,
+                output_format="jpeg",
+                image_quality=95,
+                interpolation_mode="bicubic",
+                renderer_version="py360convert.e2p",
+                source_image_path=".local/panos/pano-a.jpg",
+                source_image_hash="hash-a",
+                image_path=f".local/views/pano-a/small-{index:03d}.jpg",
+                image_hash=f"view-hash-{index}",
+                image_bytes=123,
+                processing_status=ProcessingStatus.COMPLETE.value,
+            )
+            session.add(view)
+            views.append(view)
+        session.flush()
+        for view in views:
+            session.add(
+                PanoramaViewEmbedding(
+                    panorama_view_id=view.id,
+                    model_provider="transformers",
+                    model_id="model-a",
+                    model_revision="main",
+                    preprocess_version="v1",
+                    source_image_path=view.image_path or "",
+                    source_image_hash=view.image_hash or "",
+                    source_image_bytes=view.image_bytes,
+                    embedding_status=ProcessingStatus.COMPLETE.value,
+                    embedding_dimension=4,
+                    embedding_dtype="float32",
+                )
+            )
+        session.commit()
+
+    snapshot = build_pipeline_snapshot(
+        engine=engine,
+        queues=QueueSnapshotSource(
+            download=FakeQueue(0),
+            processing=FakeQueue(0),
+            embedding=FakeQueue(0),
+        ),
+    )
+
+    assert snapshot.embedding_progress["panos_fully_embedded"] == 1
+    assert snapshot.embedding_progress["embeddings_complete"] == 2
+    assert snapshot.embedding_progress["panos_with_multiple_views"] == 1
+
+
 def test_build_pipeline_snapshot_keeps_working_when_queue_depth_fails() -> None:
     engine = make_engine()
 

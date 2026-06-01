@@ -124,6 +124,7 @@ async def run(args: argparse.Namespace) -> None:
                     ),
                     max_attempts=settings.max_attempts,
                     progress=progress,
+                    telemetry=telemetry,
                 )
             logger.info(
                 "downloader_cli_batch_complete result=%s",

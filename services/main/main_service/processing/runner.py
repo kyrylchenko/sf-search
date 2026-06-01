@@ -23,6 +23,8 @@ from main_service.ingestion.download_queue import (
 )
 from main_service.ingestion.types import PanoramaId
 from main_service.logging_config import format_log_event
+from main_service.observability import NoopTelemetry
+from main_service.observability.telemetry import PipelineTelemetry, observed_span
 from main_service.processing.nats_source import (
     PanoProcessingJob,
     ReceivedPanoProcessingJob,
@@ -105,7 +107,9 @@ async def run_processing_batch(
     embedding_queue: PanoEmbeddingQueue | None = None,
     max_embedding_queue_depth: int | None = None,
     progress: ProgressCallback | None = None,
+    telemetry: PipelineTelemetry | None = None,
 ) -> ProcessingRunResult:
+    telemetry = telemetry or NoopTelemetry()
     _emit(progress, "processing_batch_start", {"limit": limit})
     _emit(progress, "processing_backpressure_check", {})
     if (
@@ -171,6 +175,7 @@ async def run_processing_batch(
                 image_quality=image_quality,
                 embedding_queue=embedding_queue,
                 progress=progress,
+                telemetry=telemetry,
             )
         )
     result = ProcessingRunResult(
@@ -197,20 +202,36 @@ async def _process_received_job(
     image_quality: int,
     embedding_queue: PanoEmbeddingQueue | None,
     progress: ProgressCallback | None,
+    telemetry: PipelineTelemetry,
 ) -> ProcessingJobOutcome:
-    outcome = _process_job(
-        job=received_job.job,
-        panorama_view_service=panorama_view_service,
-        viewsets=viewsets,
-        storage_dir=storage_dir,
-        view_concurrency=view_concurrency,
-        render_scale=render_scale,
-        output_format=output_format,
-        image_quality=image_quality,
-        embedding_queue=embedding_queue,
-        progress=progress,
-    )
-    await received_job.ack()
+    with observed_span(
+        telemetry,
+        "processing.job",
+        "processing_job",
+        {"service": "processing", "pano_id": received_job.job.pano_id.value},
+        metric_attributes={"service": "processing", "stage": "job"},
+    ):
+        outcome = _process_job(
+            job=received_job.job,
+            panorama_view_service=panorama_view_service,
+            viewsets=viewsets,
+            storage_dir=storage_dir,
+            view_concurrency=view_concurrency,
+            render_scale=render_scale,
+            output_format=output_format,
+            image_quality=image_quality,
+            embedding_queue=embedding_queue,
+            progress=progress,
+            telemetry=telemetry,
+        )
+    with observed_span(
+        telemetry,
+        "processing.ack",
+        "processing_ack",
+        {"service": "processing", "pano_id": received_job.job.pano_id.value},
+        metric_attributes={"service": "processing", "stage": "ack"},
+    ):
+        await received_job.ack()
     return outcome
 
 
@@ -226,6 +247,7 @@ def _process_job(
     image_quality: int,
     embedding_queue: PanoEmbeddingQueue | None,
     progress: ProgressCallback | None,
+    telemetry: PipelineTelemetry,
 ) -> ProcessingJobOutcome:
     _emit(progress, "processing_job_start", {"pano_id": job.pano_id.value})
     if render_scale < 1:
@@ -255,8 +277,17 @@ def _process_job(
         else sha256_file(source_path)
     )
     try:
-        with Image.open(source_path) as image:
-            pano_array = np.asarray(image.convert("RGB"))
+        _emit(progress, "processing_source_load_start", {"pano_id": job.pano_id.value})
+        with observed_span(
+            telemetry,
+            "processing.source_load",
+            "processing_source_load",
+            {"service": "processing", "pano_id": job.pano_id.value},
+            metric_attributes={"service": "processing", "stage": "source_load"},
+        ):
+            with Image.open(source_path) as image:
+                pano_array = np.asarray(image.convert("RGB"))
+        _emit(progress, "processing_source_load_complete", {"pano_id": job.pano_id.value})
     except Exception:
         _emit(
             progress,
@@ -325,63 +356,114 @@ def _process_job(
                 "workers": workers,
             },
         )
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        future_to_claim = {
-            executor.submit(
-                _render_claimed_view,
-                pano_array=pano_array,
-                claim=claim,
-                render_scale=render_scale,
-                output_format=normalized_format,
-                image_quality=image_quality,
-                progress=progress,
-            ): claim
-            for claim in claimed_views
-        }
-        for future in as_completed(future_to_claim):
-            claim = future_to_claim[future]
-            try:
-                rendered = future.result()
-                completed = panorama_view_service.mark_view_complete(
-                    rendered.claim.claim_id,
-                    image_path=str(rendered.claim.output_path),
-                    image_hash=rendered.image_hash,
-                    image_bytes=rendered.image_bytes,
-                )
-                if completed.image_path and embedding_queue is not None:
-                    embedding_queue.enqueue(
-                        PanoEmbeddingMessage(
-                            pano_id=job.pano_id,
-                            view_id=completed.id,
-                            image_path=completed.image_path,
+    with observed_span(
+        telemetry,
+        "processing.render_pool",
+        "processing_render_pool",
+        {"service": "processing", "pano_id": job.pano_id.value, "workers": workers},
+        metric_attributes={"service": "processing", "stage": "render_pool"},
+    ):
+        otel_context = _current_otel_context()
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_claim = {
+                executor.submit(
+                    _render_claimed_view_with_context,
+                    otel_context=otel_context,
+                    kwargs={
+                        "pano_array": pano_array,
+                        "claim": claim,
+                        "render_scale": render_scale,
+                        "output_format": normalized_format,
+                        "image_quality": image_quality,
+                        "progress": progress,
+                        "telemetry": telemetry,
+                    },
+                ): claim
+                for claim in claimed_views
+            }
+            for future in as_completed(future_to_claim):
+                claim = future_to_claim[future]
+                try:
+                    rendered = future.result()
+                    stage_payload = {
+                        "pano_id": job.pano_id.value,
+                        "viewset_name": claim.viewset_name,
+                        "view_id": claim.view.id,
+                    }
+                    _emit(progress, "processing_db_update_start", stage_payload)
+                    with observed_span(
+                        telemetry,
+                        "processing.db_update",
+                        "processing_db_update",
+                        {"service": "processing", **stage_payload},
+                        metric_attributes={
+                            "service": "processing",
+                            "stage": "db_update",
+                            "viewset_name": claim.viewset_name,
+                        },
+                    ):
+                        completed = panorama_view_service.mark_view_complete(
+                            rendered.claim.claim_id,
+                            image_path=str(rendered.claim.output_path),
+                            image_hash=rendered.image_hash,
+                            image_bytes=rendered.image_bytes,
                         )
+                    _emit(progress, "processing_db_update_complete", stage_payload)
+                    if completed.image_path and embedding_queue is not None:
+                        enqueue_payload = {
+                            **stage_payload,
+                            "db_view_id": completed.id,
+                        }
+                        _emit(progress, "processing_enqueue_embedding_start", enqueue_payload)
+                        with observed_span(
+                            telemetry,
+                            "processing.enqueue_embedding",
+                            "processing_enqueue_embedding",
+                            {"service": "processing", **enqueue_payload},
+                            metric_attributes={
+                                "service": "processing",
+                                "stage": "enqueue_embedding",
+                                "viewset_name": claim.viewset_name,
+                            },
+                        ):
+                            embedding_queue.enqueue(
+                                PanoEmbeddingMessage(
+                                    pano_id=job.pano_id,
+                                    view_id=completed.id,
+                                    image_path=completed.image_path,
+                                )
+                            )
+                        _emit(
+                            progress,
+                            "processing_enqueue_embedding_complete",
+                            enqueue_payload,
+                        )
+                        queued_embeddings += 1
+                    generated += 1
+                    _emit(
+                        progress,
+                        "processing_view_complete",
+                        {
+                            "pano_id": job.pano_id.value,
+                            "viewset_name": claim.viewset_name,
+                            "view_id": claim.view.id,
+                            "db_view_id": completed.id,
+                            "image_path": completed.image_path or "",
+                        },
                     )
-                    queued_embeddings += 1
-                generated += 1
-                _emit(
-                    progress,
-                    "processing_view_complete",
-                    {
-                        "pano_id": job.pano_id.value,
-                        "viewset_name": claim.viewset_name,
-                        "view_id": claim.view.id,
-                        "db_view_id": completed.id,
-                        "image_path": completed.image_path or "",
-                    },
-                )
-            except Exception as exc:
-                panorama_view_service.mark_view_failed(claim.claim_id, str(exc))
-                failed += 1
-                _emit(
-                    progress,
-                    "processing_view_failed",
-                    {
-                        "pano_id": job.pano_id.value,
-                        "viewset_name": claim.viewset_name,
-                        "view_id": claim.view.id,
-                        "error": str(exc),
-                    },
-                )
+                except Exception as exc:
+                    panorama_view_service.mark_view_failed(claim.claim_id, str(exc))
+                    failed += 1
+                    _emit(
+                        progress,
+                        "processing_view_failed",
+                        {
+                            "pano_id": job.pano_id.value,
+                            "viewset_name": claim.viewset_name,
+                            "view_id": claim.view.id,
+                            "error": str(exc),
+                        },
+                    )
     if claimed_views:
         _emit(
             progress,
@@ -417,29 +499,70 @@ def _render_claimed_view(
     output_format: str,
     image_quality: int,
     progress: ProgressCallback | None,
+    telemetry: PipelineTelemetry,
 ) -> RenderedView:
+    stage_payload = {
+        "pano_id": claim.pano_id.value,
+        "viewset_name": claim.viewset_name,
+        "view_id": claim.view.id,
+    }
     _emit(
         progress,
         "processing_view_start",
-        {
-            "pano_id": claim.pano_id.value,
+        stage_payload,
+    )
+    _emit(progress, "processing_render_start", stage_payload)
+    with observed_span(
+        telemetry,
+        "processing.render",
+        "processing_render",
+        {"service": "processing", **stage_payload},
+        metric_attributes={
+            "service": "processing",
+            "stage": "render",
             "viewset_name": claim.viewset_name,
-            "view_id": claim.view.id,
         },
-    )
-    _render_and_store_view(
-        pano_array=pano_array,
-        view=claim.view,
-        render_scale=render_scale,
-        output_path=claim.output_path,
-        output_format=output_format,
-        image_quality=image_quality,
-    )
+    ):
+        _render_and_store_view(
+            pano_array=pano_array,
+            view=claim.view,
+            render_scale=render_scale,
+            output_path=claim.output_path,
+            output_format=output_format,
+            image_quality=image_quality,
+        )
+    _emit(progress, "processing_render_complete", stage_payload)
     return RenderedView(
         claim=claim,
         image_hash=sha256_file(claim.output_path),
         image_bytes=claim.output_path.stat().st_size,
     )
+
+
+def _render_claimed_view_with_context(
+    *,
+    otel_context: object | None,
+    kwargs: dict[str, object],
+) -> RenderedView:
+    if otel_context is None:
+        return _render_claimed_view(**kwargs)
+    try:
+        from opentelemetry.context import attach, detach
+    except ImportError:
+        return _render_claimed_view(**kwargs)
+    token = attach(otel_context)
+    try:
+        return _render_claimed_view(**kwargs)
+    finally:
+        detach(token)
+
+
+def _current_otel_context() -> object | None:
+    try:
+        from opentelemetry.context import get_current
+    except ImportError:
+        return None
+    return get_current()
 
 
 def _emit(

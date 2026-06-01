@@ -145,6 +145,24 @@
       "w": 6,
       "x": 6,
       "y": 34
+    },
+    {
+      "h": 6,
+      "i": "b3fde70d-0e1e-58fe-ba3d-2730df4de0e4",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 40
+    },
+    {
+      "h": 6,
+      "i": "373bd338-508a-51e4-8fee-d3c9d1c3f673",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 40
     }
   ],
   "panelMap": {},
@@ -383,7 +401,7 @@
       "yAxisUnit": "s"
     },
     {
-      "description": "Fine-grained p50/p95/p99 latency for embedding image batches, vector-store writes, full jobs, and fetches.",
+      "description": "Nested embedding stage p50/p95/p99 latency: fetch, claim, model encode, vector store, Qdrant upsert, DB update, ack, and full job.",
       "fillSpans": false,
       "id": "f6fd1231-19ea-4fb0-9c65-90e0a793f86a",
       "isStacked": false,
@@ -410,19 +428,19 @@
             "disabled": false,
             "legend": "p50 {{operation}}",
             "name": "A",
-            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_image|embedding_image_batch|embedding_vector_store|embedding_vector_store_batch\"}[5m])))"
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_claim|embedding_model_encode|embedding_vector_store|embedding_qdrant_upsert|embedding_db_update|embedding_ack\"}[5m])))"
           },
           {
             "disabled": false,
             "legend": "p95 {{operation}}",
             "name": "B",
-            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_image|embedding_image_batch|embedding_vector_store|embedding_vector_store_batch\"}[5m])))"
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_claim|embedding_model_encode|embedding_vector_store|embedding_qdrant_upsert|embedding_db_update|embedding_ack\"}[5m])))"
           },
           {
             "disabled": false,
             "legend": "p99 {{operation}}",
             "name": "C",
-            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_image|embedding_image_batch|embedding_vector_store|embedding_vector_store_batch\"}[5m])))"
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_claim|embedding_model_encode|embedding_vector_store|embedding_qdrant_upsert|embedding_db_update|embedding_ack\"}[5m])))"
           }
         ],
         "queryType": "promql"
@@ -437,7 +455,7 @@
       "yAxisUnit": "s"
     },
     {
-      "description": "Fine-grained p50/p95/p99 latency for preprocessing fetches, pano jobs, view renders, and render pools.",
+      "description": "Nested processing stage p50/p95/p99 latency: fetch, source load, render pool, per-view render, DB update, enqueue, ack, and full job.",
       "fillSpans": false,
       "id": "d8da80a0-dae3-471b-b93d-f731d38d813d",
       "isStacked": false,
@@ -464,19 +482,19 @@
             "disabled": false,
             "legend": "p50 {{operation}}",
             "name": "A",
-            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_view|processing_view_render_pool\"}[5m])))"
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
           },
           {
             "disabled": false,
             "legend": "p95 {{operation}}",
             "name": "B",
-            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_view|processing_view_render_pool\"}[5m])))"
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
           },
           {
             "disabled": false,
             "legend": "p99 {{operation}}",
             "name": "C",
-            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_view|processing_view_render_pool\"}[5m])))"
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
           }
         ],
         "queryType": "promql"
@@ -902,6 +920,102 @@
       "timePreferance": "GLOBAL_TIME",
       "title": "Warn/Error Logs",
       "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Nested downloader stage p50/p95/p99 latency: fetch, claim, resolve, download, DB update, enqueue, ack, and full job.",
+      "fillSpans": false,
+      "id": "b3fde70d-0e1e-58fe-ba3d-2730df4de0e4",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0d3a048e-5b17-5e5b-a154-78959cefc93b",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_job|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_job|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_job|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Downloader Stage Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Monitoring snapshot gauges for fully embedded panos, panos with multiple rendered views, and complete embedding rows.",
+      "fillSpans": false,
+      "id": "373bd338-508a-51e4-8fee-d3c9d1c3f673",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "e355cf05-68ee-5f46-a126-7f8cd708f5a7",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{field}}",
+            "name": "A",
+            "query": "max by (field) (sf_search_embedding_progress{field=~\"panos_fully_embedded|panos_with_multiple_views|embeddings_complete\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Progress",
+      "yAxisUnit": "none"
     }
   ],
   "uuid": "28bfef45-ff35-443a-bdf2-76b2b4a5ec8d"

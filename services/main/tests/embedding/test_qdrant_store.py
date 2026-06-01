@@ -83,6 +83,26 @@ class FakeQdrantClient:
         )
 
 
+class FakeTelemetry:
+    def __init__(self) -> None:
+        self.durations: list[tuple[str, float, dict[str, object]]] = []
+        self.spans: list[tuple[str, dict[str, object] | None]] = []
+
+    def record_duration(
+        self,
+        name: str,
+        seconds: float,
+        attributes: dict[str, object],
+    ) -> None:
+        self.durations.append((name, seconds, attributes))
+
+    def span(self, name: str, attributes: dict[str, object] | None = None):
+        from contextlib import nullcontext
+
+        self.spans.append((name, attributes))
+        return nullcontext()
+
+
 def make_store(client: FakeQdrantClient) -> QdrantVectorStore:
     return QdrantVectorStore(
         client=client,
@@ -95,6 +115,51 @@ def make_store(client: FakeQdrantClient) -> QdrantVectorStore:
         on_disk_payload=True,
         upsert_wait=True,
     )
+
+
+def test_add_many_records_qdrant_upsert_span_and_duration() -> None:
+    client = FakeQdrantClient(collection_exists=True)
+    telemetry = FakeTelemetry()
+    store = QdrantVectorStore(
+        client=client,
+        models=FakeModels,
+        url="http://qdrant:6333",
+        collection_name="panorama_view_embeddings_siglip2",
+        dimension=3,
+        vector_on_disk=True,
+        hnsw_on_disk=False,
+        on_disk_payload=True,
+        upsert_wait=True,
+        telemetry=telemetry,  # type: ignore[arg-type]
+    )
+
+    store.add_many(
+        [
+            VectorStoreRecord(
+                vector_id=42,
+                vector=np.array([3.0, 4.0, 0.0]),
+                metadata={"embedding_id": 42},
+            )
+        ]
+    )
+
+    assert telemetry.spans == [
+        (
+            "embedding.qdrant_upsert",
+            {
+                "service": "embedding",
+                "collection": "panorama_view_embeddings_siglip2",
+                "records": 1,
+            },
+        )
+    ]
+    assert telemetry.durations[0][0] == "embedding_qdrant_upsert"
+    assert telemetry.durations[0][2] == {
+        "service": "embedding",
+        "stage": "qdrant_upsert",
+        "collection": "panorama_view_embeddings_siglip2",
+        "batch_size": 1,
+    }
 
 
 def test_add_many_creates_collection_and_upserts_normalized_points() -> None:

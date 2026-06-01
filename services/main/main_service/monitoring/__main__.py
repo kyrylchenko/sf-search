@@ -158,6 +158,16 @@ def _emit_snapshot_metrics(
                     {"field": str(key)},
                 )
 
+    embedding_progress = snapshot.get("embedding_progress", {})
+    if isinstance(embedding_progress, dict):
+        for key, value in embedding_progress.items():
+            if isinstance(value, int | float):
+                telemetry.set_gauge(
+                    "sf_search_embedding_progress",
+                    value,
+                    {"field": str(key)},
+                )
+
     qdrant = snapshot.get("qdrant")
     if isinstance(qdrant, dict):
         collection = str(qdrant.get("collection", "unknown"))

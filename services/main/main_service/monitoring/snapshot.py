@@ -9,6 +9,7 @@ from main_service.db.models.map_tile import MapTile
 from main_service.db.models.panorama import Panorama
 from main_service.db.models.panorama_view import PanoramaView
 from main_service.db.models.panorama_view_embedding import PanoramaViewEmbedding
+from main_service.ingestion.types import ProcessingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class PipelineSnapshot:
     queue_depths: dict[str, int | None]
     queue_errors: dict[str, str]
     coverage: dict[str, int | float | None]
+    embedding_progress: dict[str, int | float | None]
     qdrant: dict[str, object] | None
     qdrant_errors: dict[str, str]
 
@@ -101,6 +103,7 @@ def build_pipeline_snapshot(
             ),
         }
         coverage = _coverage_summary(session)
+        embedding_progress = _embedding_progress_summary(session)
 
     queue_depths, queue_errors = _queue_depths(queues)
     qdrant_snapshot, qdrant_errors = _qdrant_snapshot(qdrant)
@@ -109,6 +112,7 @@ def build_pipeline_snapshot(
         queue_depths=queue_depths,
         queue_errors=queue_errors,
         coverage=coverage,
+        embedding_progress=embedding_progress,
         qdrant=qdrant_snapshot,
         qdrant_errors=qdrant_errors,
     )
@@ -139,6 +143,61 @@ def _coverage_summary(session: Session) -> dict[str, int | float | None]:
         "max_latitude": float(row[3]) if row[3] is not None else None,
         "min_longitude": float(row[4]) if row[4] is not None else None,
         "max_longitude": float(row[5]) if row[5] is not None else None,
+    }
+
+
+def _embedding_progress_summary(session: Session) -> dict[str, int | float | None]:
+    complete_embeddings = session.execute(
+        select(func.count(PanoramaViewEmbedding.id)).where(
+            PanoramaViewEmbedding.embedding_status == ProcessingStatus.COMPLETE.value
+        )
+    ).scalar_one()
+    complete_views = (
+        select(
+            PanoramaView.panorama_id.label("panorama_id"),
+            func.count(PanoramaView.id).label("view_count"),
+        )
+        .where(PanoramaView.processing_status == ProcessingStatus.COMPLETE.value)
+        .group_by(PanoramaView.panorama_id)
+        .subquery()
+    )
+    complete_embedded_views = (
+        select(
+            PanoramaView.panorama_id.label("panorama_id"),
+            func.count(func.distinct(PanoramaView.id)).label("embedded_view_count"),
+        )
+        .join(
+            PanoramaViewEmbedding,
+            PanoramaViewEmbedding.panorama_view_id == PanoramaView.id,
+        )
+        .where(PanoramaView.processing_status == ProcessingStatus.COMPLETE.value)
+        .where(PanoramaViewEmbedding.embedding_status == ProcessingStatus.COMPLETE.value)
+        .group_by(PanoramaView.panorama_id)
+        .subquery()
+    )
+    panos_with_multiple_views = session.execute(
+        select(func.count()).select_from(complete_views).where(
+            complete_views.c.view_count > 1
+        )
+    ).scalar_one()
+    panos_fully_embedded = session.execute(
+        select(func.count())
+        .select_from(complete_views)
+        .join(
+            complete_embedded_views,
+            complete_embedded_views.c.panorama_id == complete_views.c.panorama_id,
+            isouter=True,
+        )
+        .where(complete_views.c.view_count > 1)
+        .where(
+            complete_views.c.view_count
+            == func.coalesce(complete_embedded_views.c.embedded_view_count, 0)
+        )
+    ).scalar_one()
+    return {
+        "embeddings_complete": int(complete_embeddings or 0),
+        "panos_with_multiple_views": int(panos_with_multiple_views or 0),
+        "panos_fully_embedded": int(panos_fully_embedded or 0),
     }
 
 
