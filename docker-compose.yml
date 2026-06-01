@@ -26,6 +26,7 @@ x-main-service: &main-service
     QDRANT_ON_DISK_PAYLOAD: ${QDRANT_ON_DISK_PAYLOAD:-true}
     QDRANT_UPSERT_WAIT: ${QDRANT_UPSERT_WAIT:-true}
     QDRANT_TIMEOUT_SECONDS: ${QDRANT_TIMEOUT_SECONDS:-30}
+    HF_HOME: /app/services/main/.local/huggingface
   volumes:
     - ./services/main/.local:/app/services/main/.local
     - ./services/main/target.geojson:/app/services/main/target.geojson:ro

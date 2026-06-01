@@ -1,5 +1,79 @@
 # main service
 
+## Docker Stack
+
+The local/server stack is Dockerized around Postgres, NATS JetStream, Qdrant,
+and the main pipeline workers. Runtime data is mounted outside the image:
+
+- Postgres: `./.local/postgres-data`
+- Qdrant: `./.local/qdrant-storage`
+- Panoramas, generated views, local HNSW fallback indexes:
+  `services/main/.local`
+- Hugging Face model cache in Docker:
+  `services/main/.local/huggingface`
+
+Docker build context safety: the repo root `.dockerignore` excludes `**/.local`,
+`**/.env`, logs, virtualenvs, caches, and build outputs. Building the app image
+does not copy downloaded panos or generated view tiles into the Docker image.
+Large downloads during `docker compose build` are Python/Torch/CUDA image
+dependencies, not panorama data.
+
+Embedding containers set `HF_HOME=/app/services/main/.local/huggingface`, which
+is inside the mounted `.local` directory. The first model run may download
+SigLIP weights; later container runs should reuse that cache instead of
+redownloading.
+
+Start infrastructure:
+
+```bash
+docker compose up -d postgres nats qdrant
+```
+
+Build app containers:
+
+```bash
+docker compose build discovery downloader processing embedding monitoring query-ui
+```
+
+Start the long-running pipeline:
+
+```bash
+docker compose --profile pipeline up -d
+```
+
+Start the test query UI:
+
+```bash
+docker compose --profile query up -d query-ui
+```
+
+Useful control commands:
+
+```bash
+docker compose logs -f discovery downloader processing embedding monitoring
+docker compose run --rm processing uv run python -m main_service.ops requeue-processing --limit 1000
+docker compose run --rm embedding uv run python -m main_service.ops requeue-embedding --limit 10000
+docker compose run --rm embedding uv run python -m main_service.embedding --limit 10 --batch-size 10 --once --log-level INFO
+```
+
+Use `docker-compose.gpu.yml` for CUDA embedding and
+`docker-compose.observability.yml` when SigNoz is running separately.
+
+Qdrant is the default vector store:
+
+```text
+EMBEDDING_VECTOR_STORE_KIND=qdrant
+QDRANT_URL=http://qdrant:6333
+QDRANT_COLLECTION=panorama_view_embeddings_siglip2
+QDRANT_UPSERT_WAIT=true
+```
+
+`QDRANT_UPSERT_WAIT=true` means an embedding row is marked complete only after
+Qdrant accepts the vector upsert. For a local file-backed experiment, set
+`EMBEDDING_VECTOR_STORE_KIND=local_hnsw`.
+
+## Local CLI
+
 Run the coverage discovery service from this directory:
 
 ```bash

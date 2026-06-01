@@ -18,6 +18,23 @@ credentials.
   - optional local HNSW embedding index files;
   - optional monitoring snapshots and telemetry export state.
 
+## Docker Build Context Safety
+
+The root `.dockerignore` excludes `**/.local`, `**/.env`, logs, virtualenvs,
+caches, and build output. This means Docker builds do not send downloaded
+panoramas, generated view tiles, Qdrant data, Postgres data, NATS data, or local
+HNSW index artifacts into the build context.
+
+If a build downloads a lot of data, that should be dependency layers such as
+Python packages, PyTorch, and CUDA wheels. The build context size printed near
+the start of `docker compose build` should stay small. If it becomes large,
+check `.dockerignore` before continuing.
+
+Embedding containers set `HF_HOME=/app/services/main/.local/huggingface`, so
+Hugging Face model weights are cached on the mounted runtime disk after the
+first run. Without that cache, one-off embedding containers may redownload and
+reload the model every time.
+
 ## Configure
 
 Copy `.env.example` to `.env` at the repo root for Compose-level values, and copy
@@ -33,6 +50,7 @@ EMBEDDING_DEVICE=auto
 EMBEDDING_DTYPE=float16
 EMBEDDING_BATCH_SIZE=1
 EMBEDDING_VECTOR_STORE_KIND=qdrant
+HF_HOME=/app/services/main/.local/huggingface
 QDRANT_URL=http://qdrant:6333
 QDRANT_COLLECTION=panorama_view_embeddings_siglip2
 QDRANT_VECTOR_ON_DISK=true
