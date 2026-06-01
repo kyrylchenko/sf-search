@@ -10,6 +10,7 @@ from main_service.db.initialize_engine import initialize_engine
 from main_service.db.services.panorama_view_service import PanoramaViewService
 from main_service.ingestion.download_queue import NatsJetStreamPanoEmbeddingQueue
 from main_service.logging_config import configure_cli_logging
+from main_service.observability import TimedProgressReporter, configure_observability
 from main_service.processing.nats_source import NatsPanoProcessingJobSource
 from main_service.processing.runner import run_processing_batch
 from main_service.service_loop import run_service_loop
@@ -91,6 +92,11 @@ def build_parser() -> argparse.ArgumentParser:
 async def run(args: argparse.Namespace) -> None:
     settings = CONFIG
     configure_cli_logging(args.log_level or settings.log_level)
+    telemetry = configure_observability(settings, "sf-search-processing")
+    progress = TimedProgressReporter(
+        telemetry=telemetry,
+        service_name="processing",
+    )
     logger = logging.getLogger(__name__)
     logger.info(
         "processing_cli_start limit=%s concurrency=%s render_scale=%s",
@@ -114,26 +120,28 @@ async def run(args: argparse.Namespace) -> None:
     )
     try:
         async def run_batch() -> object:
-            result = await run_processing_batch(
-                panorama_view_service=view_service,
-                job_source=source,
-                viewsets_dir=Path(args.viewsets_dir or settings.pano_viewsets_dir),
-                storage_dir=Path(args.storage_dir or settings.pano_view_storage_dir),
-                limit=args.limit,
-                concurrency=args.concurrency or settings.pano_processing_concurrency,
-                max_view_concurrency=_value_or_default(
-                    args.max_view_concurrency,
-                    settings.pano_view_max_render_concurrency,
-                ),
-                render_scale=args.render_scale or settings.pano_view_render_scale,
-                output_format=args.output_format or settings.pano_view_output_format,
-                image_quality=args.jpeg_quality or settings.pano_view_jpeg_quality,
-                embedding_queue=embedding_queue,
-                max_embedding_queue_depth=_value_or_default(
-                    args.max_embedding_queue_depth,
-                    settings.max_embedding_queue_depth,
-                ),
-            )
+            with telemetry.span("processing.batch"):
+                result = await run_processing_batch(
+                    panorama_view_service=view_service,
+                    job_source=source,
+                    viewsets_dir=Path(args.viewsets_dir or settings.pano_viewsets_dir),
+                    storage_dir=Path(args.storage_dir or settings.pano_view_storage_dir),
+                    limit=args.limit,
+                    concurrency=args.concurrency or settings.pano_processing_concurrency,
+                    max_view_concurrency=_value_or_default(
+                        args.max_view_concurrency,
+                        settings.pano_view_max_render_concurrency,
+                    ),
+                    render_scale=args.render_scale or settings.pano_view_render_scale,
+                    output_format=args.output_format or settings.pano_view_output_format,
+                    image_quality=args.jpeg_quality or settings.pano_view_jpeg_quality,
+                    embedding_queue=embedding_queue,
+                    max_embedding_queue_depth=_value_or_default(
+                        args.max_embedding_queue_depth,
+                        settings.max_embedding_queue_depth,
+                    ),
+                    progress=progress,
+                )
             logger.info(
                 "processing_cli_batch_complete result=%s",
                 json.dumps(asdict(result), sort_keys=True),
@@ -154,6 +162,7 @@ async def run(args: argparse.Namespace) -> None:
     finally:
         await source.close()
         embedding_queue.close()
+        telemetry.shutdown()
         logger.info("processing_cli_closed")
 
 

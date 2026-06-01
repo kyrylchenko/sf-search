@@ -14,6 +14,7 @@ from main_service.ingestion.coverage_client import StreetLevelCoverageClient
 from main_service.ingestion.discovery import DiscoveryResult, discover_panos_for_tiles
 from main_service.ingestion.download_queue import NatsJetStreamPanoDownloadQueue
 from main_service.logging_config import configure_cli_logging
+from main_service.observability import configure_observability
 from main_service.service_loop import run_service_loop
 
 
@@ -58,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
 async def run(args: argparse.Namespace) -> None:
     settings = CONFIG
     configure_cli_logging(args.log_level or settings.log_level)
+    telemetry = configure_observability(settings, "sf-search-discovery")
     logger = logging.getLogger(__name__)
     geojson_path = Path(args.geojson or settings.area_to_process_geojson_filepath)
     zoom = _value_or_default(args.zoom, settings.map_tiles_zoom)
@@ -78,16 +80,18 @@ async def run(args: argparse.Namespace) -> None:
 
     try:
         async def run_batch() -> DiscoveryResult:
-            result = discover_panos_for_tiles(
-                pano_service=pano_service,
-                coverage_client=coverage_client,
-                download_queue=download_queue,
-                tiles=tiles,
-                max_downloader_queue_depth=_value_or_default(
-                    args.max_downloader_queue_depth,
-                    settings.max_downloader_queue_depth,
-                ),
-            )
+            with telemetry.span("discovery.batch"):
+                result = discover_panos_for_tiles(
+                    pano_service=pano_service,
+                    coverage_client=coverage_client,
+                    download_queue=download_queue,
+                    tiles=tiles,
+                    max_downloader_queue_depth=_value_or_default(
+                        args.max_downloader_queue_depth,
+                        settings.max_downloader_queue_depth,
+                    ),
+                )
+            telemetry.record_event("discovery_batch_complete", asdict(result))
             logger.info(
                 "📦 discovery_cli_batch_complete result=%s",
                 json.dumps(asdict(result), sort_keys=True),
@@ -107,6 +111,7 @@ async def run(args: argparse.Namespace) -> None:
         )
     finally:
         download_queue.close()
+        telemetry.shutdown()
         logger.info("discovery_cli_closed")
 
 

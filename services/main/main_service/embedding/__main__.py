@@ -16,6 +16,7 @@ from main_service.embedding.nats_source import NatsPanoEmbeddingJobSource
 from main_service.embedding.runner import run_embedding_batch
 from main_service.embedding.vector_store import LocalHnswVectorStore
 from main_service.logging_config import configure_cli_logging
+from main_service.observability import TimedProgressReporter, configure_observability
 from main_service.service_loop import run_service_loop
 
 
@@ -81,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
 async def run(args: argparse.Namespace) -> None:
     settings = CONFIG
     configure_cli_logging(args.log_level or settings.log_level)
+    telemetry = configure_observability(settings, "sf-search-embedding")
+    progress = TimedProgressReporter(
+        telemetry=telemetry,
+        service_name="embedding",
+    )
     logger = logging.getLogger(__name__)
     logger.info(
         (
@@ -125,16 +131,18 @@ async def run(args: argparse.Namespace) -> None:
     )
     try:
         async def run_batch() -> object:
-            result = await run_embedding_batch(
-                embedding_service=embedding_service,
-                job_source=source,
-                image_embedder=embedder,
-                vector_store=vector_store,
-                model_spec=model_spec,
-                limit=args.limit,
-                concurrency=args.concurrency or settings.pano_embedding_concurrency,
-                batch_size=args.batch_size or settings.embedding_batch_size,
-            )
+            with telemetry.span("embedding.batch"):
+                result = await run_embedding_batch(
+                    embedding_service=embedding_service,
+                    job_source=source,
+                    image_embedder=embedder,
+                    vector_store=vector_store,
+                    model_spec=model_spec,
+                    limit=args.limit,
+                    concurrency=args.concurrency or settings.pano_embedding_concurrency,
+                    batch_size=args.batch_size or settings.embedding_batch_size,
+                    progress=progress,
+                )
             logger.info(
                 "embedding_cli_batch_complete result=%s",
                 json.dumps(asdict(result), sort_keys=True),
@@ -154,6 +162,7 @@ async def run(args: argparse.Namespace) -> None:
         )
     finally:
         await source.close()
+        telemetry.shutdown()
         logger.info("embedding_cli_closed")
 
 

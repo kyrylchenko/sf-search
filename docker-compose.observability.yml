@@ -1,0 +1,28 @@
+x-main-service: &main-service-observability
+  environment:
+    OBSERVABILITY_ENABLED: "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4317}
+    OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
+    OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-local}
+    DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-server}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  discovery:
+    <<: *main-service-observability
+
+  downloader:
+    <<: *main-service-observability
+
+  processing:
+    <<: *main-service-observability
+
+  embedding:
+    <<: *main-service-observability
+
+  monitoring:
+    <<: *main-service-observability
+
+  query-ui:
+    <<: *main-service-observability

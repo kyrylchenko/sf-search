@@ -29,6 +29,8 @@ EVENT_MARKERS = {
     "embedding_job_failed": "❌",
     "embedding_job_skipped": "↩️",
     "embedding_vector_store_start": "📍",
+    "monitoring_snapshot_complete": "📊",
+    "monitoring_snapshot_start": "📊",
     "processing_batch_complete": "📦",
     "processing_job_complete": "✅",
     "processing_job_failed": "❌",

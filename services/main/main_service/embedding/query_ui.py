@@ -20,6 +20,8 @@ from main_service.db.models.panorama_view_embedding import PanoramaViewEmbedding
 from main_service.embedding.model import ImageTextEmbedder, TransformersSiglipEmbedder
 from main_service.embedding.vector_store import LocalHnswVectorStore, VectorStore
 from main_service.logging_config import configure_cli_logging
+from main_service.observability import NoopTelemetry, configure_observability
+from main_service.observability.telemetry import PipelineTelemetry
 
 logger = logging.getLogger(__name__)
 
@@ -50,24 +52,53 @@ class LocalQueryService:
         engine: Engine,
         embedder: ImageTextEmbedder,
         vector_store: VectorStore,
+        telemetry: PipelineTelemetry | None = None,
     ) -> None:
         self.engine = engine
         self.embedder = embedder
         self.vector_store = vector_store
+        self.telemetry = telemetry or NoopTelemetry()
 
     def search(self, query: str, limit: int) -> list[QueryResult]:
         started_at = perf_counter()
         logger.info("query_ui_search_start query=%r limit=%s", query, limit)
-        stage_started_at = perf_counter()
-        vector = self.embedder.embed_text(query)
+        with self.telemetry.span("query.text_embedding"):
+            stage_started_at = perf_counter()
+            vector = self.embedder.embed_text(query)
         embed_seconds = perf_counter() - stage_started_at
-        stage_started_at = perf_counter()
-        hits = self.vector_store.search(vector, limit)
+        self.telemetry.record_duration(
+            "query_text_embedding",
+            embed_seconds,
+            {"service": "query-ui", "operation": "text_embedding"},
+        )
+        with self.telemetry.span("query.vector_search"):
+            stage_started_at = perf_counter()
+            hits = self.vector_store.search(vector, limit)
         vector_search_seconds = perf_counter() - stage_started_at
-        stage_started_at = perf_counter()
-        results = _results_for_hits(self.engine, hits)
+        self.telemetry.record_duration(
+            "query_vector_search",
+            vector_search_seconds,
+            {"service": "query-ui", "operation": "vector_search"},
+        )
+        with self.telemetry.span("query.db_hydration"):
+            stage_started_at = perf_counter()
+            results = _results_for_hits(self.engine, hits)
         db_seconds = perf_counter() - stage_started_at
+        self.telemetry.record_duration(
+            "query_db_hydration",
+            db_seconds,
+            {"service": "query-ui", "operation": "db_hydration"},
+        )
         total_seconds = perf_counter() - started_at
+        self.telemetry.record_duration(
+            "query_total",
+            total_seconds,
+            {"service": "query-ui", "operation": "total"},
+        )
+        self.telemetry.record_event(
+            "query_ui_search_complete",
+            {"results": len(results), "hits": len(hits)},
+        )
         logger.info(
             "query_ui_search_complete query=%r hits=%s results=%s",
             query,
@@ -343,6 +374,7 @@ def main() -> None:
     args = build_parser().parse_args()
     settings = CONFIG
     configure_cli_logging(args.log_level or settings.log_level)
+    telemetry = configure_observability(settings, "sf-search-query-ui")
     engine = initialize_engine(settings)
     model_id = args.model_id or settings.embedding_model_id
     embedder = TransformersSiglipEmbedder(
@@ -360,6 +392,7 @@ def main() -> None:
         engine=engine,
         embedder=embedder,
         vector_store=vector_store,
+        telemetry=telemetry,
     )
     _warm_query_service(service)
 
@@ -410,7 +443,10 @@ def main() -> None:
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     logger.info("query_ui_start url=http://%s:%s/", args.host, args.port)
     print(json.dumps({"url": f"http://{args.host}:{args.port}/"}, sort_keys=True))
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        telemetry.shutdown()
 
 
 def _warm_query_service(service: LocalQueryService) -> None:

@@ -16,6 +16,7 @@ from main_service.ingestion.download_queue import (
     NatsJetStreamPanoProcessingQueue,
 )
 from main_service.logging_config import configure_cli_logging
+from main_service.observability import configure_observability
 from main_service.service_loop import run_service_loop
 
 
@@ -66,6 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
 async def run(args: argparse.Namespace) -> None:
     settings = CONFIG
     configure_cli_logging(args.log_level or settings.log_level)
+    telemetry = configure_observability(settings, "sf-search-downloader")
     logger = logging.getLogger(__name__)
     logger.info(
         "downloader_cli_start limit=%s concurrency=%s storage_dir=%s",
@@ -96,25 +98,27 @@ async def run(args: argparse.Namespace) -> None:
 
     try:
         async def run_batch() -> object:
-            if download_queue.pending_count() == 0:
-                requeue_download_jobs_from_db(
+            with telemetry.span("downloader.batch"):
+                if download_queue.pending_count() == 0:
+                    requeue_download_jobs_from_db(
+                        panorama_service=panorama_service,
+                        download_queue=download_queue,
+                        limit=args.limit,
+                    )
+                result = await run_downloader_batch(
                     panorama_service=panorama_service,
-                    download_queue=download_queue,
+                    job_source=source,
+                    processing_queue=processing_queue,
+                    storage_dir=Path(args.storage_dir or settings.pano_download_storage_dir),
                     limit=args.limit,
+                    concurrency=args.concurrency or settings.pano_download_concurrency,
+                    max_processing_queue_depth=_value_or_default(
+                        args.max_processing_queue_depth,
+                        settings.max_processing_queue_depth,
+                    ),
+                    max_attempts=settings.max_attempts,
                 )
-            result = await run_downloader_batch(
-                panorama_service=panorama_service,
-                job_source=source,
-                processing_queue=processing_queue,
-                storage_dir=Path(args.storage_dir or settings.pano_download_storage_dir),
-                limit=args.limit,
-                concurrency=args.concurrency or settings.pano_download_concurrency,
-                max_processing_queue_depth=_value_or_default(
-                    args.max_processing_queue_depth,
-                    settings.max_processing_queue_depth,
-                ),
-                max_attempts=settings.max_attempts,
-            )
+            telemetry.record_event("downloader_batch_complete", asdict(result))
             logger.info(
                 "downloader_cli_batch_complete result=%s",
                 json.dumps(asdict(result), sort_keys=True),
@@ -136,6 +140,7 @@ async def run(args: argparse.Namespace) -> None:
         await source.close()
         download_queue.close()
         processing_queue.close()
+        telemetry.shutdown()
         logger.info("downloader_cli_closed")
 
 

@@ -13,6 +13,11 @@ x-main-service: &main-service
     DB_NAME: ${POSTGRES_DB:-sf_search}
     DB_DRIVER: postgresql+psycopg
     NATS_URL: nats://nats:4222
+    OBSERVABILITY_ENABLED: ${OBSERVABILITY_ENABLED:-false}
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4317}
+    OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
+    OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-local}
+    DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-local}
   volumes:
     - ./services/main/.local:/app/services/main/.local
     - ./services/main/target.geojson:/app/services/main/target.geojson:ro
@@ -75,6 +80,12 @@ services:
   embedding:
     <<: *main-service
     command: ["uv", "run", "python", "-m", "main_service.embedding"]
+    profiles: ["pipeline"]
+    restart: unless-stopped
+
+  monitoring:
+    <<: *main-service
+    command: ["uv", "run", "python", "-m", "main_service.monitoring"]
     profiles: ["pipeline"]
     restart: unless-stopped
 

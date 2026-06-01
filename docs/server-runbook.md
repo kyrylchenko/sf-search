@@ -14,7 +14,8 @@ credentials.
   - NATS JetStream state;
   - downloaded panos;
   - generated panorama view tiles;
-  - embedding index files.
+  - embedding index files;
+  - optional monitoring snapshots and telemetry export state.
 
 ## Configure
 
@@ -33,6 +34,9 @@ EMBEDDING_BATCH_SIZE=1
 PANO_DOWNLOAD_STORAGE_DIR=.local/panoramas
 PANO_VIEW_STORAGE_DIR=.local/panorama-views
 EMBEDDING_VECTOR_STORE_DIR=.local/embedding-indexes
+OBSERVABILITY_ENABLED=false
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+MONITORING_INTERVAL_SECONDS=15
 ```
 
 For a CUDA server, set or override:
@@ -93,6 +97,34 @@ CUDA:
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile pipeline up -d
 ```
 
+With external SigNoz observability:
+
+1. Start SigNoz separately with the official SigNoz Docker Compose stack.
+2. Confirm the SigNoz collector publishes OTLP gRPC on host port `4317`.
+3. Start this app stack with the observability override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile pipeline up -d --build
+```
+
+CUDA plus external SigNoz:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.observability.yml --profile pipeline up -d --build
+```
+
+The observability override sets:
+
+```text
+OBSERVABILITY_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+DEPLOYMENT_ENVIRONMENT=server
+```
+
+On Linux, the override also maps `host.docker.internal` to the Docker host
+gateway. If SigNoz runs on another host or network, keep the real endpoint only
+in local env files or deployment config; do not commit private hostnames.
+
 Query UI:
 
 ```bash
@@ -132,8 +164,22 @@ acceptable.
 ## Logs
 
 ```bash
-docker compose logs -f discovery downloader processing embedding
+docker compose logs -f discovery downloader processing embedding monitoring
 ```
 
 Embedding startup logs should include requested device, actual device, dtype,
 and batch size.
+
+When observability is enabled, services also export logs through OpenTelemetry to
+SigNoz. The monitor service emits snapshots containing:
+
+- map tile counts by discovery status;
+- pano counts by download status;
+- generated view counts by processing status;
+- embedding counts by embedding status;
+- NATS download, processing, and embedding queue depths;
+- a small coverage summary with pano count and coordinate bounds.
+
+SigNoz is the timing/logs/metrics surface. A real geospatial coverage map is
+still a separate UI concern; current map readiness comes from Postgres location
+metadata and the monitor's coverage summary.
