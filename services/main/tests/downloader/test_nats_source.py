@@ -16,8 +16,10 @@ def test_pano_download_job_from_dict_parses_pano_id() -> None:
 
 
 class FakeNatsMessage:
-    def __init__(self, payload: dict[str, object]) -> None:
-        self.data = json.dumps(payload).encode("utf-8")
+    def __init__(self, payload: dict[str, object] | bytes) -> None:
+        self.data = (
+            payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
+        )
         self.acked = False
 
     async def ack(self) -> None:
@@ -48,3 +50,21 @@ def test_nats_source_fetches_jobs_and_acks_underlying_messages() -> None:
     assert subscription.fetch_calls == [{"limit": 5, "timeout": 1.0}]
     assert jobs[0].job == PanoDownloadJob(pano_id=PanoramaId("pano-a"))
     assert message.acked
+
+
+def test_nats_source_acks_invalid_messages_and_returns_valid_jobs() -> None:
+    invalid_json = FakeNatsMessage(b"{not-json")
+    invalid_schema = FakeNatsMessage({"image_path": ".local/panoramas/pano-a.jpg"})
+    valid = FakeNatsMessage({"pano_id": "pano-a"})
+    subscription = FakeSubscription([invalid_json, invalid_schema, valid])
+    source = NatsPanoDownloadJobSource(
+        nats_client=None,
+        subscription=subscription,
+    )
+
+    jobs = asyncio.run(source.fetch(limit=5))
+
+    assert [job.job for job in jobs] == [PanoDownloadJob(pano_id=PanoramaId("pano-a"))]
+    assert invalid_json.acked
+    assert invalid_schema.acked
+    assert not valid.acked

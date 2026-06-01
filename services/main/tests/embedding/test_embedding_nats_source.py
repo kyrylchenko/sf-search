@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from main_service.embedding.nats_source import (
     PanoEmbeddingJob,
@@ -60,3 +61,26 @@ def test_nats_embedding_source_fetches_and_acks_jobs() -> None:
         image_path=".local/view.jpg",
     )
     assert message.acked
+
+
+def test_nats_embedding_source_acks_invalid_messages_and_returns_valid_jobs() -> None:
+    invalid_json = FakeNatsMessage(b"{not-json")
+    invalid_schema = FakeNatsMessage(json.dumps({"pano_id": "pano-a"}).encode("utf-8"))
+    valid = FakeNatsMessage(
+        b'{"pano_id":"pano-a","view_id":123,"image_path":".local/view.jpg"}'
+    )
+    subscription = FakeSubscription([invalid_json, invalid_schema, valid])
+    source = NatsPanoEmbeddingJobSource(nats_client=None, subscription=subscription)
+
+    jobs = asyncio.run(source.fetch(limit=5))
+
+    assert [job.job for job in jobs] == [
+        PanoEmbeddingJob(
+            pano_id=PanoramaId("pano-a"),
+            view_id=123,
+            image_path=".local/view.jpg",
+        )
+    ]
+    assert invalid_json.acked
+    assert invalid_schema.acked
+    assert not valid.acked

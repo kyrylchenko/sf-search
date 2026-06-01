@@ -95,15 +95,32 @@ class NatsPanoProcessingJobSource:
             return []
 
         received_jobs: list[ReceivedPanoProcessingJob] = []
+        invalid_messages = 0
         for message in messages:
-            payload = json.loads(message.data.decode("utf-8"))
+            try:
+                payload = json.loads(message.data.decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Processing message payload must be a JSON object")
+                job = pano_processing_job_from_dict(payload)
+            except Exception as exc:
+                invalid_messages += 1
+                await message.ack()
+                logger.warning(
+                    "processing_nats_invalid_message_acked error=%s",
+                    exc,
+                )
+                continue
             received_jobs.append(
                 NatsReceivedPanoProcessingJob(
-                    job=pano_processing_job_from_dict(payload),
+                    job=job,
                     _message=message,
                 )
             )
-        logger.info("processing_nats_fetch_complete jobs=%s", len(received_jobs))
+        logger.info(
+            "processing_nats_fetch_complete jobs=%s invalid_messages=%s",
+            len(received_jobs),
+            invalid_messages,
+        )
         return received_jobs
 
     async def close(self) -> None:

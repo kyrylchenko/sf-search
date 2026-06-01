@@ -11,7 +11,11 @@ from main_service.ingestion.download_queue import (
     NatsJetStreamPanoProcessingQueue,
 )
 from main_service.logging_config import configure_cli_logging, format_log_event
-from main_service.monitoring.snapshot import QueueSnapshotSource, build_pipeline_snapshot
+from main_service.monitoring.snapshot import (
+    QdrantCollectionSnapshotSource,
+    QueueSnapshotSource,
+    build_pipeline_snapshot,
+)
 from main_service.observability import TimedProgressReporter, configure_observability
 from main_service.observability.telemetry import PipelineTelemetry
 from main_service.service_loop import run_service_loop
@@ -69,11 +73,24 @@ async def run(args: argparse.Namespace) -> None:
             consumer_name=settings.pano_embedding_consumer,
         ),
     )
+    qdrant = (
+        QdrantCollectionSnapshotSource(
+            url=settings.qdrant_url,
+            collection_name=settings.qdrant_collection,
+            timeout_seconds=settings.qdrant_timeout_seconds,
+        )
+        if settings.embedding_vector_store_kind == "qdrant"
+        else None
+    )
     try:
         async def run_batch() -> object:
             with telemetry.span("monitoring.snapshot"):
                 progress("monitoring_snapshot_start", {})
-                snapshot = build_pipeline_snapshot(engine=engine, queues=queues)
+                snapshot = build_pipeline_snapshot(
+                    engine=engine,
+                    queues=queues,
+                    qdrant=qdrant,
+                )
                 _emit_snapshot_metrics(telemetry, snapshot.to_dict())
                 progress("monitoring_snapshot_complete", {})
                 logger.info(
@@ -139,6 +156,17 @@ def _emit_snapshot_metrics(
                     "sf_search_coverage",
                     value,
                     {"field": str(key)},
+                )
+
+    qdrant = snapshot.get("qdrant")
+    if isinstance(qdrant, dict):
+        collection = str(qdrant.get("collection", "unknown"))
+        for key, value in qdrant.items():
+            if isinstance(value, int | float):
+                telemetry.set_gauge(
+                    "sf_search_qdrant_collection",
+                    value,
+                    {"collection": collection, "field": str(key)},
                 )
 
 

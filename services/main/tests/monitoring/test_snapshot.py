@@ -20,6 +20,16 @@ class FakeQueue:
         return self.pending
 
 
+class FakeQdrant:
+    def __init__(self, snapshot: dict[str, object] | Exception) -> None:
+        self.snapshot = snapshot
+
+    def collection_snapshot(self) -> dict[str, object]:
+        if isinstance(self.snapshot, Exception):
+            raise self.snapshot
+        return self.snapshot
+
+
 def make_engine():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -130,3 +140,51 @@ def test_build_pipeline_snapshot_keeps_working_when_queue_depth_fails() -> None:
         "embedding": 3,
     }
     assert snapshot.queue_errors == {"download": "nats unavailable"}
+
+
+def test_build_pipeline_snapshot_includes_qdrant_collection_status() -> None:
+    engine = make_engine()
+
+    snapshot = build_pipeline_snapshot(
+        engine=engine,
+        queues=QueueSnapshotSource(
+            download=FakeQueue(0),
+            processing=FakeQueue(0),
+            embedding=FakeQueue(0),
+        ),
+        qdrant=FakeQdrant(
+            {
+                "collection": "panorama_view_embeddings_siglip2",
+                "status": "green",
+                "points_count": 42,
+                "vectors_count": 42,
+                "indexed_vectors_count": 40,
+            }
+        ),
+    )
+
+    assert snapshot.qdrant == {
+        "collection": "panorama_view_embeddings_siglip2",
+        "status": "green",
+        "points_count": 42,
+        "vectors_count": 42,
+        "indexed_vectors_count": 40,
+    }
+    assert snapshot.qdrant_errors == {}
+
+
+def test_build_pipeline_snapshot_keeps_working_when_qdrant_fails() -> None:
+    engine = make_engine()
+
+    snapshot = build_pipeline_snapshot(
+        engine=engine,
+        queues=QueueSnapshotSource(
+            download=FakeQueue(0),
+            processing=FakeQueue(0),
+            embedding=FakeQueue(0),
+        ),
+        qdrant=FakeQdrant(RuntimeError("qdrant unavailable")),
+    )
+
+    assert snapshot.qdrant is None
+    assert snapshot.qdrant_errors == {"collection": "qdrant unavailable"}

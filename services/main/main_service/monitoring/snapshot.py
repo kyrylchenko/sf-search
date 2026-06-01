@@ -1,6 +1,6 @@
 import logging
 from dataclasses import asdict, dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
@@ -18,11 +18,48 @@ class PendingQueue(Protocol):
         ...
 
 
+class QdrantSnapshotSource(Protocol):
+    def collection_snapshot(self) -> dict[str, object]:
+        ...
+
+
 @dataclass(frozen=True)
 class QueueSnapshotSource:
     download: PendingQueue
     processing: PendingQueue
     embedding: PendingQueue
+
+
+@dataclass
+class QdrantCollectionSnapshotSource:
+    url: str
+    collection_name: str
+    timeout_seconds: float
+    client: object | None = None
+
+    def collection_snapshot(self) -> dict[str, object]:
+        info = self._get_client().get_collection(self.collection_name)
+        return {
+            "collection": self.collection_name,
+            "status": _scalar_or_none(_read_field(info, "status")),
+            "points_count": _int_or_none(_read_field(info, "points_count")),
+            "vectors_count": _int_or_none(_read_field(info, "vectors_count")),
+            "indexed_vectors_count": _int_or_none(
+                _read_field(info, "indexed_vectors_count")
+            ),
+        }
+
+    def _get_client(self) -> Any:
+        if self.client is None:
+            try:
+                from qdrant_client import QdrantClient
+            except ImportError as exc:
+                raise RuntimeError("Qdrant monitoring requires qdrant-client.") from exc
+            self.client = QdrantClient(
+                url=self.url,
+                timeout=self.timeout_seconds,
+            )
+        return self.client
 
 
 @dataclass(frozen=True)
@@ -31,6 +68,8 @@ class PipelineSnapshot:
     queue_depths: dict[str, int | None]
     queue_errors: dict[str, str]
     coverage: dict[str, int | float | None]
+    qdrant: dict[str, object] | None
+    qdrant_errors: dict[str, str]
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -40,6 +79,7 @@ def build_pipeline_snapshot(
     *,
     engine: Engine,
     queues: QueueSnapshotSource,
+    qdrant: QdrantSnapshotSource | None = None,
 ) -> PipelineSnapshot:
     with Session(engine) as session:
         status_counts = {
@@ -63,11 +103,14 @@ def build_pipeline_snapshot(
         coverage = _coverage_summary(session)
 
     queue_depths, queue_errors = _queue_depths(queues)
+    qdrant_snapshot, qdrant_errors = _qdrant_snapshot(qdrant)
     return PipelineSnapshot(
         status_counts=status_counts,
         queue_depths=queue_depths,
         queue_errors=queue_errors,
         coverage=coverage,
+        qdrant=qdrant_snapshot,
+        qdrant_errors=qdrant_errors,
     )
 
 
@@ -121,3 +164,40 @@ def _queue_depths(
                 exc,
             )
     return depths, errors
+
+
+def _qdrant_snapshot(
+    qdrant: QdrantSnapshotSource | None,
+) -> tuple[dict[str, object] | None, dict[str, str]]:
+    if qdrant is None:
+        return None, {}
+    try:
+        return qdrant.collection_snapshot(), {}
+    except Exception as exc:
+        logger.warning("monitoring_qdrant_snapshot_failed error=%s", exc)
+        return None, {"collection": str(exc)}
+
+
+def _read_field(value: object, field: str) -> object:
+    if isinstance(value, dict):
+        return value.get(field)
+    return getattr(value, field, None)
+
+
+def _scalar_or_none(value: object) -> object:
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    enum_value = getattr(value, "value", None)
+    if enum_value is not None:
+        return enum_value
+    return str(value)
+
+
+def _int_or_none(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int | float):
+        return int(value)
+    return None
