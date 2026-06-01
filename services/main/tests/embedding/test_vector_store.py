@@ -14,6 +14,10 @@ class FakeIndex:
     save_calls = 0
     resize_calls = 0
     save_paths: list[str] = []
+    item_vectors: dict[int, np.ndarray] = {
+        1: np.array([1.0, 0.0, 0.0], dtype=np.float32),
+        2: np.array([0.0, 1.0, 0.0], dtype=np.float32),
+    }
 
     def __init__(self, *, space: str, dim: int) -> None:
         self.space = space
@@ -49,6 +53,9 @@ class FakeIndex:
         FakeIndex.save_calls += 1
         FakeIndex.save_paths.append(path)
         Path(path).touch()
+
+    def get_items(self, labels: np.ndarray) -> np.ndarray:
+        return np.stack([self.item_vectors[int(label)] for label in labels])
 
 
 class FakeHnswLib:
@@ -190,3 +197,24 @@ def test_add_many_writes_multiple_records_in_one_index_update(
         "10": {"embedding_id": 10, "view_id": 100},
         "11": {"embedding_id": 11, "view_id": 110},
     }
+
+
+def test_iter_records_exports_existing_vectors_in_stable_batches(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    reset_fake_index()
+    monkeypatch.setattr(vector_store, "_import_hnswlib", lambda: FakeHnswLib)
+    write_existing_index(tmp_path / "test_model")
+    now = [1000.0]
+    store = make_store(tmp_path, now)
+
+    batches = list(store.iter_records(batch_size=1))
+
+    assert len(batches) == 2
+    assert batches[0][0].vector_id == 1
+    assert batches[0][0].metadata == {"embedding_id": 1, "view_id": 10}
+    assert batches[0][0].vector.tolist() == [1.0, 0.0, 0.0]
+    assert batches[1][0].vector_id == 2
+    assert batches[1][0].metadata == {"embedding_id": 2, "view_id": 20}
+    assert batches[1][0].vector.tolist() == [0.0, 1.0, 0.0]

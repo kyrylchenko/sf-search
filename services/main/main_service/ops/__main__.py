@@ -1,10 +1,13 @@
 import argparse
 import json
 import logging
+from pathlib import Path
 
 from main_service.config import CONFIG
 from main_service.db.initialize_engine import initialize_engine
 from main_service.db.services.panorama_view_embedding_service import EmbeddingModelSpec
+from main_service.embedding.vector_store import LocalHnswVectorStore
+from main_service.embedding.vector_store_factory import create_vector_store
 from main_service.ingestion.download_queue import (
     NatsJetStreamPanoEmbeddingQueue,
     NatsJetStreamPanoProcessingQueue,
@@ -14,6 +17,7 @@ from main_service.ops.requeue import (
     requeue_embedding_jobs_from_db,
     requeue_processing_jobs_from_db,
 )
+from main_service.ops.vector_backfill import backfill_local_hnsw_to_qdrant
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +46,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also enqueue views that already have completed embeddings.",
     )
+
+    backfill = subparsers.add_parser(
+        "backfill-qdrant-from-local-hnsw",
+        help="Copy existing local HNSW vectors into the configured Qdrant collection.",
+    )
+    backfill.add_argument("--batch-size", type=int, default=256)
+    backfill.add_argument("--limit", type=int, default=None)
+    backfill.add_argument("--vector-store-dir", default=None)
+    backfill.add_argument("--qdrant-url", default=None)
+    backfill.add_argument("--qdrant-collection", default=None)
     return parser
 
 
@@ -93,6 +107,42 @@ def main() -> None:
             )
         finally:
             queue.close()
+    elif args.command == "backfill-qdrant-from-local-hnsw":
+        model_spec = EmbeddingModelSpec(
+            model_provider=settings.embedding_model_provider,
+            model_id=settings.embedding_model_id,
+            model_revision=settings.embedding_model_revision,
+            preprocess_version=settings.embedding_preprocess_version,
+            embedding_dimension=settings.embedding_dimension,
+            embedding_dtype=settings.embedding_dtype,
+            embedding_normalized=True,
+        )
+        local_store = LocalHnswVectorStore(
+            root_dir=Path(args.vector_store_dir or settings.embedding_vector_store_dir),
+            model_id=settings.embedding_model_id,
+            dimension=settings.embedding_dimension,
+        )
+        qdrant_store = create_vector_store(
+            settings=settings,
+            model_spec=model_spec,
+            vector_store_kind="qdrant",
+            qdrant_url=args.qdrant_url,
+            qdrant_collection=args.qdrant_collection,
+        )
+        result = backfill_local_hnsw_to_qdrant(
+            engine=engine,
+            local_store=local_store,
+            qdrant_store=qdrant_store,
+            batch_size=args.batch_size,
+            limit=args.limit,
+        )
+        print(
+            json.dumps(
+                {"command": args.command, "result": result.__dict__},
+                sort_keys=True,
+            )
+        )
+        return
     else:
         raise ValueError(f"Unsupported ops command: {args.command}")
     print(json.dumps({"command": args.command, "requeued": count}, sort_keys=True))

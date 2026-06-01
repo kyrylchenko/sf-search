@@ -1,10 +1,10 @@
 import json
 import logging
 import os
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
-from collections.abc import Callable
 from typing import Protocol
 
 import numpy as np
@@ -195,6 +195,47 @@ class LocalHnswVectorStore:
             self.index_path,
         )
         return results
+
+    def iter_records(
+        self,
+        *,
+        batch_size: int,
+        limit: int | None = None,
+    ) -> Iterator[list[VectorStoreRecord]]:
+        if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        hnswlib = _import_hnswlib()
+        state = self._read_metadata()
+        if not self.index_path.exists() or not state.items:
+            logger.warning("vector_store_export_empty index_path=%s", self.index_path)
+            return
+        index = self._load_search_index(hnswlib, state)
+        labels = sorted(int(key) for key in state.items)
+        if limit is not None:
+            labels = labels[: max(0, limit)]
+        logger.info(
+            "vector_store_export_start records=%s batch_size=%s index_path=%s",
+            len(labels),
+            batch_size,
+            self.index_path,
+        )
+        for start in range(0, len(labels), batch_size):
+            batch_labels = labels[start : start + batch_size]
+            vectors = index.get_items(np.array(batch_labels, dtype=np.int64))
+            records = [
+                VectorStoreRecord(
+                    vector_id=label,
+                    vector=np.asarray(vector, dtype=np.float32),
+                    metadata=dict(state.items[str(label)]),
+                )
+                for label, vector in zip(batch_labels, vectors, strict=True)
+            ]
+            yield records
+        logger.info(
+            "vector_store_export_complete records=%s index_path=%s",
+            len(labels),
+            self.index_path,
+        )
 
     def _get_cached_search_index(self) -> CachedSearchIndex | None:
         if self._search_cache is None:
