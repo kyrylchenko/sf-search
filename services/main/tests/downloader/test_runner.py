@@ -168,6 +168,37 @@ def test_runner_downloads_job_updates_db_publishes_processing_and_acks(
     ]
 
 
+def test_runner_reports_progress_events(tmp_path: Path) -> None:
+    service = make_service()
+    service.upsert_discovered_panorama(PanoramaId("pano-a"))
+    events: list[tuple[str, dict[str, object]]] = []
+
+    asyncio.run(
+        run_downloader_batch(
+            panorama_service=service,
+            job_source=FakeJobSource(
+                [FakeReceivedJob(PanoDownloadJob(PanoramaId("pano-a")))]
+            ),
+            processing_queue=FakeProcessingQueue(),
+            streetview_client=FakeStreetViewClient(),
+            storage_dir=tmp_path,
+            limit=5,
+            concurrency=5,
+            max_processing_queue_depth=50,
+            session_factory=NullSession,
+            progress=lambda event, payload: events.append((event, payload)),
+        )
+    )
+
+    event_names = [name for name, _ in events]
+    assert event_names[0] == "downloader_batch_start"
+    assert "downloader_fetch_start" in event_names
+    assert "downloader_fetch_complete" in event_names
+    assert "downloader_job_start" in event_names
+    assert "downloader_job_complete" in event_names
+    assert "downloader_batch_complete" in event_names
+
+
 def test_runner_skips_duplicate_completed_pano_without_downloading(
     tmp_path: Path,
 ) -> None:

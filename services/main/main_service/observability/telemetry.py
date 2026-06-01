@@ -1,10 +1,32 @@
 import contextlib
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def recorded_duration(
+    telemetry: "PipelineTelemetry",
+    name: str,
+    attributes: dict[str, object],
+    *,
+    clock: Callable[[], float] | None = None,
+) -> Iterator[None]:
+    from time import perf_counter
+
+    timer = clock or perf_counter
+    started_at = timer()
+    try:
+        yield
+    finally:
+        telemetry.record_duration(
+            name,
+            max(0.0, timer() - started_at),
+            attributes,
+        )
 
 
 class PipelineTelemetry(Protocol):

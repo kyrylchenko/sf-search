@@ -58,6 +58,7 @@ async def run_embedding_batch(
     batch_size: int = 1,
     progress: ProgressCallback | None = None,
 ) -> EmbeddingRunResult:
+    _emit(progress, "embedding_batch_start", {"limit": limit, "batch_size": batch_size})
     _emit(progress, "embedding_fetch_start", {"limit": limit})
     jobs = await job_source.fetch(limit)
     _emit(progress, "embedding_fetch_complete", {"jobs": len(jobs)})
@@ -95,7 +96,11 @@ async def run_embedding_batch(
         skipped=statuses.count("skipped"),
         failed=statuses.count("failed"),
     )
-    _emit(progress, "embedding_batch_complete", result.__dict__)
+    _emit(
+        progress,
+        "embedding_batch_complete",
+        {**result.__dict__, "batch_size": batch_size},
+    )
     return result
 
 
@@ -151,8 +156,22 @@ async def _process_received_job(
             vector = image_embedder.embed_image(image_path)
             _emit(
                 progress,
+                "embedding_image_complete",
+                {
+                    "embedding_id": claim.id,
+                    "view_id": claim.panorama_view_id,
+                    "image_path": str(image_path),
+                    "model_id": claim.model_id,
+                },
+            )
+            _emit(
+                progress,
                 "embedding_vector_store_start",
-                {"embedding_id": claim.id, "dimension": int(vector.shape[0])},
+                {
+                    "embedding_id": claim.id,
+                    "view_id": claim.panorama_view_id,
+                    "dimension": int(vector.shape[0]),
+                },
             )
             vector_id = vector_store.add(
                 vector_id=claim.id,
@@ -162,6 +181,15 @@ async def _process_received_job(
                     "view_id": claim.panorama_view_id,
                     "model_id": claim.model_id,
                     "source_image_hash": claim.source_image_hash,
+                },
+            )
+            _emit(
+                progress,
+                "embedding_vector_store_complete",
+                {
+                    "embedding_id": claim.id,
+                    "view_id": claim.panorama_view_id,
+                    "dimension": int(vector.shape[0]),
                 },
             )
             embedding_service.mark_embedding_complete(
@@ -175,6 +203,7 @@ async def _process_received_job(
                 progress,
                 "embedding_job_complete",
                 {
+                    "pano_id": received_job.job.pano_id.value,
                     "embedding_id": claim.id,
                     "view_id": claim.panorama_view_id,
                     "vector_id": vector_id,
@@ -188,6 +217,7 @@ async def _process_received_job(
                 progress,
                 "embedding_job_failed",
                 {
+                    "pano_id": received_job.job.pano_id.value,
                     "embedding_id": claim.id,
                     "view_id": claim.panorama_view_id,
                     "error": str(exc),
@@ -284,6 +314,7 @@ async def _process_received_job_batch(
                 progress,
                 "embedding_job_failed",
                 {
+                    "pano_id": job.received_job.job.pano_id.value,
                     "embedding_id": job.claim.id,
                     "view_id": job.claim.panorama_view_id,
                     "error": str(exc),
@@ -335,6 +366,7 @@ async def _process_received_job_batch(
                 progress,
                 "embedding_job_failed",
                 {
+                    "pano_id": job.received_job.job.pano_id.value,
                     "embedding_id": job.claim.id,
                     "view_id": job.claim.panorama_view_id,
                     "error": str(exc),
@@ -363,6 +395,7 @@ async def _process_received_job_batch(
             progress,
             "embedding_job_complete",
             {
+                "pano_id": job.received_job.job.pano_id.value,
                 "embedding_id": job.claim.id,
                 "view_id": job.claim.panorama_view_id,
                 "vector_id": vector_id,

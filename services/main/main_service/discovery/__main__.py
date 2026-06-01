@@ -15,6 +15,7 @@ from main_service.ingestion.discovery import DiscoveryResult, discover_panos_for
 from main_service.ingestion.download_queue import NatsJetStreamPanoDownloadQueue
 from main_service.logging_config import configure_cli_logging
 from main_service.observability import configure_observability
+from main_service.observability.telemetry import recorded_duration
 from main_service.service_loop import run_service_loop
 
 
@@ -80,17 +81,22 @@ async def run(args: argparse.Namespace) -> None:
 
     try:
         async def run_batch() -> DiscoveryResult:
-            with telemetry.span("discovery.batch"):
-                result = discover_panos_for_tiles(
-                    pano_service=pano_service,
-                    coverage_client=coverage_client,
-                    download_queue=download_queue,
-                    tiles=tiles,
-                    max_downloader_queue_depth=_value_or_default(
-                        args.max_downloader_queue_depth,
-                        settings.max_downloader_queue_depth,
-                    ),
-                )
+            with recorded_duration(
+                telemetry,
+                "discovery_batch",
+                {"service": "discovery", "event": "discovery_batch"},
+            ):
+                with telemetry.span("discovery.batch"):
+                    result = discover_panos_for_tiles(
+                        pano_service=pano_service,
+                        coverage_client=coverage_client,
+                        download_queue=download_queue,
+                        tiles=tiles,
+                        max_downloader_queue_depth=_value_or_default(
+                            args.max_downloader_queue_depth,
+                            settings.max_downloader_queue_depth,
+                        ),
+                    )
             telemetry.record_event("discovery_batch_complete", asdict(result))
             logger.info(
                 "📦 discovery_cli_batch_complete result=%s",

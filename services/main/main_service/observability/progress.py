@@ -58,7 +58,6 @@ def _identity_items(payload: dict[str, object]) -> tuple[tuple[str, object], ...
     for key in (
         "pano_id",
         "view_id",
-        "embedding_id",
         "viewset_name",
         "model_id",
         "batch_size",

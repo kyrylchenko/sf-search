@@ -80,3 +80,33 @@ def test_timed_progress_reporter_uses_low_cardinality_attributes() -> None:
             {"service": "embedding", "event": "embedding_image_batch"},
         )
     ]
+
+
+def test_timed_progress_reporter_ignores_storage_ids_for_matching_duration() -> None:
+    current_time = [5.0]
+    telemetry = FakeTelemetry()
+    reporter = TimedProgressReporter(
+        telemetry=telemetry,
+        service_name="embedding",
+        clock=lambda: current_time[0],
+    )
+
+    reporter("embedding_job_start", {"pano_id": "pano-a", "view_id": 12})
+    current_time[0] = 6.25
+    reporter(
+        "embedding_job_complete",
+        {
+            "pano_id": "pano-a",
+            "view_id": 12,
+            "embedding_id": 99,
+            "vector_id": "99",
+        },
+    )
+
+    assert telemetry.durations == [
+        (
+            "embedding_job",
+            1.25,
+            {"service": "embedding", "event": "embedding_job"},
+        )
+    ]

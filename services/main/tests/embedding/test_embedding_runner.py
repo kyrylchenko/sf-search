@@ -286,9 +286,18 @@ def test_embedding_runner_reports_progress_events(tmp_path: Path) -> None:
     )
 
     event_names = [name for name, _ in events]
-    assert event_names[:2] == ["embedding_fetch_start", "embedding_fetch_complete"]
+    assert event_names[:3] == [
+        "embedding_batch_start",
+        "embedding_fetch_start",
+        "embedding_fetch_complete",
+    ]
     assert "embedding_job_start" in event_names
+    assert "embedding_image_complete" in event_names
+    assert "embedding_vector_store_complete" in event_names
     assert "embedding_job_complete" in event_names
+    complete_payload = dict(events[event_names.index("embedding_job_complete")][1])
+    assert complete_payload["pano_id"] == "pano-a"
+    assert complete_payload["view_id"] == view_id
 
 
 def test_embedding_runner_batches_image_embedding(tmp_path: Path) -> None:

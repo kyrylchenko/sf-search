@@ -385,12 +385,17 @@ def test_runner_reports_progress_events(tmp_path: Path) -> None:
     )
 
     event_names = [name for name, _ in events]
+    assert event_names[0] == "processing_batch_start"
     assert "processing_fetch_start" in event_names
     assert "processing_renderer_backend" in event_names
     assert "processing_fetch_complete" in event_names
     assert "processing_job_start" in event_names
     assert "processing_view_complete" in event_names
     assert "processing_job_complete" in event_names
+    view_complete_payload = dict(events[event_names.index("processing_view_complete")][1])
+    assert view_complete_payload["viewset_name"] == "candidate"
+    assert view_complete_payload["view_id"] == "center"
+    assert isinstance(view_complete_payload["db_view_id"], int)
 
 
 def test_runner_skips_duplicate_completed_view(tmp_path: Path) -> None:

@@ -106,6 +106,7 @@ async def run_processing_batch(
     max_embedding_queue_depth: int | None = None,
     progress: ProgressCallback | None = None,
 ) -> ProcessingRunResult:
+    _emit(progress, "processing_batch_start", {"limit": limit})
     _emit(progress, "processing_backpressure_check", {})
     if (
         embedding_queue is not None
@@ -362,7 +363,9 @@ def _process_job(
                     "processing_view_complete",
                     {
                         "pano_id": job.pano_id.value,
-                        "view_id": completed.id,
+                        "viewset_name": claim.viewset_name,
+                        "view_id": claim.view.id,
+                        "db_view_id": completed.id,
                         "image_path": completed.image_path or "",
                     },
                 )
