@@ -1,4 +1,5 @@
 x-main-service: &main-service
+  image: sf-search-main:latest
   build:
     context: .
     dockerfile: services/main/Dockerfile
