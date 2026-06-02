@@ -1,0 +1,3677 @@
+{
+  "description": "Expanded sf-search dashboard with existing pipeline panels plus extra latency, throughput, queue, Qdrant, log, temp-tile, explicit tile embedding throughput, per-tile embedding latency, and optional GPU panels.",
+  "image": "",
+  "layout": [
+    {
+      "h": 4,
+      "i": "1d32cdbd-7f7c-44b2-a95c-7a62f2df4001",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "h": 4,
+      "i": "7b5c8201-2744-4f44-930b-46ef4e4eac4e",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "h": 4,
+      "i": "87f2f1ac-8b25-4ca4-b93e-2b2f6f6f8a9d",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 6,
+      "y": 0
+    },
+    {
+      "h": 4,
+      "i": "d4c87784-3b72-4705-b5d7-2fd0e5a1a17d",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 9,
+      "y": 0
+    },
+    {
+      "h": 6,
+      "i": "0c9490c8-43fd-48ac-9fb8-fb01f7e40d0e",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "h": 6,
+      "i": "f6fd1231-19ea-4fb0-9c65-90e0a793f86a",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 4
+    },
+    {
+      "h": 6,
+      "i": "d8da80a0-dae3-471b-b93d-f731d38d813d",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 10
+    },
+    {
+      "h": 6,
+      "i": "61c8ac46-6f05-42de-b093-4f3cd10b5fcf",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 10
+    },
+    {
+      "h": 6,
+      "i": "8c445e6e-fab7-4647-95bd-87cc72c27ea4",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 16
+    },
+    {
+      "h": 6,
+      "i": "c505c12a-e316-4211-9901-eb262b98b6e9",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 16
+    },
+    {
+      "h": 6,
+      "i": "0af33cda-e870-445f-8014-bddf67408bb3",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 22
+    },
+    {
+      "h": 6,
+      "i": "5c11a8a0-97fd-470f-9efc-8c805b45fe96",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 22
+    },
+    {
+      "h": 6,
+      "i": "b7d12ce8-cb22-4e56-a3af-e2e1b1e22ad0",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 28
+    },
+    {
+      "h": 6,
+      "i": "fe705828-b88d-41ee-b0f8-eae49d477fbd",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 28
+    },
+    {
+      "h": 6,
+      "i": "211ae3ee-a5fb-417b-a1e5-0348b033fd3e",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 34
+    },
+    {
+      "h": 6,
+      "i": "1f7a2d92-4354-4d3f-a6aa-1cb9e540340b",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 34
+    },
+    {
+      "h": 6,
+      "i": "b3fde70d-0e1e-58fe-ba3d-2730df4de0e4",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 40
+    },
+    {
+      "h": 6,
+      "i": "373bd338-508a-51e4-8fee-d3c9d1c3f673",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 40
+    },
+    {
+      "h": 4,
+      "i": "a6cccaca-9369-5100-8cf5-159b9a793848",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 0,
+      "y": 47
+    },
+    {
+      "h": 4,
+      "i": "071ccaf5-a9ff-5618-bb8b-f4f296733604",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 3,
+      "y": 47
+    },
+    {
+      "h": 4,
+      "i": "22fb89c5-5151-563e-874e-966ca3efd2e9",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 6,
+      "y": 47
+    },
+    {
+      "h": 4,
+      "i": "e6837cd2-7cd8-5f42-ade2-e5caa1dcf153",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 9,
+      "y": 47
+    },
+    {
+      "h": 4,
+      "i": "e6e6bae0-c5f5-5195-8879-af2e2f9ca8d4",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 0,
+      "y": 51
+    },
+    {
+      "h": 4,
+      "i": "4b2a92b1-a643-5a60-ba32-1f806dc74b4e",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 3,
+      "y": 51
+    },
+    {
+      "h": 4,
+      "i": "74aeb07e-194c-5849-940f-46214e2c1540",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 6,
+      "y": 51
+    },
+    {
+      "h": 4,
+      "i": "7d69ec16-38cc-5bab-8e02-8c3c2b82a86c",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 9,
+      "y": 51
+    },
+    {
+      "h": 4,
+      "i": "05df3573-2f7c-5289-88b3-83865e5ce2e1",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 0,
+      "y": 55
+    },
+    {
+      "h": 4,
+      "i": "a6ae00e8-69e6-54fc-83ab-6b482b85f61a",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 3,
+      "y": 55
+    },
+    {
+      "h": 4,
+      "i": "215634a6-777c-550f-b9d5-f1a0fdb6486b",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 6,
+      "y": 55
+    },
+    {
+      "h": 4,
+      "i": "42847070-634d-5119-8433-8a275eac4972",
+      "moved": false,
+      "static": false,
+      "w": 3,
+      "x": 9,
+      "y": 55
+    },
+    {
+      "h": 6,
+      "i": "08dc6bd5-fe8f-5a16-b574-a3e8e862ba2c",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 59
+    },
+    {
+      "h": 6,
+      "i": "1dd0ec7f-dc4c-5dc1-ad04-4dc98a65a4b6",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 59
+    },
+    {
+      "h": 6,
+      "i": "fccf5173-1b1d-5aa1-91ce-86e9d4c71cc9",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 65
+    },
+    {
+      "h": 6,
+      "i": "5cb19164-c6e1-5474-b703-71642411d27b",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 65
+    },
+    {
+      "h": 6,
+      "i": "38176d4b-2bff-5b86-b09e-57754c7407c5",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 71
+    },
+    {
+      "h": 6,
+      "i": "06e0203b-efb6-5b3c-a6b0-e090c0d2f3cd",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 71
+    },
+    {
+      "h": 6,
+      "i": "aaa0d89d-edd5-546a-a624-06fca99419e2",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 77
+    },
+    {
+      "h": 6,
+      "i": "be4df2f4-19be-59f4-a232-b89eb7e060e3",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 77
+    },
+    {
+      "h": 6,
+      "i": "ffab370a-36db-5563-902b-da184c25467b",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 83
+    },
+    {
+      "h": 6,
+      "i": "b70ca0cf-8827-5fdd-9b24-3b015dc2cd6e",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 83
+    },
+    {
+      "h": 6,
+      "i": "58470abf-a1d3-5d1e-b57d-43ae33b65af0",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 89
+    },
+    {
+      "h": 6,
+      "i": "529bd1aa-39cd-593b-b2ea-1c80fd5f1432",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 89
+    },
+    {
+      "h": 6,
+      "i": "2f32cfc0-c823-5888-8e70-8a5691dde028",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 95
+    },
+    {
+      "h": 6,
+      "i": "90e07ba9-de4a-59f5-b9a6-482e06d6c701",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 95
+    },
+    {
+      "h": 6,
+      "i": "ad43b58b-5b7e-536e-a321-ff9c327e9b01",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 101
+    },
+    {
+      "h": 6,
+      "i": "30829aa1-0d2b-5f83-ac6b-8c09e5f3c512",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 101
+    },
+    {
+      "h": 6,
+      "i": "14fc9f09-3812-526c-a9d2-af982a690f6f",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 107
+    },
+    {
+      "h": 6,
+      "i": "16fb27f0-b02e-5633-a288-7029730b1bea",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 107
+    },
+    {
+      "h": 6,
+      "i": "c13296a4-af49-5f11-8555-00fa815299c7",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 113
+    },
+    {
+      "h": 6,
+      "i": "3c73003c-db96-5142-91f8-19b1c92d8f30",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 113
+    },
+    {
+      "h": 6,
+      "i": "5e26f70a-b748-5cd1-9b2d-eb644a299bb8",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 119
+    },
+    {
+      "h": 6,
+      "i": "13de496c-f37d-5f59-9b21-fac14cc5bb92",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 119
+    },
+    {
+      "h": 6,
+      "i": "7a6c5435-92fd-58a3-9ec7-ecc2cbc3b3ac",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 125
+    },
+    {
+      "h": 6,
+      "i": "62fe70ba-4400-54f5-8c6c-4affa08bc311",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 125
+    },
+    {
+      "h": 6,
+      "i": "d9c5f5e3-e884-54b1-9552-4ea5431c5ff5",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 131
+    },
+    {
+      "h": 6,
+      "i": "1d184a8d-5db3-55d8-b5ba-55e935df2b71",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 131
+    },
+    {
+      "h": 6,
+      "i": "5a4553d3-dbef-57a4-9dc5-0191acde1dd3",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 137
+    },
+    {
+      "h": 6,
+      "i": "f67600cb-85e7-5154-bb4c-3a297d3c573f",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 137
+    },
+    {
+      "h": 6,
+      "i": "3c2c4573-6d3e-52df-9d21-141e84743f87",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 143
+    },
+    {
+      "h": 6,
+      "i": "b8f5f9c8-3d82-5999-bb7f-d72043b07ba6",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 143
+    },
+    {
+      "h": 6,
+      "i": "741f00b8-bb1b-5c8c-8295-5d733acfc8f2",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 149
+    },
+    {
+      "h": 6,
+      "i": "26990c2c-5949-56e8-ba0e-7a66b7892afd",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 149
+    },
+    {
+      "h": 6,
+      "i": "79d13430-1a91-40af-8b72-0119870ef361",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 155
+    },
+    {
+      "h": 6,
+      "i": "9400cd74-d16c-4adc-b9f6-c9a403630046",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 12,
+      "y": 155
+    },
+    {
+      "h": 6,
+      "i": "6fd51e0f-f374-46ef-a8c4-fb2d8ba1d869",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 161
+    },
+    {
+      "h": 6,
+      "i": "5db9877e-d787-4222-9afd-53188ea752ba",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 12,
+      "y": 161
+    }
+  ],
+  "panelMap": {},
+  "tags": [
+    "sf-search",
+    "pipeline",
+    "otel",
+    "qdrant",
+    "nats"
+  ],
+  "title": "sf-search Pipeline Expanded",
+  "uploadedGrafana": false,
+  "variables": {},
+  "version": "2",
+  "widgets": [
+    {
+      "description": "Total map tiles marked complete in Postgres by the monitoring service.",
+      "fillSpans": false,
+      "id": "1d32cdbd-7f7c-44b2-a95c-7a62f2df4001",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "c7ae55ec-4e4f-4550-9b81-7d39554bf15c",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "complete tiles",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"map_tiles\",status=\"complete\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Tiles Complete",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Total panoramas marked downloaded in Postgres by the monitoring service.",
+      "fillSpans": false,
+      "id": "7b5c8201-2744-4f44-930b-46ef4e4eac4e",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "9aaab09d-8138-4692-b707-86998372ae90",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "downloaded panos",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"panoramas\",status=\"downloaded\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Panos Downloaded",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Total panorama views/tiles rendered by preprocessing.",
+      "fillSpans": false,
+      "id": "87f2f1ac-8b25-4ca4-b93e-2b2f6f6f8a9d",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "5bb63bfb-546b-4ec8-82fe-220bcb87736c",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "complete views",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"panorama_views\",status=\"complete\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Views Rendered",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Total complete embedding rows in Postgres.",
+      "fillSpans": false,
+      "id": "d4c87784-3b72-4705-b5d7-2fd0e5a1a17d",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "23981281-c048-4838-b460-99d33e131ecf",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "complete embeddings",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"embeddings\",status=\"complete\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embeddings Complete",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "P50, P95, and P99 latency for top-level worker batches. Embedding batch spans include fetch, claiming, model inference, Qdrant writes, DB updates, and message ack for up to the configured batch limit.",
+      "fillSpans": false,
+      "id": "0c9490c8-43fd-48ac-9fb8-fb01f7e40d0e",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "481870d5-ed93-4478-9887-56ca1b6ac695",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"discovery_batch|downloader_batch|processing_batch|embedding_batch|monitoring_snapshot\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"discovery_batch|downloader_batch|processing_batch|embedding_batch|monitoring_snapshot\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"discovery_batch|downloader_batch|processing_batch|embedding_batch|monitoring_snapshot\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Worker Batch Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Nested embedding stage p50/p95/p99 latency: fetch, claim, model encode, vector store, Qdrant upsert, DB update, ack, and full job.",
+      "fillSpans": false,
+      "id": "f6fd1231-19ea-4fb0-9c65-90e0a793f86a",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "457d527b-972f-4957-9f7f-cd2f6dcfd71e",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_claim|embedding_model_encode|embedding_vector_store|embedding_qdrant_upsert|embedding_db_update|embedding_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_claim|embedding_model_encode|embedding_vector_store|embedding_qdrant_upsert|embedding_db_update|embedding_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_fetch|embedding_job|embedding_claim|embedding_model_encode|embedding_vector_store|embedding_qdrant_upsert|embedding_db_update|embedding_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Stage Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Nested processing stage p50/p95/p99 latency: fetch, source load, render pool, per-view render, DB update, enqueue, ack, and full job.",
+      "fillSpans": false,
+      "id": "d8da80a0-dae3-471b-b93d-f731d38d813d",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "cb3f0af2-7380-4062-9c38-39fb2acf15c0",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_job|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing Stage Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "P50, P95, and P99 latency for query UI text embedding, Qdrant search, DB hydration, and total query time.",
+      "fillSpans": false,
+      "id": "61c8ac46-6f05-42de-b093-4f3cd10b5fcf",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "7ebe92eb-a892-459a-af3e-aad0654c9a41",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"query-ui\",operation=~\"text_embedding|vector_search|db_hydration|total\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"query-ui\",operation=~\"text_embedding|vector_search|db_hydration|total\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"query-ui\",operation=~\"text_embedding|vector_search|db_hydration|total\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Query UI Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Pending plus ack-pending NATS queue depth reported by the monitoring service.",
+      "fillSpans": false,
+      "id": "8c445e6e-fab7-4647-95bd-87cc72c27ea4",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "f9d27c47-1843-4e96-986b-d63991c3a73d",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{queue}}",
+            "name": "A",
+            "query": "max by (queue) (sf_search_nats_queue_pending)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "NATS Queue Pending",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Completed work rate by pipeline event. Useful for spotting throughput drops between stages.",
+      "fillSpans": false,
+      "id": "c505c12a-e316-4211-9901-eb262b98b6e9",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "ac999c26-af97-442a-9471-2fc9a0df1262",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{event}}",
+            "name": "A",
+            "query": "sum by (event) (rate(sf_search_pipeline_events_total{event=~\"downloader_job_complete|processing_job_complete|processing_view_complete|embedding_job_complete|discovery_batch_complete\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Pipeline Throughput",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Failed and skipped events by stage. Any sustained non-zero line needs attention.",
+      "fillSpans": false,
+      "id": "0af33cda-e870-445f-8014-bddf67408bb3",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "eeb0fed3-49a3-4c1f-9a64-544e50b22fa1",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{event}}",
+            "name": "A",
+            "query": "sum by (event) (rate(sf_search_pipeline_events_total{event=~\".*_failed|.*_skipped\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Failures And Skips",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Database status counts by table and status. This is the source of truth for long-running progress.",
+      "fillSpans": false,
+      "id": "5c11a8a0-97fd-470f-9efc-8c805b45fe96",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "8f500008-9c36-46a0-895d-4d723bc60228",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{table}} {{status}}",
+            "name": "A",
+            "query": "max by (table, status) (sf_search_status_rows)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "DB Status Counts",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Qdrant collection size and indexed vector count. Points should track complete embedding rows.",
+      "fillSpans": false,
+      "id": "b7d12ce8-cb22-4e56-a3af-e2e1b1e22ad0",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "04a9bace-7215-4692-a749-dc1f11de360b",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{field}}",
+            "name": "A",
+            "query": "max by (field, collection) (sf_search_qdrant_collection{field=~\"points_count|vectors_count|indexed_vectors_count\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Qdrant Collection",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Coverage totals from the monitoring snapshot. Panos with location should match or approach total panos.",
+      "fillSpans": false,
+      "id": "fe705828-b88d-41ee-b0f8-eae49d477fbd",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "6ff7c43c-37a6-4484-bb0a-7ed8412d0307",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{field}}",
+            "name": "A",
+            "query": "max by (field) (sf_search_coverage{field=~\"panos_total|panos_with_location\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Coverage Totals",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Log lines grouped by severity for sf-search services. This uses SigNoz ClickHouse logs schema v2.",
+      "fillSpans": false,
+      "id": "211ae3ee-a5fb-417b-a1e5-0348b033fd3e",
+      "isStacked": true,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "bar",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "{{severity}}",
+            "name": "A",
+            "query": "WITH __resource_filter AS (\n  SELECT fingerprint\n  FROM signoz_logs.distributed_logs_v2_resource\n  WHERE simpleJSONExtractString(labels, 'service.name') LIKE 'sf-search%'\n    AND seen_at_ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n)\nSELECT\n  now() AS ts,\n  if(severity_text = '', 'UNSPECIFIED', severity_text) AS severity,\n  toFloat64(count()) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE resource_fingerprint GLOBAL IN __resource_filter\n  AND timestamp >= $start_timestamp_nano\n  AND timestamp <= $end_timestamp_nano\n  AND ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\nGROUP BY severity, ts\nORDER BY value DESC"
+          }
+        ],
+        "id": "f942abfd-b0f2-4a3f-8485-a8b81045fa4d",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "clickhouse_sql"
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "string",
+          "name": "body",
+          "type": ""
+        },
+        {
+          "dataType": "string",
+          "name": "timestamp",
+          "type": ""
+        }
+      ],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": true,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Log Levels",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Error and warning log rate by service. This uses SigNoz ClickHouse logs schema v2.",
+      "fillSpans": false,
+      "id": "1f7a2d92-4354-4d3f-a6aa-1cb9e540340b",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "{{service}} {{severity}}",
+            "name": "A",
+            "query": "WITH __resource_filter AS (\n  SELECT fingerprint\n  FROM signoz_logs.distributed_logs_v2_resource\n  WHERE simpleJSONExtractString(labels, 'service.name') LIKE 'sf-search%'\n    AND seen_at_ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n)\nSELECT\n  toStartOfInterval(fromUnixTimestamp64Nano(timestamp), INTERVAL 1 MINUTE) AS ts,\n  resource.`service.name`::String AS service,\n  if(severity_text = '', 'UNSPECIFIED', severity_text) AS severity,\n  toFloat64(count()) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE resource_fingerprint GLOBAL IN __resource_filter\n  AND timestamp >= $start_timestamp_nano\n  AND timestamp <= $end_timestamp_nano\n  AND ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n  AND severity_text IN ('ERROR', 'WARN', 'WARNING', 'FATAL')\nGROUP BY ts, service, severity\nORDER BY ts ASC"
+          }
+        ],
+        "id": "41f087b2-fb20-467b-b6bc-bd82bd7ebdec",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "clickhouse_sql"
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "string",
+          "name": "body",
+          "type": ""
+        },
+        {
+          "dataType": "string",
+          "name": "timestamp",
+          "type": ""
+        }
+      ],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Warn/Error Logs",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Nested downloader stage p50/p95/p99 latency: fetch, claim, resolve, download, DB update, enqueue, ack, and full job.",
+      "fillSpans": false,
+      "id": "b3fde70d-0e1e-58fe-ba3d-2730df4de0e4",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0d3a048e-5b17-5e5b-a154-78959cefc93b",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_job|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_job|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_job|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Downloader Stage Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Monitoring snapshot gauges for fully embedded panos, panos with multiple rendered views, and complete embedding rows.",
+      "fillSpans": false,
+      "id": "373bd338-508a-51e4-8fee-d3c9d1c3f673",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "e355cf05-68ee-5f46-a126-7f8cd708f5a7",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{field}}",
+            "name": "A",
+            "query": "max by (field) (sf_search_embedding_progress{field=~\"panos_fully_embedded|panos_with_multiple_views|embeddings_complete\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Progress",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current pending panorama rows in Postgres.",
+      "fillSpans": false,
+      "id": "a6cccaca-9369-5100-8cf5-159b9a793848",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "8734389f-c3ae-5ee5-a7b3-56a5a72d5199",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Panos Pending",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"panoramas\",status=\"pending\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Panos Pending",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current failed panorama download rows in Postgres.",
+      "fillSpans": false,
+      "id": "071ccaf5-a9ff-5618-bb8b-f4f296733604",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "7fb8f20e-e159-5242-873e-f0fe96463354",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Panos Failed",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"panoramas\",status=\"failed\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Panos Failed",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current panorama view rows marked processing.",
+      "fillSpans": false,
+      "id": "22fb89c5-5151-563e-874e-966ca3efd2e9",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "58329f90-0931-52df-a72c-f6a4885519ac",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Views Processing",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"panorama_views\",status=\"processing\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Views Processing",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current failed panorama view rows in Postgres.",
+      "fillSpans": false,
+      "id": "e6837cd2-7cd8-5f42-ade2-e5caa1dcf153",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "641aa14f-2a3b-561d-902c-5779e8012c4a",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Views Failed",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"panorama_views\",status=\"failed\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Views Failed",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current embedding rows marked processing.",
+      "fillSpans": false,
+      "id": "e6e6bae0-c5f5-5195-8879-af2e2f9ca8d4",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "6ecfe7db-596c-5a4e-a3d1-9305beb77b78",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Embeddings Processing",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"embeddings\",status=\"processing\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embeddings Processing",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current failed embedding rows in Postgres.",
+      "fillSpans": false,
+      "id": "4b2a92b1-a643-5a60-ba32-1f806dc74b4e",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "39c320a9-5e65-581b-a915-5813b2579991",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Embeddings Failed",
+            "name": "A",
+            "query": "max(sf_search_status_rows{table=\"embeddings\",status=\"failed\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embeddings Failed",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current pending messages in the processing queue.",
+      "fillSpans": false,
+      "id": "74aeb07e-194c-5849-940f-46214e2c1540",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "1060b3ff-0291-59f7-a229-6b3e9b8a57d6",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Processing Queue Pending",
+            "name": "A",
+            "query": "max(sf_search_nats_queue_pending{queue=\"processing\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing Queue Pending",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current pending messages in the embedding queue.",
+      "fillSpans": false,
+      "id": "7d69ec16-38cc-5bab-8e02-8c3c2b82a86c",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0e0ea0f7-5e04-5413-95bc-c393c30f533e",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Embedding Queue Pending",
+            "name": "A",
+            "query": "max(sf_search_nats_queue_pending{queue=\"embedding\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Queue Pending",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current Qdrant points count for the configured collection.",
+      "fillSpans": false,
+      "id": "05df3573-2f7c-5289-88b3-83865e5ce2e1",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "00704a36-1d5a-5574-b7f9-1630b2c15f77",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Qdrant Points",
+            "name": "A",
+            "query": "max(sf_search_qdrant_collection{field=\"points_count\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Qdrant Points",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Current indexed vector count reported by Qdrant.",
+      "fillSpans": false,
+      "id": "a6ae00e8-69e6-54fc-83ab-6b482b85f61a",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "4210517a-e132-547a-b4e3-cc1ebccc6aa5",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Qdrant Indexed Vectors",
+            "name": "A",
+            "query": "max(sf_search_qdrant_collection{field=\"indexed_vectors_count\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Qdrant Indexed Vectors",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Panoramas with more than one rendered view and all complete views embedded.",
+      "fillSpans": false,
+      "id": "215634a6-777c-550f-b9d5-f1a0fdb6486b",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "8ea8175c-cbe8-5245-a06f-21e2219b09da",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Panos Fully Embedded",
+            "name": "A",
+            "query": "max(sf_search_embedding_progress{field=\"panos_fully_embedded\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Panos Fully Embedded",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Panoramas with more than one complete rendered view.",
+      "fillSpans": false,
+      "id": "42847070-634d-5119-8433-8a275eac4972",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "value",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "23ad5f19-237e-5908-85ec-3cd290fd87c5",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "Panos With Multiple Views",
+            "name": "A",
+            "query": "max(sf_search_embedding_progress{field=\"panos_with_multiple_views\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Panos With Multiple Views",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Completion rate for downloader, processing, embedding, and discovery events.",
+      "fillSpans": false,
+      "id": "08dc6bd5-fe8f-5a16-b574-a3e8e862ba2c",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "62a4e424-4739-57b3-9a56-135fe72cf3d7",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{service}} {{event}}",
+            "name": "A",
+            "query": "sum by (service, event) (rate(sf_search_pipeline_events_total{event=~\"discovery_batch_complete|downloader_job_complete|processing_job_complete|processing_view_complete|embedding_job_complete\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Pipeline Job Throughput By Service",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "How often workers begin batches/jobs/views. Useful to see stalled services even before completion.",
+      "fillSpans": false,
+      "id": "1dd0ec7f-dc4c-5dc1-ad04-4dc98a65a4b6",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "8591fe4e-ec66-5de6-a5dc-583b8348222a",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{service}} {{event}}",
+            "name": "A",
+            "query": "sum by (service, event) (rate(sf_search_pipeline_events_total{event=~\"downloader_batch_start|downloader_job_start|processing_batch_start|processing_job_start|processing_view_start|embedding_batch_start|embedding_job_start\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Pipeline Start Rate By Service",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Failures, skips, and pauses by event and service.",
+      "fillSpans": false,
+      "id": "fccf5173-1b1d-5aa1-91ce-86e9d4c71cc9",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "38caeea6-0a10-5bbd-98b1-5dcd9627842a",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{service}} {{event}}",
+            "name": "A",
+            "query": "sum by (service, event) (rate(sf_search_pipeline_events_total{event=~\".*_failed|.*_skipped|.*_paused\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Pipeline Failure And Skip Rate By Service",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Embedding temp tile deletion, missing, skipped, and cleanup failure events.",
+      "fillSpans": false,
+      "id": "5cb19164-c6e1-5474-b703-71642411d27b",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "df08a83c-7b1f-571e-aa7c-41a3b24ff960",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{event}}",
+            "name": "A",
+            "query": "sum by (event) (rate(sf_search_pipeline_events_total{event=~\"embedding_temp_tile_deleted|embedding_temp_tile_missing|embedding_temp_tile_cleanup_skipped|embedding_temp_tile_cleanup_failed|embedding_temp_tile_db_clear_failed\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Temp Tile Cleanup Events",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Pending NATS messages by queue from the monitoring worker.",
+      "fillSpans": false,
+      "id": "38176d4b-2bff-5b86-b09e-57754c7407c5",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "50db435d-2d1d-501c-98e9-2d32ef4fd1d4",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{queue}}",
+            "name": "A",
+            "query": "max by (queue) (sf_search_nats_queue_pending)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Queue Backlog Detail",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "All monitored Postgres row counts by table and status.",
+      "fillSpans": false,
+      "id": "06e0203b-efb6-5b3c-a6b0-e090c0d2f3cd",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "6507ac2a-0525-557a-ae65-cdc7e8547cca",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{table}} {{status}}",
+            "name": "A",
+            "query": "max by (table, status) (sf_search_status_rows)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "DB Status Rows Detail",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Failed rows by table, useful for alerting and triage.",
+      "fillSpans": false,
+      "id": "aaa0d89d-edd5-546a-a624-06fca99419e2",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "c76cbaa3-8b2b-5390-888c-9fe6197199c2",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{table}} {{status}}",
+            "name": "A",
+            "query": "max by (table, status) (sf_search_status_rows{status=~\"failed|error\"})"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "DB Failed Rows Only",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Coverage totals emitted by the monitoring service.",
+      "fillSpans": false,
+      "id": "be4df2f4-19be-59f4-a232-b89eb7e060e3",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "6b155e15-6d75-577a-b9c2-1362d308ed64",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{field}}",
+            "name": "A",
+            "query": "max by (field) (sf_search_coverage)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Coverage Progress",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Embedding progress summary emitted by the monitoring service.",
+      "fillSpans": false,
+      "id": "ffab370a-36db-5563-902b-da184c25467b",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "45ef6236-5fb9-54af-be83-7c039f17175f",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{field}}",
+            "name": "A",
+            "query": "max by (field) (sf_search_embedding_progress)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Progress Detail",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "P50/P95/P99 for top-level and major child pipeline operations.",
+      "fillSpans": false,
+      "id": "b70ca0cf-8827-5fdd-9b24-3b015dc2cd6e",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "cd6626fd-563d-5fc0-b40d-9197d650a94c",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{service}} {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"discovery_batch|downloader_batch|downloader_fetch|downloader_job|processing_batch|processing_fetch|processing_job|processing_render_pool|embedding_batch|embedding_fetch|embedding_job|monitoring_snapshot\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{service}} {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"discovery_batch|downloader_batch|downloader_fetch|downloader_job|processing_batch|processing_fetch|processing_job|processing_render_pool|embedding_batch|embedding_fetch|embedding_job|monitoring_snapshot\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{service}} {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"discovery_batch|downloader_batch|downloader_fetch|downloader_job|processing_batch|processing_fetch|processing_job|processing_render_pool|embedding_batch|embedding_fetch|embedding_job|monitoring_snapshot\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "All Pipeline Operation Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Downloader fetch, claim, resolve, download, DB update, enqueue, and ack latency.",
+      "fillSpans": false,
+      "id": "58470abf-a1d3-5d1e-b57d-43ae33b65af0",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "f0b8caab-9fe3-57d8-b175-125b77948ea4",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{service}} {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{service}} {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{service}} {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"downloader_fetch|downloader_claim|downloader_resolve|downloader_download|downloader_db_update|downloader_enqueue_processing|downloader_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Downloader Detailed Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Processing fetch, source load, render pool, render, DB update, enqueue, and ack latency.",
+      "fillSpans": false,
+      "id": "529bd1aa-39cd-593b-b2ea-1c80fd5f1432",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "57bc227e-0de2-5fc8-b579-b68b58f61657",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{service}} {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{service}} {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{service}} {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_fetch|processing_source_load|processing_render_pool|processing_render|processing_db_update|processing_enqueue_embedding|processing_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing Detailed Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Per-view render latency. This is the main CPU preprocessing bottleneck.",
+      "fillSpans": false,
+      "id": "2f32cfc0-c823-5888-8e70-8a5691dde028",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "24de2392-f05e-59d7-9367-7f5877e47605",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_render\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_render\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_render\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing Render Latency Only",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Pano file load/decode latency before rendering starts.",
+      "fillSpans": false,
+      "id": "90e07ba9-de4a-59f5-b9a6-482e06d6c701",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "639a05ee-686b-54d8-9951-26043c8024d6",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_source_load\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_source_load\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"processing_source_load\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing Source Load Latency Only",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Model inference latency for image embedding batches or single-tile jobs.",
+      "fillSpans": false,
+      "id": "ad43b58b-5b7e-536e-a321-ff9c327e9b01",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "4bba2f3d-80fa-5c42-818c-fecfec0606d7",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{service}} {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_model_encode\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{service}} {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_model_encode\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{service}} {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_model_encode\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Model Encode Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Time spent writing vectors into Qdrant.",
+      "fillSpans": false,
+      "id": "30829aa1-0d2b-5f83-ac6b-8c09e5f3c512",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "4ac258e1-f1d1-55fc-9f41-24c202fdc153",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{service}} {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_qdrant_upsert|embedding_vector_store\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{service}} {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_qdrant_upsert|embedding_vector_store\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{service}} {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_qdrant_upsert|embedding_vector_store\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Qdrant Upsert Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Embedding claim, DB update, and NATS ack overhead apart from model inference.",
+      "fillSpans": false,
+      "id": "14fc9f09-3812-526c-a9d2-af982a690f6f",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "393a53ac-b6ad-54f8-8577-357ec7fc80c5",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{service}} {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_claim|embedding_db_update|embedding_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{service}} {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_claim|embedding_db_update|embedding_ack\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{service}} {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, service, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"embedding_claim|embedding_db_update|embedding_ack\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Claim DB Ack Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Text embedding, vector search, DB hydration, and total query UI latency.",
+      "fillSpans": false,
+      "id": "16fb27f0-b02e-5633-a288-7029730b1bea",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "44a06e9e-e397-5bcf-ad62-6ee17918a5d1",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"query-ui\",operation=~\"text_embedding|vector_search|db_hydration|total\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"query-ui\",operation=~\"text_embedding|vector_search|db_hydration|total\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"query-ui\",operation=~\"text_embedding|vector_search|db_hydration|total\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Query UI Detailed Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Monitoring worker snapshot latency, including DB/queue/Qdrant checks.",
+      "fillSpans": false,
+      "id": "c13296a4-af49-5f11-8555-00fa815299c7",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "790bf341-b085-5c08-bbcc-9efdec998562",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{operation}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"monitoring_snapshot\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{operation}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"monitoring_snapshot\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{operation}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, operation) (rate(sf_search_pipeline_duration_seconds_bucket{operation=~\"monitoring_snapshot\"}[5m])))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Monitoring Snapshot Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "All emitted Qdrant collection fields for the configured collection.",
+      "fillSpans": false,
+      "id": "3c73003c-db96-5142-91f8-19b1c92d8f30",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "63150867-9e3b-5e3e-ba11-4fb77f56e2bf",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{collection}} {{field}}",
+            "name": "A",
+            "query": "max by (collection, field) (sf_search_qdrant_collection)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Qdrant Collection Detail",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Indexed vectors divided by vector count. Near 1 means Qdrant has indexed most stored vectors.",
+      "fillSpans": false,
+      "id": "5e26f70a-b748-5cd1-9b2d-eb644a299bb8",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0c94343c-c6a5-5a11-bbd1-7f42ad8a2555",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "indexed/vector ratio",
+            "name": "A",
+            "query": "max(sf_search_qdrant_collection{field=\"indexed_vectors_count\"}) / clamp_min(max(sf_search_qdrant_collection{field=\"vectors_count\"}), 1)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Qdrant Index Readiness Ratio",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Completed query UI searches per second.",
+      "fillSpans": false,
+      "id": "13de496c-f37d-5f59-9b21-fac14cc5bb92",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "44375b47-349f-5595-bada-9f4e0e804a94",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "query searches",
+            "name": "A",
+            "query": "sum(rate(sf_search_pipeline_events_total{service=\"query-ui\",event=\"query_ui_search_complete\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Query UI Request Rate",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Embedding completion, failure, and skip event rates.",
+      "fillSpans": false,
+      "id": "7a6c5435-92fd-58a3-9ec7-ecc2cbc3b3ac",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "2caa8436-b31c-5610-a359-c553ad13146b",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{event}}",
+            "name": "A",
+            "query": "sum by (event) (rate(sf_search_pipeline_events_total{event=~\"embedding_job_complete|embedding_job_failed|embedding_job_skipped\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Completion Rate",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Processing view completion/failure/skip rates.",
+      "fillSpans": false,
+      "id": "62fe70ba-4400-54f5-8c6c-4affa08bc311",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0686643b-2a59-5a4e-a308-465aa8a6fa87",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{event}}",
+            "name": "A",
+            "query": "sum by (event) (rate(sf_search_pipeline_events_total{event=~\"processing_view_complete|processing_view_failed|processing_view_skipped\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing View Completion Rate",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Downloader completion/failure/skip rates.",
+      "fillSpans": false,
+      "id": "d9c5f5e3-e884-54b1-9552-4ea5431c5ff5",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "f8a0a268-4ee9-52b0-9712-6d5da9013b52",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "{{event}}",
+            "name": "A",
+            "query": "sum by (event) (rate(sf_search_pipeline_events_total{event=~\"downloader_job_complete|downloader_job_failed|downloader_job_skipped\"}[5m]))"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Downloader Completion Rate",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Optional NVIDIA/DCGM GPU utilization if a GPU metrics exporter is connected.",
+      "fillSpans": false,
+      "id": "1d184a8d-5db3-55d8-b5ba-55e935df2b71",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "0af03aca-ff18-5238-8aa1-f02e4538d3e2",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "gpu {{gpu}}",
+            "name": "A",
+            "query": "avg by (gpu) (DCGM_FI_DEV_GPU_UTIL)"
+          },
+          {
+            "disabled": false,
+            "legend": "device {{UUID}}",
+            "name": "B",
+            "query": "avg by (UUID) (DCGM_FI_DEV_GPU_UTIL)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Optional GPU Utilization",
+      "yAxisUnit": "percent"
+    },
+    {
+      "description": "Optional NVIDIA/DCGM framebuffer memory used if a GPU metrics exporter is connected.",
+      "fillSpans": false,
+      "id": "5a4553d3-dbef-57a4-9dc5-0191acde1dd3",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "56fd3508-b6f0-5964-8cc1-fc293b07a541",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "gpu {{gpu}}",
+            "name": "A",
+            "query": "avg by (gpu) (DCGM_FI_DEV_FB_USED)"
+          },
+          {
+            "disabled": false,
+            "legend": "device {{UUID}}",
+            "name": "B",
+            "query": "avg by (UUID) (DCGM_FI_DEV_FB_USED)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Optional GPU Memory Used",
+      "yAxisUnit": "MB"
+    },
+    {
+      "description": "Optional NVIDIA/DCGM power and temperature if a GPU metrics exporter is connected.",
+      "fillSpans": false,
+      "id": "f67600cb-85e7-5154-bb4c-3a297d3c573f",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "id": "daf9bd20-ebef-54be-b2c8-0ca51e4e3397",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "power {{gpu}}",
+            "name": "A",
+            "query": "avg by (gpu) (DCGM_FI_DEV_POWER_USAGE)"
+          },
+          {
+            "disabled": false,
+            "legend": "temp {{gpu}}",
+            "name": "B",
+            "query": "avg by (gpu) (DCGM_FI_DEV_GPU_TEMP)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Optional GPU Power And Temperature",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Log line rate by sf-search service.",
+      "fillSpans": false,
+      "id": "3c2c4573-6d3e-52df-9d21-141e84743f87",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "{{service}}",
+            "name": "A",
+            "query": "WITH __resource_filter AS (\n  SELECT fingerprint\n  FROM signoz_logs.distributed_logs_v2_resource\n  WHERE simpleJSONExtractString(labels, 'service.name') LIKE 'sf-search%'\n    AND seen_at_ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n)\nSELECT\n  toStartOfInterval(fromUnixTimestamp64Nano(timestamp), INTERVAL 1 MINUTE) AS ts,\n  resource.`service.name`::String AS service,\n  toFloat64(count()) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE resource_fingerprint GLOBAL IN __resource_filter\n  AND timestamp >= $start_timestamp_nano\n  AND timestamp <= $end_timestamp_nano\n  AND ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\nGROUP BY ts, service\nORDER BY ts ASC"
+          }
+        ],
+        "id": "6b8fc700-b87c-53a6-9374-6ba55f9be7a0",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "clickhouse_sql"
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "string",
+          "name": "body",
+          "type": ""
+        },
+        {
+          "dataType": "string",
+          "name": "timestamp",
+          "type": ""
+        }
+      ],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Logs By Service",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Most common warning/error log message bodies during the selected range.",
+      "fillSpans": false,
+      "id": "b8f5f9c8-3d82-5999-bb7f-d72043b07ba6",
+      "isStacked": true,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "bar",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "{{message}}",
+            "name": "A",
+            "query": "WITH __resource_filter AS (\n  SELECT fingerprint\n  FROM signoz_logs.distributed_logs_v2_resource\n  WHERE simpleJSONExtractString(labels, 'service.name') LIKE 'sf-search%'\n    AND seen_at_ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n)\nSELECT\n  now() AS ts,\n  substring(body, 1, 140) AS message,\n  toFloat64(count()) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE resource_fingerprint GLOBAL IN __resource_filter\n  AND timestamp >= $start_timestamp_nano\n  AND timestamp <= $end_timestamp_nano\n  AND ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n  AND severity_text IN ('ERROR', 'WARN', 'WARNING', 'FATAL')\nGROUP BY message, ts\nORDER BY value DESC\nLIMIT 20"
+          }
+        ],
+        "id": "9e256386-fc07-50f3-8c55-b4c65def9bd3",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "clickhouse_sql"
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "string",
+          "name": "body",
+          "type": ""
+        },
+        {
+          "dataType": "string",
+          "name": "timestamp",
+          "type": ""
+        }
+      ],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "stackedBarChart": true,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Top Warning And Error Messages",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Embedding service warning/error log rate.",
+      "fillSpans": false,
+      "id": "741f00b8-bb1b-5c8c-8295-5d733acfc8f2",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "{{severity}}",
+            "name": "A",
+            "query": "WITH __resource_filter AS (\n  SELECT fingerprint\n  FROM signoz_logs.distributed_logs_v2_resource\n  WHERE simpleJSONExtractString(labels, 'service.name') LIKE 'sf-search%'\n    AND seen_at_ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n)\nSELECT\n  toStartOfInterval(fromUnixTimestamp64Nano(timestamp), INTERVAL 1 MINUTE) AS ts,\n  if(severity_text = '', 'UNSPECIFIED', severity_text) AS severity,\n  toFloat64(count()) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE resource_fingerprint GLOBAL IN __resource_filter\n  AND timestamp >= $start_timestamp_nano\n  AND timestamp <= $end_timestamp_nano\n  AND ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n  AND resource.`service.name`::String = 'sf-search-embedding'\n  AND severity_text IN ('ERROR', 'WARN', 'WARNING', 'FATAL')\nGROUP BY ts, severity\nORDER BY ts ASC"
+          }
+        ],
+        "id": "1675ed0a-84ec-5793-af60-2d08e486b4c5",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "clickhouse_sql"
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "string",
+          "name": "body",
+          "type": ""
+        },
+        {
+          "dataType": "string",
+          "name": "timestamp",
+          "type": ""
+        }
+      ],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Error Logs",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Processing service warning/error log rate.",
+      "fillSpans": false,
+      "id": "26990c2c-5949-56e8-ba0e-7a66b7892afd",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "{{severity}}",
+            "name": "A",
+            "query": "WITH __resource_filter AS (\n  SELECT fingerprint\n  FROM signoz_logs.distributed_logs_v2_resource\n  WHERE simpleJSONExtractString(labels, 'service.name') LIKE 'sf-search%'\n    AND seen_at_ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n)\nSELECT\n  toStartOfInterval(fromUnixTimestamp64Nano(timestamp), INTERVAL 1 MINUTE) AS ts,\n  if(severity_text = '', 'UNSPECIFIED', severity_text) AS severity,\n  toFloat64(count()) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE resource_fingerprint GLOBAL IN __resource_filter\n  AND timestamp >= $start_timestamp_nano\n  AND timestamp <= $end_timestamp_nano\n  AND ts_bucket_start BETWEEN $start_timestamp - 1800 AND $end_timestamp\n  AND resource.`service.name`::String = 'sf-search-processing'\n  AND severity_text IN ('ERROR', 'WARN', 'WARNING', 'FATAL')\nGROUP BY ts, severity\nORDER BY ts ASC"
+          }
+        ],
+        "id": "0ea01542-6641-51c7-a15c-f970dd1ff835",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "clickhouse_sql"
+      },
+      "selectedLogFields": [
+        {
+          "dataType": "string",
+          "name": "body",
+          "type": ""
+        },
+        {
+          "dataType": "string",
+          "name": "timestamp",
+          "type": ""
+        }
+      ],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Processing Error Logs",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Accurate tile embedding throughput. Each embedding_job_complete event is one completed panorama view/tile, including batched embedding runs.",
+      "fillSpans": false,
+      "id": "79d13430-1a91-40af-8b72-0119870ef361",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "promql",
+        "id": "0033c486-7bf3-4770-b950-512ff794ab9c",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "tiles/s",
+            "name": "A",
+            "query": "sum(rate(sf_search_pipeline_events_total{event=\"embedding_job_complete\"}[5m]))"
+          }
+        ]
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Tiles Embedded Per Second",
+      "yAxisUnit": "ops/s"
+    },
+    {
+      "description": "Same completed-tile signal as tiles/sec, scaled for longer run-rate planning.",
+      "fillSpans": false,
+      "id": "9400cd74-d16c-4adc-b9f6-c9a403630046",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "promql",
+        "id": "58a3d3c1-ae59-4628-a131-c1d5823cb80b",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "tiles/min",
+            "name": "A",
+            "query": "sum(rate(sf_search_pipeline_events_total{event=\"embedding_job_complete\"}[5m])) * 60"
+          }
+        ]
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Tiles Embedded Per Minute",
+      "yAxisUnit": "none"
+    },
+    {
+      "description": "Per-tile embedding job duration from claim through model/vector store/db/ack. Batch mode now records one embedding_job duration per tile.",
+      "fillSpans": false,
+      "id": "6fd51e0f-f374-46ef-a8c4-fb2d8ba1d869",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "promql",
+        "id": "d6cb07f0-0df0-40aa-9fca-5c37f4b32a87",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 {{mode}} {{status}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, mode, status) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"embedding\",operation=\"embedding_job\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 {{mode}} {{status}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, mode, status) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"embedding\",operation=\"embedding_job\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 {{mode}} {{status}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, mode, status) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"embedding\",operation=\"embedding_job\"}[5m])))"
+          }
+        ]
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Tile Embedding End-to-End Latency",
+      "yAxisUnit": "s"
+    },
+    {
+      "description": "Model inference timing for the encode call. In batch mode this is batch-level latency, not per-tile latency.",
+      "fillSpans": false,
+      "id": "5db9877e-d787-4222-9afd-53188ea752ba",
+      "isStacked": false,
+      "mergeAllActiveQueries": false,
+      "nullZeroValues": "zero",
+      "opacity": "1",
+      "panelTypes": "graph",
+      "query": {
+        "builder": {
+          "queryData": [],
+          "queryFormulas": []
+        },
+        "clickhouse_sql": [
+          {
+            "disabled": false,
+            "legend": "",
+            "name": "A",
+            "query": ""
+          }
+        ],
+        "queryType": "promql",
+        "id": "ff0f020c-123a-48b1-86f0-c9ea4d6c2aa0",
+        "promql": [
+          {
+            "disabled": false,
+            "legend": "p50 batch={{batch_size}}",
+            "name": "A",
+            "query": "histogram_quantile(0.50, sum by (le, batch_size) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"embedding\",operation=\"embedding_model_encode\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p95 batch={{batch_size}}",
+            "name": "B",
+            "query": "histogram_quantile(0.95, sum by (le, batch_size) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"embedding\",operation=\"embedding_model_encode\"}[5m])))"
+          },
+          {
+            "disabled": false,
+            "legend": "p99 batch={{batch_size}}",
+            "name": "C",
+            "query": "histogram_quantile(0.99, sum by (le, batch_size) (rate(sf_search_pipeline_duration_seconds_bucket{service=\"embedding\",operation=\"embedding_model_encode\"}[5m])))"
+          }
+        ]
+      },
+      "selectedLogFields": [],
+      "selectedTracesFields": [],
+      "softMax": 0,
+      "softMin": 0,
+      "thresholds": [],
+      "timePreferance": "GLOBAL_TIME",
+      "title": "Embedding Model Encode Batch Latency",
+      "yAxisUnit": "s"
+    }
+  ],
+  "uuid": "62396f35-2c68-5a6d-85ac-a7d2f405fbf5"
+}

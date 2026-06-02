@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -170,6 +171,39 @@ class FakeVectorStore:
                 }
             )
         return [str(record.vector_id) for record in records]
+
+
+class FakeTelemetry:
+    def __init__(self) -> None:
+        self.durations: list[tuple[str, float, dict[str, object]]] = []
+
+    def record_event(self, event: str, payload: dict[str, object]) -> None:
+        return None
+
+    def record_duration(
+        self,
+        name: str,
+        seconds: float,
+        attributes: dict[str, object],
+    ) -> None:
+        self.durations.append((name, seconds, attributes))
+
+    def set_gauge(
+        self,
+        name: str,
+        value: int | float,
+        attributes: dict[str, object],
+    ) -> None:
+        return None
+
+    def span(self, name: str, attributes: dict[str, object] | None = None):
+        return nullcontext()
+
+    def flush(self) -> None:
+        return None
+
+    def shutdown(self) -> None:
+        return None
 
 
 def test_embedding_runner_embeds_view_stores_vector_marks_complete_and_acks(
@@ -385,6 +419,75 @@ def test_embedding_runner_batches_image_embedding(tmp_path: Path) -> None:
     assert vector_store.add_many_calls == [2]
     assert not (tmp_path / "views" / "center.jpg").exists()
     assert not second_image_path.exists()
+
+
+def test_embedding_runner_records_per_tile_duration_for_batched_jobs(
+    tmp_path: Path,
+) -> None:
+    first_view_id, embedding_service = create_completed_view(tmp_path)
+    engine = embedding_service.engine
+    panorama_service = PanoramaService(engine)
+    view_service = PanoramaViewService(engine)
+    second_image_path = tmp_path / "views" / "second.jpg"
+    second_hash = write_image(second_image_path)
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-b"))
+    second_claim = view_service.claim_view_for_processing(
+        PanoramaId("pano-b"),
+        make_view_spec(str(second_image_path), second_hash),
+    )
+    assert second_claim is not None
+    second_view = view_service.mark_view_complete(
+        second_claim.id,
+        image_path=str(second_image_path),
+        image_hash=second_hash,
+        image_bytes=second_image_path.stat().st_size,
+    )
+    first = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-a"), first_view_id, str(tmp_path / "views" / "center.jpg"))
+    )
+    second = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-b"), second_view.id, str(second_image_path))
+    )
+    telemetry = FakeTelemetry()
+
+    result = asyncio.run(
+        run_embedding_batch(
+            embedding_service=embedding_service,
+            job_source=FakeJobSource([first, second]),
+            image_embedder=FakeImageEmbedder(),
+            vector_store=FakeVectorStore(),
+            model_spec=make_model_spec(),
+            limit=5,
+            concurrency=1,
+            batch_size=2,
+            telemetry=telemetry,
+        )
+    )
+
+    job_durations = [
+        (seconds, attributes)
+        for name, seconds, attributes in telemetry.durations
+        if name == "embedding_job" and attributes.get("mode") == "batch"
+    ]
+    assert result == EmbeddingRunResult(embedded=2, skipped=0, failed=0)
+    assert len(job_durations) == 2
+    assert all(seconds >= 0 for seconds, _ in job_durations)
+    assert [attributes for _, attributes in job_durations] == [
+        {
+            "service": "embedding",
+            "stage": "job",
+            "mode": "batch",
+            "status": "embedded",
+            "batch_size": 2,
+        },
+        {
+            "service": "embedding",
+            "stage": "job",
+            "mode": "batch",
+            "status": "embedded",
+            "batch_size": 2,
+        },
+    ]
 
 
 def test_embedding_runner_marks_batch_failed_when_vector_store_fails(tmp_path: Path) -> None:

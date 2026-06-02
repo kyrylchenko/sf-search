@@ -2,6 +2,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Callable, Protocol
 
 import numpy as np
@@ -47,6 +48,7 @@ class ClaimedEmbeddingJob:
     received_job: ReceivedPanoEmbeddingJob
     claim: PanoramaViewEmbedding
     image_path: Path
+    started_at: float
 
 
 async def run_embedding_batch(
@@ -316,7 +318,9 @@ async def _process_received_job_batch(
 ) -> list[str]:
     claimed_jobs: list[ClaimedEmbeddingJob] = []
     statuses: list[str] = []
+    actual_batch_size = len(received_jobs)
     for received_job in received_jobs:
+        job_started_at = perf_counter()
         job_payload = {
             "pano_id": received_job.job.pano_id.value,
             "view_id": received_job.job.view_id,
@@ -352,6 +356,12 @@ async def _process_received_job_batch(
                 await received_job.ack()
             _emit(progress, "embedding_ack_complete", job_payload)
             statuses.append("skipped")
+            _record_batch_job_duration(
+                telemetry,
+                started_at=job_started_at,
+                status="skipped",
+                batch_size=actual_batch_size,
+            )
             _emit(
                 progress,
                 "embedding_job_skipped",
@@ -379,6 +389,12 @@ async def _process_received_job_batch(
                 await received_job.ack()
             _emit(progress, "embedding_ack_complete", job_payload)
             statuses.append("failed")
+            _record_batch_job_duration(
+                telemetry,
+                started_at=job_started_at,
+                status="failed",
+                batch_size=actual_batch_size,
+            )
             _emit(
                 progress,
                 "embedding_job_failed",
@@ -395,6 +411,7 @@ async def _process_received_job_batch(
                 received_job=received_job,
                 claim=claim,
                 image_path=image_path,
+                started_at=job_started_at,
             )
         )
 
@@ -465,6 +482,12 @@ async def _process_received_job_batch(
             ):
                 await job.received_job.ack()
             statuses.append("failed")
+            _record_batch_job_duration(
+                telemetry,
+                started_at=job.started_at,
+                status="failed",
+                batch_size=len(claimed_jobs),
+            )
             _emit(
                 progress,
                 "embedding_job_failed",
@@ -562,6 +585,12 @@ async def _process_received_job_batch(
             ):
                 await job.received_job.ack()
             statuses.append("failed")
+            _record_batch_job_duration(
+                telemetry,
+                started_at=job.started_at,
+                status="failed",
+                batch_size=len(claimed_jobs),
+            )
             _emit(
                 progress,
                 "embedding_job_failed",
@@ -638,12 +667,38 @@ async def _process_received_job_batch(
             },
         )
         statuses.append("embedded")
+        _record_batch_job_duration(
+            telemetry,
+            started_at=job.started_at,
+            status="embedded",
+            batch_size=len(claimed_jobs),
+        )
         _emit(
             progress,
             "embedding_job_complete",
             job_payload,
         )
     return statuses
+
+
+def _record_batch_job_duration(
+    telemetry: PipelineTelemetry,
+    *,
+    started_at: float,
+    status: str,
+    batch_size: int,
+) -> None:
+    telemetry.record_duration(
+        "embedding_job",
+        max(0.0, perf_counter() - started_at),
+        {
+            "service": "embedding",
+            "stage": "job",
+            "mode": "batch",
+            "status": status,
+            "batch_size": batch_size,
+        },
+    )
 
 
 def _cleanup_claimed_temp_tile(
