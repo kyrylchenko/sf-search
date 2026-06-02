@@ -48,6 +48,16 @@ def test_render_results_page_uses_api_and_infinite_scroll_shell() -> None:
     assert ".local/panorama-views" not in html
 
 
+def test_render_results_page_includes_loading_indicators() -> None:
+    html = render_results_page(query="orange car", limit=50)
+
+    assert 'id="topLoader"' in html
+    assert "@keyframes tilePulse" in html
+    assert "tileSkeleton" in html
+    assert "article.classList.remove(\"is-loading\")" in html
+    assert "setLoading(true" in html
+
+
 def test_build_search_payload_uses_view_tile_urls_and_next_offset() -> None:
     payload = build_search_payload(
         query="u haul truck",

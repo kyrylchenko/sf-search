@@ -234,6 +234,38 @@ def render_results_page(*, query: str, limit: int) -> str:
       padding: 16px 20px;
       z-index: 1;
     }}
+    .topLoader {{
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+      z-index: 2;
+      background: #263142;
+    }}
+    .topLoader.is-active {{
+      opacity: 1;
+    }}
+    .topLoader::before {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-70%);
+      background: linear-gradient(90deg, transparent, #8ab8ff, transparent);
+      animation: topLoaderSweep 1.1s ease-in-out infinite;
+    }}
+    @keyframes topLoaderSweep {{
+      from {{
+        transform: translateX(-70%);
+      }}
+      to {{
+        transform: translateX(70%);
+      }}
+    }}
     form {{
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -277,6 +309,27 @@ def render_results_page(*, query: str, limit: int) -> str:
       overflow: hidden;
       background: #161f2d;
     }}
+    .thumb-link {{
+      position: relative;
+      display: block;
+      cursor: pointer;
+      background: #111927;
+    }}
+    .tileSkeleton {{
+      position: absolute;
+      inset: 0;
+      display: block;
+      background: #202b3b;
+      animation: tilePulse 1.25s ease-in-out infinite;
+    }}
+    @keyframes tilePulse {{
+      0%, 100% {{
+        background: #1a2433;
+      }}
+      50% {{
+        background: #34445a;
+      }}
+    }}
     .card img {{
       width: 100%;
       aspect-ratio: 1 / 1;
@@ -284,9 +337,15 @@ def render_results_page(*, query: str, limit: int) -> str:
       display: block;
       background: #0c111a;
     }}
-    .thumb-link {{
-      display: block;
-      cursor: pointer;
+    .card.is-loading img {{
+      opacity: 0;
+    }}
+    .card:not(.is-loading) .tileSkeleton {{
+      display: none;
+    }}
+    .card.is-error .tileSkeleton {{
+      animation: none;
+      background: #3a2630;
     }}
     .meta {{
       padding: 12px;
@@ -315,6 +374,7 @@ def render_results_page(*, query: str, limit: int) -> str:
   </style>
 </head>
 <body>
+  <div id="topLoader" class="topLoader" aria-hidden="true"></div>
   <header>
     <form method="get" action="/">
       <input name="q" value="{escaped_query}" placeholder="green graffiti of a woman">
@@ -329,6 +389,7 @@ def render_results_page(*, query: str, limit: int) -> str:
   <script>
     const grid = document.getElementById("results");
     const statusEl = document.getElementById("status");
+    const topLoader = document.getElementById("topLoader");
     const query = grid.dataset.query || "";
     const limit = Number(grid.dataset.limit || "50");
     let offset = 0;
@@ -347,9 +408,10 @@ def render_results_page(*, query: str, limit: int) -> str:
 
     function appendCard(result) {{
       const article = document.createElement("article");
-      article.className = "card";
+      article.className = "card is-loading";
       article.innerHTML = `
         <a class="thumb-link" href="${{escapeHtml(result.maps_url)}}" target="_blank" rel="noopener noreferrer">
+          <span class="tileSkeleton" aria-hidden="true"></span>
           <img src="${{escapeHtml(result.tile_url)}}" alt="${{escapeHtml(result.pano_id)}} ${{escapeHtml(result.view_id)}}" loading="lazy">
         </a>
         <div class="meta">
@@ -362,12 +424,25 @@ def render_results_page(*, query: str, limit: int) -> str:
           <span><a href="${{escapeHtml(result.maps_url)}}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></span>
         </div>
       `;
+      const image = article.querySelector("img");
+      image.addEventListener("load", () => {{
+        article.classList.remove("is-loading");
+      }});
+      image.addEventListener("error", () => {{
+        article.classList.remove("is-loading");
+        article.classList.add("is-error");
+      }});
       grid.appendChild(article);
+    }}
+
+    function setLoading(active) {{
+      topLoader.classList.toggle("is-active", active);
     }}
 
     async function loadNext() {{
       if (!query || loading || !hasMore) return;
       loading = true;
+      setLoading(true);
       statusEl.textContent = offset === 0 ? "Searching..." : "Loading more...";
       const params = new URLSearchParams({{ q: query, offset: String(offset), limit: String(limit) }});
       try {{
@@ -387,6 +462,7 @@ def render_results_page(*, query: str, limit: int) -> str:
         hasMore = false;
       }} finally {{
         loading = false;
+        setLoading(false);
       }}
     }}
 
