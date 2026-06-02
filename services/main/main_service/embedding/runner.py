@@ -11,6 +11,7 @@ from main_service.db.services.panorama_view_embedding_service import (
     PanoramaViewEmbeddingService,
 )
 from main_service.db.models.panorama_view_embedding import PanoramaViewEmbedding
+from main_service.db.services.panorama_view_service import PanoramaViewService
 from main_service.embedding.nats_source import ReceivedPanoEmbeddingJob
 from main_service.embedding.vector_store import VectorStore, VectorStoreRecord
 from main_service.logging_config import format_log_event
@@ -174,6 +175,10 @@ async def _process_received_job(
                     {"service": "embedding", **job_payload},
                     metric_attributes={"service": "embedding", "stage": "ack"},
                 ):
+                    _cleanup_temp_tile_file(
+                        Path(received_job.job.image_path),
+                        progress=progress,
+                    )
                     await received_job.ack()
                 _emit(progress, "embedding_ack_complete", job_payload)
                 _emit(progress, "embedding_job_skipped", job_payload)
@@ -245,6 +250,11 @@ async def _process_received_job(
                         vector_id=vector_id,
                     )
                 _emit(progress, "embedding_db_update_complete", db_payload)
+                _cleanup_claimed_temp_tile(
+                    embedding_service=embedding_service,
+                    claim=claim,
+                    progress=progress,
+                )
                 _emit(progress, "embedding_ack_start", job_payload)
                 with observed_span(
                     telemetry,
@@ -267,6 +277,11 @@ async def _process_received_job(
                 return "embedded"
             except Exception as exc:
                 embedding_service.mark_embedding_failed(claim.id, str(exc))
+                _cleanup_claimed_temp_tile(
+                    embedding_service=embedding_service,
+                    claim=claim,
+                    progress=progress,
+                )
                 _emit(progress, "embedding_ack_start", job_payload)
                 with observed_span(
                     telemetry,
@@ -333,6 +348,7 @@ async def _process_received_job_batch(
                 {"service": "embedding", **job_payload},
                 metric_attributes={"service": "embedding", "stage": "ack"},
             ):
+                _cleanup_temp_tile_file(Path(received_job.job.image_path), progress=progress)
                 await received_job.ack()
             _emit(progress, "embedding_ack_complete", job_payload)
             statuses.append("skipped")
@@ -347,6 +363,11 @@ async def _process_received_job_batch(
         if not image_path.exists():
             error = str(FileNotFoundError(str(image_path)))
             embedding_service.mark_embedding_failed(claim.id, error)
+            _cleanup_claimed_temp_tile(
+                embedding_service=embedding_service,
+                claim=claim,
+                progress=progress,
+            )
             _emit(progress, "embedding_ack_start", job_payload)
             with observed_span(
                 telemetry,
@@ -418,6 +439,11 @@ async def _process_received_job_batch(
     except Exception as exc:
         for job in claimed_jobs:
             embedding_service.mark_embedding_failed(job.claim.id, str(exc))
+            _cleanup_claimed_temp_tile(
+                embedding_service=embedding_service,
+                claim=job.claim,
+                progress=progress,
+            )
             _emit(
                 progress,
                 "embedding_ack_start",
@@ -510,6 +536,11 @@ async def _process_received_job_batch(
     except Exception as exc:
         for job in claimed_jobs:
             embedding_service.mark_embedding_failed(job.claim.id, str(exc))
+            _cleanup_claimed_temp_tile(
+                embedding_service=embedding_service,
+                claim=job.claim,
+                progress=progress,
+            )
             _emit(
                 progress,
                 "embedding_ack_start",
@@ -573,6 +604,11 @@ async def _process_received_job_batch(
                 vector_id=vector_id,
             )
         _emit(progress, "embedding_db_update_complete", job_payload)
+        _cleanup_claimed_temp_tile(
+            embedding_service=embedding_service,
+            claim=job.claim,
+            progress=progress,
+        )
         _emit(
             progress,
             "embedding_ack_start",
@@ -608,6 +644,51 @@ async def _process_received_job_batch(
             job_payload,
         )
     return statuses
+
+
+def _cleanup_claimed_temp_tile(
+    *,
+    embedding_service: PanoramaViewEmbeddingService,
+    claim: PanoramaViewEmbedding,
+    progress: ProgressCallback | None,
+) -> None:
+    _cleanup_temp_tile_file(Path(claim.source_image_path), progress=progress)
+    try:
+        PanoramaViewService(embedding_service.engine).clear_view_temp_image_path(
+            claim.panorama_view_id,
+            expected_path=claim.source_image_path,
+        )
+    except Exception as exc:
+        _emit(
+            progress,
+            "embedding_temp_tile_db_clear_failed",
+            {
+                "embedding_id": claim.id,
+                "view_id": claim.panorama_view_id,
+                "image_path": claim.source_image_path,
+                "error": str(exc),
+            },
+        )
+
+
+def _cleanup_temp_tile_file(path: Path, *, progress: ProgressCallback | None) -> None:
+    payload = {"image_path": str(path)}
+    if not path.exists():
+        _emit(progress, "embedding_temp_tile_missing", payload)
+        return
+    if not path.is_file():
+        _emit(progress, "embedding_temp_tile_cleanup_skipped", payload)
+        return
+    try:
+        path.unlink()
+    except Exception as exc:
+        _emit(
+            progress,
+            "embedding_temp_tile_cleanup_failed",
+            {**payload, "error": str(exc)},
+        )
+        return
+    _emit(progress, "embedding_temp_tile_deleted", payload)
 
 
 def _chunks[T](items: list[T], size: int) -> list[list[T]]:

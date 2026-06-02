@@ -98,6 +98,12 @@ def create_completed_view(tmp_path: Path) -> tuple[int, PanoramaViewEmbeddingSer
     return completed.id, embedding_service
 
 
+def view_image_path(embedding_service: PanoramaViewEmbeddingService, view_id: int) -> str | None:
+    view_service = PanoramaViewService(embedding_service.engine)
+    views = view_service.list_views_for_panorama(PanoramaId("pano-a"))
+    return next(view.image_path for view in views if view.id == view_id)
+
+
 @dataclass
 class FakeReceivedEmbeddingJob:
     job: PanoEmbeddingJob
@@ -200,6 +206,8 @@ def test_embedding_runner_embeds_view_stores_vector_marks_complete_and_acks(
     assert rows[0].vector_id == str(rows[0].id)
     assert vector_store.added[0]["vector_id"] == rows[0].id
     assert embedder.image_paths == [tmp_path / "views" / "center.jpg"]
+    assert not (tmp_path / "views" / "center.jpg").exists()
+    assert view_image_path(embedding_service, view_id) is None
 
 
 def test_embedding_runner_skips_duplicate_completed_embedding(tmp_path: Path) -> None:
@@ -238,6 +246,26 @@ def test_embedding_runner_skips_duplicate_completed_embedding(tmp_path: Path) ->
     assert result == EmbeddingRunResult(embedded=0, skipped=1, failed=0)
     assert second.acked
     assert len(vector_store.added) == 1
+    stale_path = tmp_path / "views" / "center.jpg"
+    write_image(stale_path)
+    third = FakeReceivedEmbeddingJob(
+        PanoEmbeddingJob(PanoramaId("pano-a"), view_id, str(stale_path))
+    )
+    result = asyncio.run(
+        run_embedding_batch(
+            embedding_service=embedding_service,
+            job_source=FakeJobSource([third]),
+            image_embedder=FakeImageEmbedder(),
+            vector_store=vector_store,
+            model_spec=make_model_spec(),
+            limit=5,
+            concurrency=1,
+        )
+    )
+
+    assert result == EmbeddingRunResult(embedded=0, skipped=1, failed=0)
+    assert third.acked
+    assert not stale_path.exists()
 
 
 def test_embedding_runner_marks_model_failure_and_acks(tmp_path: Path) -> None:
@@ -263,6 +291,8 @@ def test_embedding_runner_marks_model_failure_and_acks(tmp_path: Path) -> None:
     assert received.acked
     assert rows[0].embedding_status == ProcessingStatus.FAILED.value
     assert rows[0].last_error == "model failed"
+    assert not (tmp_path / "views" / "center.jpg").exists()
+    assert view_image_path(embedding_service, view_id) is None
 
 
 def test_embedding_runner_reports_progress_events(tmp_path: Path) -> None:
@@ -353,6 +383,8 @@ def test_embedding_runner_batches_image_embedding(tmp_path: Path) -> None:
     ]
     assert len(vector_store.added) == 2
     assert vector_store.add_many_calls == [2]
+    assert not (tmp_path / "views" / "center.jpg").exists()
+    assert not second_image_path.exists()
 
 
 def test_embedding_runner_marks_batch_failed_when_vector_store_fails(tmp_path: Path) -> None:
