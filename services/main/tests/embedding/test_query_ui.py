@@ -1,52 +1,78 @@
 from main_service.embedding.query_ui import (
     QueryResult,
+    TileRenderer,
     _extract_pano_heading,
+    build_search_payload,
     google_maps_street_view_url,
     render_results_page,
 )
+from PIL import Image
 
 
-def test_render_results_page_displays_local_images_and_embedding_metadata() -> None:
+def make_result(**overrides: object) -> QueryResult:
+    values = {
+        "score": 0.87,
+        "view_db_id": 7,
+        "pano_image_path": ".local/panoramas/pano-a.jpg",
+        "pano_id": "pano-a",
+        "viewset_name": "candidate",
+        "view_id": "center",
+        "relative_heading": 15.0,
+        "pitch": 10.0,
+        "fov": 77.0,
+        "rendered_width": 1024,
+        "rendered_height": 1024,
+        "output_format": "jpeg",
+        "image_quality": 95,
+        "model_id": "google/siglip2-so400m-patch14-384",
+        "vector_id": "42",
+        "latitude": 37.1234567,
+        "longitude": -122.7654321,
+        "pano_heading": 100.0,
+    }
+    values.update(overrides)
+    return QueryResult(**values)  # type: ignore[arg-type]
+
+
+def test_render_results_page_uses_api_and_infinite_scroll_shell() -> None:
     html = render_results_page(
         query="u haul truck",
-        results=[
-            QueryResult(
-                score=0.87,
-                image_path=".local/panorama-views/pano-a/candidate/center.jpg",
-                pano_id="pano-a",
-                viewset_name="candidate",
-                view_id="center",
-                relative_heading=15.0,
-                pitch=10.0,
-                fov=77.0,
-                rendered_width=1024,
-                rendered_height=1024,
-                model_id="google/siglip2-so400m-patch14-384",
-                vector_id="42",
-                latitude=37.1234567,
-                longitude=-122.7654321,
-                pano_heading=100.0,
-            )
-        ],
+        limit=50,
     )
 
     assert "u haul truck" in html
-    assert ".local/panorama-views/pano-a/candidate/center.jpg" in html
-    assert "pano-a" in html
-    assert "candidate / center" in html
-    assert "score 0.8700" in html
-    assert "heading 15.0" in html
-    assert "google/siglip2-so400m-patch14-384" in html
-    assert "Open in Google Maps" in html
-    assert "map_action=pano" in html
-    assert "heading=115.000000" in html
+    assert "/api/search" in html
+    assert "IntersectionObserver" in html
+    assert "data-query=\"u haul truck\"" in html
+    assert "data-limit=\"50\"" in html
+    assert ".local/panorama-views" not in html
+
+
+def test_build_search_payload_uses_view_tile_urls_and_next_offset() -> None:
+    payload = build_search_payload(
+        query="u haul truck",
+        results=[make_result()],
+        offset=50,
+        limit=50,
+        has_more=True,
+    )
+
+    assert payload["query"] == "u haul truck"
+    assert payload["offset"] == 50
+    assert payload["limit"] == 50
+    assert payload["next_offset"] == 100
+    assert payload["has_more"] is True
+    assert payload["results"][0]["tile_url"] == "/tile?view_id=7"
+    assert payload["results"][0]["pano_id"] == "pano-a"
+    assert payload["results"][0]["maps_url"].startswith("https://www.google.com/maps/@?")
 
 
 def test_google_maps_street_view_url_uses_north_based_heading() -> None:
     url = google_maps_street_view_url(
         QueryResult(
             score=0.87,
-            image_path=".local/panorama-views/pano-a/candidate/center.jpg",
+            view_db_id=7,
+            pano_image_path=".local/panoramas/pano-a.jpg",
             pano_id="pano-a",
             viewset_name="candidate",
             view_id="center",
@@ -55,6 +81,8 @@ def test_google_maps_street_view_url_uses_north_based_heading() -> None:
             fov=77.0,
             rendered_width=1024,
             rendered_height=1024,
+            output_format="jpeg",
+            image_quality=95,
             model_id="google/siglip2-so400m-patch14-384",
             vector_id="42",
             latitude=37.1234567,
@@ -79,3 +107,22 @@ def test_extract_pano_heading_converts_streetlevel_radians_to_degrees() -> None:
 
 def test_extract_pano_heading_keeps_explicit_degree_metadata() -> None:
     assert _extract_pano_heading({"heading_degrees": 100.0, "heading": 1.0}) == 100.0
+
+
+def test_tile_renderer_renders_view_from_panorama(tmp_path) -> None:
+    pano_path = tmp_path / "pano-a.jpg"
+    Image.new("RGB", (64, 32), color=(20, 40, 80)).save(pano_path)
+    renderer = TileRenderer(max_cached_panos=2)
+
+    data, content_type = renderer.render_tile(
+        make_result(
+            pano_image_path=str(pano_path),
+            rendered_width=32,
+            rendered_height=24,
+            output_format="jpeg",
+            image_quality=90,
+        )
+    )
+
+    assert content_type == "image/jpeg"
+    assert data.startswith(b"\xff\xd8")
