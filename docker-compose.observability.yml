@@ -1,7 +1,7 @@
 x-main-service: &main-service-observability
   environment:
     OBSERVABILITY_ENABLED: "true"
-    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4317}
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://signoz-otel-collector:4317}
     OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
     OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-local}
     DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-server}
@@ -11,18 +11,41 @@ x-main-service: &main-service-observability
 services:
   discovery:
     <<: *main-service-observability
+    networks:
+      - default
+      - signoz-net
 
   downloader:
     <<: *main-service-observability
+    networks:
+      - default
+      - signoz-net
 
   processing:
     <<: *main-service-observability
+    networks:
+      - default
+      - signoz-net
 
   embedding:
     <<: *main-service-observability
+    networks:
+      - default
+      - signoz-net
 
   monitoring:
     <<: *main-service-observability
+    networks:
+      - default
+      - signoz-net
 
   query-ui:
     <<: *main-service-observability
+    networks:
+      - default
+      - signoz-net
+
+networks:
+  signoz-net:
+    external: true
+    name: signoz-net
