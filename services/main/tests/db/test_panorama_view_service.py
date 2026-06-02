@@ -110,6 +110,54 @@ def test_complete_view_blocks_duplicate_claim_for_same_source_and_spec() -> None
     assert duplicate is None
 
 
+def test_complete_view_without_temp_image_path_blocks_duplicate_claim() -> None:
+    panorama_service, view_service = make_services()
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-a"))
+    spec = make_spec()
+    claim = view_service.claim_view_for_processing(PanoramaId("pano-a"), spec)
+    assert claim is not None
+
+    completed = view_service.mark_view_complete(
+        claim.id,
+        image_path=".local/panorama-view-tmp/pano-a/candidate/center.jpg",
+        image_hash="generated-hash",
+        image_bytes=1234,
+    )
+    cleared = view_service.clear_view_temp_image_path(
+        completed.id,
+        expected_path=".local/panorama-view-tmp/pano-a/candidate/center.jpg",
+    )
+    duplicate = view_service.claim_view_for_processing(PanoramaId("pano-a"), spec)
+
+    assert cleared.processing_status == ProcessingStatus.COMPLETE.value
+    assert cleared.image_path is None
+    assert cleared.image_hash == "generated-hash"
+    assert duplicate is None
+
+
+def test_clear_view_temp_image_path_keeps_unexpected_path() -> None:
+    panorama_service, view_service = make_services()
+    panorama_service.upsert_discovered_panorama(PanoramaId("pano-a"))
+    spec = make_spec()
+    claim = view_service.claim_view_for_processing(PanoramaId("pano-a"), spec)
+    assert claim is not None
+    completed = view_service.mark_view_complete(
+        claim.id,
+        image_path=".local/panorama-view-tmp/pano-a/candidate/center.jpg",
+        image_hash="generated-hash",
+        image_bytes=1234,
+    )
+
+    cleared = view_service.clear_view_temp_image_path(
+        completed.id,
+        expected_path=".local/panorama-view-tmp/other.jpg",
+    )
+
+    assert cleared.image_path == ".local/panorama-view-tmp/pano-a/candidate/center.jpg"
+    assert cleared.image_hash == "generated-hash"
+    assert cleared.image_bytes == 1234
+
+
 def test_failed_view_can_be_claimed_again() -> None:
     panorama_service, view_service = make_services()
     panorama_service.upsert_discovered_panorama(PanoramaId("pano-a"))

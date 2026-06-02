@@ -78,7 +78,6 @@ class PanoramaViewService:
             if (
                 view is not None
                 and view.processing_status == ProcessingStatus.COMPLETE.value
-                and view.image_path
                 and view.image_hash
             ):
                 return None
@@ -135,6 +134,22 @@ class PanoramaViewService:
             view.processing_status = ProcessingStatus.FAILED.value
             view.last_error = error[:2000]
             view.processed_at = datetime.now(timezone.utc)
+            session.flush()
+            session.refresh(view)
+            session.expunge(view)
+            session.commit()
+            return view
+
+    def clear_view_temp_image_path(
+        self,
+        view_id: int,
+        *,
+        expected_path: str,
+    ) -> PanoramaView:
+        with Session(self.engine) as session:
+            view = self._get_view(session, view_id)
+            if view.image_path == expected_path:
+                view.image_path = None
             session.flush()
             session.refresh(view)
             session.expunge(view)
