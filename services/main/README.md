@@ -7,14 +7,14 @@ and the main pipeline workers. Runtime data is mounted outside the image:
 
 - Postgres: `./.local/postgres-data`
 - Qdrant: `./.local/qdrant-storage`
-- Panoramas, generated views, local HNSW fallback indexes:
+- Panoramas, temporary generated view handoff files, local HNSW fallback indexes:
   `services/main/.local`
 - Hugging Face model cache in Docker:
   `services/main/.local/huggingface`
 
 Docker build context safety: the repo root `.dockerignore` excludes `**/.local`,
 `**/.env`, logs, virtualenvs, caches, and build outputs. Building the app image
-does not copy downloaded panos or generated view tiles into the Docker image.
+does not copy downloaded panos or temporary generated view tiles into the Docker image.
 Large downloads during `docker compose build` are Python/Torch/CUDA image
 dependencies, not panorama data.
 
@@ -110,8 +110,8 @@ uv run python -m main_service.processing --limit 1
 The preprocessor consumes durable NATS JetStream jobs from
 `pano.processing.requested`, loads viewsets from `../../docs/data/viewsets` by
 default, renders perspective views through the shared processing renderer, saves
-generated images under `.local/panorama-views`, and records each generated view
-in `panorama_view_table`.
+temporary handoff images under `.local/panorama-view-tmp`, and records each
+generated view in `panorama_view_table`.
 
 The preprocessor also publishes small embedding jobs to
 `pano.embedding.requested`. It checks the embedding queue before pulling another
@@ -128,7 +128,7 @@ uv run python -m main_service.processing \
   --log-level INFO \
   --render-scale 2 \
   --viewsets-dir ../../docs/data/viewsets \
-  --storage-dir .local/panorama-views
+  --storage-dir .local/panorama-view-tmp
 ```
 
 `--concurrency` means simultaneous view renders inside one loaded panorama. Keep
@@ -150,8 +150,9 @@ uv run python -m main_service.embedding --limit 10 --log-level INFO
 
 The embedder consumes durable NATS JetStream jobs from
 `pano.embedding.requested`, claims model-specific rows in
-`panorama_view_embedding_table`, embeds local generated view images, and writes
-vectors to Qdrant by default.
+`panorama_view_embedding_table`, embeds temporary generated view images, writes
+vectors to Qdrant by default, then deletes the temporary tile files. Full
+panorama files remain the durable image source of truth.
 
 For one-shot checks, add `--once`:
 
@@ -186,9 +187,9 @@ uv run python -m main_service.embedding.query_ui --log-level INFO
 ```
 
 Open `http://127.0.0.1:8787`. The UI embeds the text query with the same local
-model, searches the configured vector store, and displays locally stored
-generated view images with pano/view/model metadata. This is not the future
-public website.
+model, searches the configured vector store, and renders result tiles on demand
+from the stored full panoramas. It uses paged JSON loading and infinite scroll
+for local debugging. This is not the future public website.
 
 ## Viewset Visualizer
 

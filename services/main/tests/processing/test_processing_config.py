@@ -13,7 +13,7 @@ def test_processing_defaults_are_configured_for_local_dev() -> None:
 
     assert settings.pano_processing_consumer == "pano-processor"
     assert settings.pano_viewsets_dir == "../../docs/data/viewsets"
-    assert settings.pano_view_storage_dir == ".local/panorama-views"
+    assert settings.pano_view_storage_dir == ".local/panorama-view-tmp"
     assert settings.pano_processing_concurrency == 4
     assert settings.pano_view_max_render_concurrency == 4
     assert settings.pano_view_render_scale == 2

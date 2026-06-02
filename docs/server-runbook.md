@@ -13,7 +13,7 @@ credentials.
   - Postgres data;
   - NATS JetStream state;
   - downloaded panos;
-  - generated panorama view tiles;
+  - temporary generated panorama view handoff tiles;
   - Qdrant vector storage;
   - optional local HNSW embedding index files;
   - optional monitoring snapshots and telemetry export state.
@@ -22,8 +22,8 @@ credentials.
 
 The root `.dockerignore` excludes `**/.local`, `**/.env`, logs, virtualenvs,
 caches, and build output. This means Docker builds do not send downloaded
-panoramas, generated view tiles, Qdrant data, Postgres data, NATS data, or local
-HNSW index artifacts into the build context.
+panoramas, temporary generated view tiles, Qdrant data, Postgres data, NATS
+data, or local HNSW index artifacts into the build context.
 
 If a build downloads a lot of data, that should be dependency layers such as
 Python packages, PyTorch, and CUDA wheels. The build context size printed near
@@ -58,7 +58,7 @@ QDRANT_HNSW_ON_DISK=false
 QDRANT_ON_DISK_PAYLOAD=true
 QDRANT_UPSERT_WAIT=true
 PANO_DOWNLOAD_STORAGE_DIR=.local/panoramas
-PANO_VIEW_STORAGE_DIR=.local/panorama-views
+PANO_VIEW_STORAGE_DIR=.local/panorama-view-tmp
 EMBEDDING_VECTOR_STORE_DIR=.local/embedding-indexes
 OBSERVABILITY_ENABLED=false
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
@@ -100,7 +100,9 @@ docker compose build discovery downloader processing embedding query-ui
 
 ## GPU Smoke Test
 
-Run after at least a few view tiles exist under `services/main/.local`.
+Run while at least a few temporary view tiles exist under `services/main/.local`.
+The normal embedding service deletes those temporary files after it embeds them,
+so use this only as an immediate smoke check during processing/embedding work.
 
 Host:
 

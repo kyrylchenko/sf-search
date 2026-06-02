@@ -15,7 +15,7 @@ def test_processing_entrypoint_parser_accepts_safe_manual_options() -> None:
             "--viewsets-dir",
             "../../docs/data/viewsets",
             "--storage-dir",
-            ".local/panorama-views",
+            ".local/panorama-view-tmp",
             "--idle-sleep-seconds",
             "0.25",
             "--once",
@@ -27,6 +27,6 @@ def test_processing_entrypoint_parser_accepts_safe_manual_options() -> None:
     assert args.max_view_concurrency == 4
     assert args.render_scale == 2
     assert args.viewsets_dir == "../../docs/data/viewsets"
-    assert args.storage_dir == ".local/panorama-views"
+    assert args.storage_dir == ".local/panorama-view-tmp"
     assert args.idle_sleep_seconds == 0.25
     assert args.once is True

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     max_processing_queue_depth: int = Field(default=50)
     max_embedding_queue_depth: int = Field(default=100)
     pano_viewsets_dir: str = Field(default="../../docs/data/viewsets")
-    pano_view_storage_dir: str = Field(default=".local/panorama-views")
+    pano_view_storage_dir: str = Field(default=".local/panorama-view-tmp")
     pano_processing_concurrency: int = Field(default=4)
     pano_view_max_render_concurrency: int = Field(default=4)
     pano_view_render_scale: int = Field(default=2)

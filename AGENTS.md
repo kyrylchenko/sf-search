@@ -29,7 +29,8 @@ storage only:
 - Panorama ID deduplication.
 - Panorama download and local/object-storage metadata.
 - Panorama view/tile generation from downloaded equirectangular images.
-- Image embedding for generated panorama views.
+- Image embedding for generated panorama views. Rendered view tile files are
+  temporary embedding handoff artifacts, not durable storage.
 - Qdrant vector persistence with enough metadata to debug search results.
 - Resumable state tracking for long-running jobs.
 
@@ -91,8 +92,8 @@ docker compose run --rm embedding uv run python -m main_service.embedding --limi
 
 Docker build safety: the root `.dockerignore` excludes `.local`, `.env`, logs,
 virtualenvs, cache directories, and build artifacts. Downloaded panoramas,
-generated tiles, Qdrant storage, Postgres data, NATS data, and local HNSW
-indexes live under ignored runtime paths and must not be copied into Docker
+temporary generated tiles, Qdrant storage, Postgres data, NATS data, and local
+HNSW indexes live under ignored runtime paths and must not be copied into Docker
 images or committed.
 
 Embedding containers set `HF_HOME=/app/services/main/.local/huggingface`.
@@ -210,7 +211,14 @@ When documentation needs an example, use placeholders such as `YOUR_API_KEY`, `h
 - Favor resumable, idempotent processing. This system is expected to run for long periods, potentially months.
 - Treat every service as standalone, durable, and restartable. Services should be able to stop and start normally with minimal disturbance: persistent state belongs in durable storage or queues, workers should be stateless where practical, and in-flight work should be recoverable through idempotent status transitions.
 - On restart, discovery must use the database as the source of truth. If a map tile is already marked complete, do not re-fetch coverage for that tile; re-push linked pano IDs that are not in terminal download states onto the downloader queue so downstream workers can resume. Duplicate queue messages are acceptable because downstream services must deduplicate/idempotently claim work.
-- Preserve enough metadata to debug search results later: pano ID, source tile, location, date if available, view spec, image path/blob key, embedding model, and indexing version.
+- Preserve enough metadata to debug search results later: pano ID, source tile,
+  location, date if available, view spec, temporary image path/blob key when it
+  existed, image hash/bytes, embedding model, and indexing version.
+- Full downloaded panoramas are the durable image source of truth. Rendered
+  panorama view tiles may be written to `.local/panorama-view-tmp` as temporary
+  handoff files for embedding, but embedding should delete them after handling a
+  job. Query/debug UI should render tiles on demand from stored full panos and
+  `panorama_view_table` metadata rather than requiring persisted tile files.
 - Avoid assuming the first implementation is final. Keep interfaces clear so crawler, downloader, tiler, embedder, and indexer can be split into separate workers later.
 - Do not commit local `.env`, virtualenvs, logs, generated image datasets, or large vector/index artifacts unless explicitly requested.
 - Be careful with Google/Street View request volume and retry behavior. Prefer bounded concurrency, checkpointing, and backoff.
