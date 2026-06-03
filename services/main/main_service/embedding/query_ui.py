@@ -4,7 +4,7 @@ import json
 import logging
 from collections import OrderedDict
 from io import BytesIO
-from math import degrees, tau
+from math import degrees, floor, tau
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
@@ -12,9 +12,9 @@ from time import perf_counter
 from urllib.parse import parse_qs, urlencode, urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import numpy as np
 from PIL import Image
-from sqlalchemy import Engine, select
+import numpy as np
+from sqlalchemy import Engine, distinct, func, select
 from sqlalchemy.orm import Session
 
 from main_service.config import CONFIG, Settings
@@ -26,6 +26,7 @@ from main_service.db.services.panorama_view_embedding_service import EmbeddingMo
 from main_service.embedding.model import ImageTextEmbedder, TransformersSiglipEmbedder
 from main_service.embedding.vector_store import VectorStore
 from main_service.embedding.vector_store_factory import create_vector_store
+from main_service.ingestion.types import DownloadStatus, ProcessingStatus
 from main_service.logging_config import configure_cli_logging
 from main_service.observability import NoopTelemetry, configure_observability
 from main_service.observability.telemetry import PipelineTelemetry
@@ -57,6 +58,27 @@ class QueryResult:
     latitude: float | None = None
     longitude: float | None = None
     pano_heading: float | None = None
+
+
+@dataclass(frozen=True)
+class CoverageCell:
+    south: float
+    west: float
+    north: float
+    east: float
+    pano_count: int
+    downloaded_pano_count: int
+    embedded_pano_count: int
+
+
+@dataclass(frozen=True)
+class CoverageStats:
+    total_panos: int
+    panos_with_coordinates: int
+    downloaded_panos: int
+    rendered_views: int
+    complete_embeddings: int
+    embedded_panos: int
 
 
 class LocalQueryService:
@@ -211,14 +233,205 @@ def _results_for_hits(
     ]
 
 
-def render_results_page(*, query: str, limit: int) -> str:
+def build_coverage_payload(
+    engine: Engine,
+    *,
+    cell_degrees: float = 0.002,
+) -> dict[str, object]:
+    cell_size = max(0.0001, cell_degrees)
+    with Session(engine) as session:
+        total_panos = int(session.scalar(select(func.count(Panorama.id))) or 0)
+        downloaded_panos = int(
+            session.scalar(
+                select(func.count(Panorama.id)).where(
+                    Panorama.download_status == DownloadStatus.DOWNLOADED.value
+                )
+            )
+            or 0
+        )
+        rendered_views = int(
+            session.scalar(
+                select(func.count(PanoramaView.id)).where(
+                    PanoramaView.processing_status == ProcessingStatus.COMPLETE.value
+                )
+            )
+            or 0
+        )
+        complete_embeddings = int(
+            session.scalar(
+                select(func.count(PanoramaViewEmbedding.id)).where(
+                    PanoramaViewEmbedding.embedding_status
+                    == ProcessingStatus.COMPLETE.value
+                )
+            )
+            or 0
+        )
+        embedded_pano_ids = {
+            int(pano_id)
+            for pano_id in session.scalars(
+                select(distinct(PanoramaView.panorama_id))
+                .join(
+                    PanoramaViewEmbedding,
+                    PanoramaViewEmbedding.panorama_view_id == PanoramaView.id,
+                )
+                .where(
+                    PanoramaViewEmbedding.embedding_status
+                    == ProcessingStatus.COMPLETE.value
+                )
+            )
+        }
+        coord_rows = (
+            session.execute(
+                select(
+                    Panorama.id,
+                    Panorama.latitude,
+                    Panorama.longitude,
+                    Panorama.download_status,
+                )
+                .where(Panorama.latitude.is_not(None))
+                .where(Panorama.longitude.is_not(None))
+            )
+            .all()
+        )
+
+    valid_rows = [
+        (
+            int(pano_id),
+            float(latitude),
+            float(longitude),
+            str(download_status),
+        )
+        for pano_id, latitude, longitude, download_status in coord_rows
+        if latitude is not None
+        and longitude is not None
+        and -90.0 <= float(latitude) <= 90.0
+        and -180.0 <= float(longitude) <= 180.0
+    ]
+    stats = CoverageStats(
+        total_panos=total_panos,
+        panos_with_coordinates=len(valid_rows),
+        downloaded_panos=downloaded_panos,
+        rendered_views=rendered_views,
+        complete_embeddings=complete_embeddings,
+        embedded_panos=len(embedded_pano_ids),
+    )
+    grouped: dict[tuple[int, int], dict[str, int]] = {}
+    for pano_id, latitude, longitude, download_status in valid_rows:
+        cell_key = (
+            floor(latitude / cell_size),
+            floor(longitude / cell_size),
+        )
+        cell = grouped.setdefault(
+            cell_key,
+            {
+                "pano_count": 0,
+                "downloaded_pano_count": 0,
+                "embedded_pano_count": 0,
+            },
+        )
+        cell["pano_count"] += 1
+        if download_status == DownloadStatus.DOWNLOADED.value:
+            cell["downloaded_pano_count"] += 1
+        if pano_id in embedded_pano_ids:
+            cell["embedded_pano_count"] += 1
+
+    cells = [
+        CoverageCell(
+            south=_round_coord(lat_index * cell_size),
+            west=_round_coord(lon_index * cell_size),
+            north=_round_coord((lat_index + 1) * cell_size),
+            east=_round_coord((lon_index + 1) * cell_size),
+            pano_count=counts["pano_count"],
+            downloaded_pano_count=counts["downloaded_pano_count"],
+            embedded_pano_count=counts["embedded_pano_count"],
+        )
+        for (lat_index, lon_index), counts in grouped.items()
+    ]
+    cells.sort(
+        key=lambda cell: (
+            -cell.embedded_pano_count,
+            -cell.pano_count,
+            cell.south,
+            cell.west,
+        )
+    )
+    bounds = _coverage_bounds(valid_rows)
+    return {
+        "cell_degrees": cell_size,
+        "stats": _coverage_stats_to_json(stats),
+        "bounds": bounds,
+        "max_pano_count": max((cell.pano_count for cell in cells), default=0),
+        "max_embedded_pano_count": max(
+            (cell.embedded_pano_count for cell in cells),
+            default=0,
+        ),
+        "cells": [_coverage_cell_to_json(cell) for cell in cells],
+    }
+
+
+def _coverage_bounds(
+    rows: list[tuple[int, float, float, str]],
+) -> dict[str, float] | None:
+    if not rows:
+        return None
+    latitudes = [row[1] for row in rows]
+    longitudes = [row[2] for row in rows]
+    return {
+        "south": _round_coord(min(latitudes)),
+        "west": _round_coord(min(longitudes)),
+        "north": _round_coord(max(latitudes)),
+        "east": _round_coord(max(longitudes)),
+    }
+
+
+def _coverage_stats_to_json(stats: CoverageStats) -> dict[str, int]:
+    return {
+        "total_panos": stats.total_panos,
+        "panos_with_coordinates": stats.panos_with_coordinates,
+        "downloaded_panos": stats.downloaded_panos,
+        "rendered_views": stats.rendered_views,
+        "complete_embeddings": stats.complete_embeddings,
+        "embedded_panos": stats.embedded_panos,
+    }
+
+
+def _coverage_cell_to_json(cell: CoverageCell) -> dict[str, object]:
+    return {
+        "bounds": {
+            "south": cell.south,
+            "west": cell.west,
+            "north": cell.north,
+            "east": cell.east,
+        },
+        "pano_count": cell.pano_count,
+        "downloaded_pano_count": cell.downloaded_pano_count,
+        "embedded_pano_count": cell.embedded_pano_count,
+    }
+
+
+def _round_coord(value: float) -> float:
+    return round(value, 7)
+
+
+def render_results_page(*, query: str, limit: int, active_tab: str = "search") -> str:
     escaped_query = html.escape(query, quote=True)
+    is_coverage = active_tab == "coverage"
+    leaflet_assets = _leaflet_assets() if is_coverage else ""
+    main_body = (
+        _coverage_page_body()
+        if is_coverage
+        else _search_page_body(escaped_query, limit)
+    )
+    script_body = _coverage_page_script() if is_coverage else _search_page_script()
+    search_tab_class = "active" if not is_coverage else ""
+    coverage_tab_class = "active" if is_coverage else ""
     return f"""<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Local Embedding Query</title>
+  {leaflet_assets}
   <style>
     body {{
       margin: 0;
@@ -233,6 +446,25 @@ def render_results_page(*, query: str, limit: int) -> str:
       border-bottom: 1px solid #263142;
       padding: 16px 20px;
       z-index: 1;
+    }}
+    .tabs {{
+      display: flex;
+      gap: 8px;
+      margin: 0 0 12px;
+    }}
+    .tabs a {{
+      border: 1px solid #34445a;
+      border-radius: 6px;
+      color: #b6c4d5;
+      padding: 8px 10px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }}
+    .tabs a.active {{
+      background: #5ea1ff;
+      border-color: #5ea1ff;
+      color: #07111f;
     }}
     .topLoader {{
       position: fixed;
@@ -371,22 +603,90 @@ def render_results_page(*, query: str, limit: int) -> str:
     #sentinel {{
       height: 1px;
     }}
+    .stats {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 0 0 16px;
+    }}
+    .stat {{
+      border: 1px solid #263142;
+      border-radius: 8px;
+      background: #161f2d;
+      padding: 12px;
+    }}
+    .stat span {{
+      display: block;
+      color: #b6c4d5;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }}
+    .stat strong {{
+      display: block;
+      color: #fff;
+      font-size: 24px;
+      line-height: 1;
+    }}
+    #coverageMap {{
+      width: 100%;
+      height: min(72vh, 780px);
+      min-height: 520px;
+      border: 1px solid #263142;
+      border-radius: 8px;
+      background: #0c111a;
+    }}
+    .leaflet-container {{
+      color: #101620;
+    }}
   </style>
 </head>
 <body>
   <div id="topLoader" class="topLoader" aria-hidden="true"></div>
   <header>
+    <nav class="tabs" aria-label="Query UI sections">
+      <a class="{search_tab_class}" href="/">Search</a>
+      <a class="{coverage_tab_class}" href="/coverage">Coverage</a>
+    </nav>
     <form method="get" action="/">
       <input name="q" value="{escaped_query}" placeholder="green graffiti of a woman">
       <button type="submit">Search</button>
     </form>
   </header>
-  <main>
+  <main>{main_body}</main>
+  <script>{script_body}</script>
+</body>
+</html>"""
+
+
+def _leaflet_assets() -> str:
+    return """
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>"""
+
+
+def _search_page_body(escaped_query: str, limit: int) -> str:
+    return f"""
     <p id="status" class="status"></p>
     <div id="results" class="grid" data-query="{escaped_query}" data-limit="{limit}"></div>
-    <div id="sentinel" aria-hidden="true"></div>
-  </main>
-  <script>
+    <div id="sentinel" aria-hidden="true"></div>"""
+
+
+def _coverage_page_body() -> str:
+    return """
+    <p id="coverageStatus" class="status">Loading coverage...</p>
+    <section class="stats" aria-label="Coverage stats">
+      <div class="stat"><span>Total panos</span><strong id="statTotalPanos">0</strong></div>
+      <div class="stat"><span>With coordinates</span><strong id="statCoordinatePanos">0</strong></div>
+      <div class="stat"><span>Downloaded panos</span><strong id="statDownloadedPanos">0</strong></div>
+      <div class="stat"><span>Embedded panos</span><strong id="statEmbeddedPanos">0</strong></div>
+      <div class="stat"><span>Rendered views</span><strong id="statRenderedViews">0</strong></div>
+      <div class="stat"><span>Complete embeddings</span><strong id="statCompleteEmbeddings">0</strong></div>
+    </section>
+    <div id="coverageMap" role="img" aria-label="Panorama coverage map"></div>"""
+
+
+def _search_page_script() -> str:
+    return """
     const grid = document.getElementById("results");
     const statusEl = document.getElementById("status");
     const topLoader = document.getElementById("topLoader");
@@ -396,82 +696,152 @@ def render_results_page(*, query: str, limit: int) -> str:
     let loading = false;
     let hasMore = true;
 
-    function escapeHtml(value) {{
-      return String(value).replace(/[&<>"']/g, (char) => ({{
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#39;"
-      }}[char]));
-    }}
+      }[char]));
+    }
 
-    function appendCard(result) {{
+    function appendCard(result) {
       const article = document.createElement("article");
       article.className = "card is-loading";
       article.innerHTML = `
-        <a class="thumb-link" href="${{escapeHtml(result.maps_url)}}" target="_blank" rel="noopener noreferrer">
+        <a class="thumb-link" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">
           <span class="tileSkeleton" aria-hidden="true"></span>
-          <img src="${{escapeHtml(result.tile_url)}}" alt="${{escapeHtml(result.pano_id)}} ${{escapeHtml(result.view_id)}}" loading="lazy">
+          <img src="${escapeHtml(result.tile_url)}" alt="${escapeHtml(result.pano_id)} ${escapeHtml(result.view_id)}" loading="lazy">
         </a>
         <div class="meta">
-          <strong>${{escapeHtml(result.pano_id)}}</strong>
-          <span>${{escapeHtml(result.viewset_name)}} / ${{escapeHtml(result.view_id)}}</span>
-          <span>score ${{Number(result.score).toFixed(4)}}</span>
-          <span>heading ${{Number(result.relative_heading).toFixed(1)}} · pitch ${{Number(result.pitch).toFixed(1)}} · fov ${{Number(result.fov).toFixed(1)}}</span>
-          <span>${{result.rendered_width}}x${{result.rendered_height}}</span>
-          <span>${{escapeHtml(result.model_id)}} · vector ${{escapeHtml(result.vector_id)}}</span>
-          <span><a href="${{escapeHtml(result.maps_url)}}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></span>
+          <strong>${escapeHtml(result.pano_id)}</strong>
+          <span>${escapeHtml(result.viewset_name)} / ${escapeHtml(result.view_id)}</span>
+          <span>score ${Number(result.score).toFixed(4)}</span>
+          <span>heading ${Number(result.relative_heading).toFixed(1)} · pitch ${Number(result.pitch).toFixed(1)} · fov ${Number(result.fov).toFixed(1)}</span>
+          <span>${result.rendered_width}x${result.rendered_height}</span>
+          <span>${escapeHtml(result.model_id)} · vector ${escapeHtml(result.vector_id)}</span>
+          <span><a href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></span>
         </div>
       `;
       const image = article.querySelector("img");
-      image.addEventListener("load", () => {{
+      image.addEventListener("load", () => {
         article.classList.remove("is-loading");
-      }});
-      image.addEventListener("error", () => {{
+      });
+      image.addEventListener("error", () => {
         article.classList.remove("is-loading");
         article.classList.add("is-error");
-      }});
+      });
       grid.appendChild(article);
-    }}
+    }
 
-    function setLoading(active) {{
+    function setLoading(active) {
       topLoader.classList.toggle("is-active", active);
-    }}
+    }
 
-    async function loadNext() {{
+    async function loadNext() {
       if (!query || loading || !hasMore) return;
       loading = true;
       setLoading(true);
       statusEl.textContent = offset === 0 ? "Searching..." : "Loading more...";
-      const params = new URLSearchParams({{ q: query, offset: String(offset), limit: String(limit) }});
-      try {{
-        const response = await fetch(`/api/search?${{params.toString()}}`);
-        if (!response.ok) throw new Error(`Search failed: ${{response.status}}`);
+      const params = new URLSearchParams({ q: query, offset: String(offset), limit: String(limit) });
+      try {
+        const response = await fetch(`/api/search?${params.toString()}`);
+        if (!response.ok) throw new Error(`Search failed: ${response.status}`);
         const payload = await response.json();
         for (const result of payload.results) appendCard(result);
         offset = payload.next_offset ?? offset + payload.results.length;
         hasMore = Boolean(payload.has_more);
-        if (grid.children.length === 0) {{
+        if (grid.children.length === 0) {
           statusEl.textContent = "No matches found.";
-        }} else {{
+        } else {
           statusEl.textContent = hasMore ? "" : "End of results.";
-        }}
-      }} catch (error) {{
+        }
+      } catch (error) {
         statusEl.textContent = error.message || "Search failed.";
         hasMore = false;
-      }} finally {{
+      } finally {
         loading = false;
         setLoading(false);
-      }}
-    }}
+      }
+    }
 
-    const observer = new IntersectionObserver(() => loadNext(), {{ rootMargin: "800px" }});
+    const observer = new IntersectionObserver(() => loadNext(), { rootMargin: "800px" });
     observer.observe(document.getElementById("sentinel"));
     loadNext();
-  </script>
-</body>
-</html>"""
+  """
+
+
+def _coverage_page_script() -> str:
+    return """
+    const statusEl = document.getElementById("coverageStatus");
+    const numberFormatter = new Intl.NumberFormat();
+    const map = L.map("coverageMap", { preferCanvas: true });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+    map.setView([37.7749, -122.4194], 12);
+
+    function setStat(id, value) {
+      document.getElementById(id).textContent = numberFormatter.format(value || 0);
+    }
+
+    function cellColor(cell, maxEmbedded, maxPanos) {
+      const embeddedWeight = maxEmbedded > 0 ? cell.embedded_pano_count / maxEmbedded : 0;
+      const panoWeight = maxPanos > 0 ? cell.pano_count / maxPanos : 0;
+      const intensity = Math.max(embeddedWeight, panoWeight * 0.45);
+      const alpha = Math.max(0.18, Math.min(0.78, 0.18 + intensity * 0.6));
+      if (cell.embedded_pano_count > 0) return `rgba(255, 177, 66, ${alpha})`;
+      return `rgba(94, 161, 255, ${alpha})`;
+    }
+
+    function tooltipHtml(cell) {
+      return `
+        <strong>${numberFormatter.format(cell.embedded_pano_count)} embedded panos</strong><br>
+        ${numberFormatter.format(cell.pano_count)} total panos<br>
+        ${numberFormatter.format(cell.downloaded_pano_count)} downloaded panos
+      `;
+    }
+
+    async function loadCoverage() {
+      try {
+        const response = await fetch("/api/coverage");
+        if (!response.ok) throw new Error(`Coverage failed: ${response.status}`);
+        const payload = await response.json();
+        const stats = payload.stats || {};
+        setStat("statTotalPanos", stats.total_panos);
+        setStat("statCoordinatePanos", stats.panos_with_coordinates);
+        setStat("statDownloadedPanos", stats.downloaded_panos);
+        setStat("statEmbeddedPanos", stats.embedded_panos);
+        setStat("statRenderedViews", stats.rendered_views);
+        setStat("statCompleteEmbeddings", stats.complete_embeddings);
+        const maxEmbedded = payload.max_embedded_pano_count || 0;
+        const maxPanos = payload.max_pano_count || 0;
+        for (const cell of payload.cells || []) {
+          const b = cell.bounds;
+          L.rectangle(
+            [[b.south, b.west], [b.north, b.east]],
+            {
+              color: cell.embedded_pano_count > 0 ? "#ffb142" : "#5ea1ff",
+              weight: 1,
+              fillColor: cellColor(cell, maxEmbedded, maxPanos),
+              fillOpacity: 1
+            }
+          ).bindTooltip(tooltipHtml(cell), { sticky: true }).addTo(map);
+        }
+        if (payload.bounds) {
+          const b = payload.bounds;
+          map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [24, 24] });
+        }
+        statusEl.textContent = `${numberFormatter.format((payload.cells || []).length)} coverage cells loaded. Hover a cell to see embedded pano count.`;
+      } catch (error) {
+        statusEl.textContent = error.message || "Coverage failed.";
+      }
+    }
+
+    loadCoverage();
+  """
 
 
 def build_search_payload(
@@ -708,17 +1078,29 @@ def main() -> None:
             if parsed.path == "/api/search":
                 self._serve_search_api(parsed.query)
                 return
+            if parsed.path == "/api/coverage":
+                self._serve_coverage_api()
+                return
             if parsed.path == "/tile":
                 self._serve_tile(parsed.query)
                 return
             params = parse_qs(parsed.query)
             query = params.get("q", [""])[0].strip()
+            active_tab = "coverage" if parsed.path == "/coverage" else "search"
             try:
                 logger.info("query_ui_request path=%s query=%r", parsed.path, query)
-                html_body = render_results_page(query=query, limit=args.limit)
+                html_body = render_results_page(
+                    query=query,
+                    limit=args.limit,
+                    active_tab=active_tab,
+                )
             except Exception as exc:
                 logger.exception("query_ui_request_failed query=%r", query)
-                html_body = render_results_page(query=query, limit=args.limit)
+                html_body = render_results_page(
+                    query=query,
+                    limit=args.limit,
+                    active_tab=active_tab,
+                )
                 html_body += f"\n<!-- {html.escape(str(exc))} -->"
             self._send_html(html_body)
 
@@ -758,6 +1140,15 @@ def main() -> None:
                     has_more=has_more,
                 )
             )
+
+        def _serve_coverage_api(self) -> None:
+            try:
+                payload = build_coverage_payload(engine)
+            except Exception:
+                logger.exception("query_ui_api_coverage_failed")
+                self.send_error(500)
+                return
+            self._send_json(payload)
 
         def _serve_tile(self, query: str) -> None:
             view_id = _safe_positive_int(parse_qs(query).get("view_id", ["0"])[0], 0)
