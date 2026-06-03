@@ -2,6 +2,7 @@ from main_service.embedding.query_ui import (
     QueryResult,
     TileRenderer,
     _extract_pano_heading,
+    _tile_output_size,
     build_search_payload,
     google_maps_street_view_url,
     render_results_page,
@@ -56,6 +57,8 @@ def test_render_results_page_includes_loading_indicators() -> None:
     assert "tileSkeleton" in html
     assert "article.classList.remove(\"is-loading\")" in html
     assert "setLoading(true" in html
+    assert "tileUrlForResult" in html
+    assert "w: String(width)" in html
 
 
 def test_build_search_payload_uses_view_tile_urls_and_next_offset() -> None:
@@ -72,10 +75,23 @@ def test_build_search_payload_uses_view_tile_urls_and_next_offset() -> None:
     assert payload["limit"] == 50
     assert payload["next_offset"] == 100
     assert payload["has_more"] is True
+    assert payload["results"][0]["view_db_id"] == 7
     assert payload["results"][0]["tile_url"] == "/tile?view_id=7"
     assert payload["results"][0]["pano_id"] == "pano-a"
     assert payload["results"][0]["maps_url"].startswith("https://www.google.com/maps/@?")
 
+
+
+def test_tile_output_size_defaults_to_one_third() -> None:
+    assert _tile_output_size(make_result(rendered_width=1024, rendered_height=768)) == (341, 256)
+
+
+def test_tile_output_size_caps_requested_size_and_preserves_aspect() -> None:
+    assert _tile_output_size(
+        make_result(rendered_width=1024, rendered_height=768),
+        requested_width=500,
+        requested_height=200,
+    ) == (267, 200)
 
 def test_google_maps_street_view_url_uses_north_based_heading() -> None:
     url = google_maps_street_view_url(
