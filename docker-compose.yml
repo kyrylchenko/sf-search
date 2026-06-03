@@ -117,7 +117,7 @@ services:
 
   query-ui:
     <<: *main-service
-    command: ["uv", "run", "python", "-m", "main_service.embedding.query_ui", "--host", "0.0.0.0"]
+    command: ["uv", "run", "python", "-m", "main_service.embedding.query_ui", "--host", "0.0.0.0", "--tile-cache-size", "16"]
     depends_on:
       postgres:
         condition: service_healthy

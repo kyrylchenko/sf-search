@@ -36,6 +36,8 @@ from main_service.processing.view_rendering import (
 )
 
 logger = logging.getLogger(__name__)
+DEFAULT_TILE_SCALE_DIVISOR = 3
+MIN_TILE_EDGE = 64
 
 
 @dataclass(frozen=True)
@@ -722,7 +724,7 @@ def _search_page_script() -> str:
       article.innerHTML = `
         <a class="thumb-link" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">
           <span class="tileSkeleton" aria-hidden="true"></span>
-          <img src="${escapeHtml(result.tile_url)}" alt="${escapeHtml(result.pano_id)} ${escapeHtml(result.view_id)}" loading="lazy">
+          <img alt="${escapeHtml(result.pano_id)} ${escapeHtml(result.view_id)}" loading="lazy">
         </a>
         <div class="meta">
           <strong>${escapeHtml(result.pano_id)}</strong>
@@ -743,6 +745,30 @@ def _search_page_script() -> str:
         article.classList.add("is-error");
       });
       grid.appendChild(article);
+      requestAnimationFrame(() => {
+        image.src = tileUrlForResult(result, image);
+      });
+    }
+
+    function tileUrlForResult(result, image) {
+      const rect = image.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const renderedWidth = Math.max(1, Number(result.rendered_width) || 1);
+      const renderedHeight = Math.max(1, Number(result.rendered_height) || 1);
+      const maxWidth = Math.max(64, Math.ceil(renderedWidth / 3));
+      const maxHeight = Math.max(64, Math.ceil(renderedHeight / 3));
+      const displayWidth = rect.width > 0 ? rect.width : image.clientWidth;
+      const displayHeight = rect.height > 0 ? rect.height : image.clientHeight;
+      const requestedWidth = Math.max(64, Math.ceil((displayWidth || maxWidth) * dpr));
+      const requestedHeight = Math.max(64, Math.ceil((displayHeight || maxHeight) * dpr));
+      const width = Math.min(renderedWidth, maxWidth, requestedWidth);
+      const height = Math.min(renderedHeight, maxHeight, requestedHeight);
+      const params = new URLSearchParams({
+        view_id: String(result.view_db_id),
+        w: String(width),
+        h: String(height)
+      });
+      return `/tile?${params.toString()}`;
     }
 
     function setLoading(active) {
@@ -903,18 +929,30 @@ class TileRenderer:
     def __init__(self, *, max_cached_panos: int = 2) -> None:
         self.max_cached_panos = max(0, max_cached_panos)
         self._cache: OrderedDict[str, np.ndarray] = OrderedDict()
+        self._load_locks: dict[str, RLock] = {}
         self._lock = RLock()
 
-    def render_tile(self, result: QueryResult) -> tuple[bytes, str]:
+    def render_tile(
+        self,
+        result: QueryResult,
+        *,
+        requested_width: int | None = None,
+        requested_height: int | None = None,
+    ) -> tuple[bytes, str]:
         pano_array = self._load_pano_array(result.pano_image_path)
+        output_width, output_height = _tile_output_size(
+            result,
+            requested_width=requested_width,
+            requested_height=requested_height,
+        )
         rendered = render_perspective_view(
             pano_array,
             PerspectiveViewSpec(
                 relative_heading=result.relative_heading,
                 pitch=result.pitch,
                 fov=result.fov,
-                output_width=result.rendered_width,
-                output_height=result.rendered_height,
+                output_width=output_width,
+                output_height=output_height,
             ),
         )
         image = Image.fromarray(rendered)
@@ -939,15 +977,53 @@ class TileRenderer:
             if cached is not None:
                 self._cache.move_to_end(pano_image_path)
                 return cached
-        with Image.open(pano_image_path) as image:
-            pano_array = np.asarray(image.convert("RGB"))
-        with self._lock:
-            if self.max_cached_panos > 0:
-                self._cache[pano_image_path] = pano_array
-                self._cache.move_to_end(pano_image_path)
-                while len(self._cache) > self.max_cached_panos:
-                    self._cache.popitem(last=False)
+            load_lock = self._load_locks.setdefault(pano_image_path, RLock())
+
+        with load_lock:
+            with self._lock:
+                cached = self._cache.get(pano_image_path)
+                if cached is not None:
+                    self._cache.move_to_end(pano_image_path)
+                    return cached
+            with Image.open(pano_image_path) as image:
+                pano_array = np.asarray(image.convert("RGB"))
+            with self._lock:
+                if self.max_cached_panos > 0:
+                    self._cache[pano_image_path] = pano_array
+                    self._cache.move_to_end(pano_image_path)
+                    while len(self._cache) > self.max_cached_panos:
+                        self._cache.popitem(last=False)
+                self._load_locks.pop(pano_image_path, None)
         return pano_array
+
+
+def _tile_output_size(
+    result: QueryResult,
+    *,
+    requested_width: int | None = None,
+    requested_height: int | None = None,
+) -> tuple[int, int]:
+    rendered_width = max(1, int(result.rendered_width))
+    rendered_height = max(1, int(result.rendered_height))
+    if requested_width is None and requested_height is None:
+        target_width = max(
+            MIN_TILE_EDGE,
+            int(round(rendered_width / DEFAULT_TILE_SCALE_DIVISOR)),
+        )
+        target_height = max(
+            MIN_TILE_EDGE,
+            int(round(rendered_height / DEFAULT_TILE_SCALE_DIVISOR)),
+        )
+    else:
+        target_width = requested_width or rendered_width
+        target_height = requested_height or rendered_height
+        target_width = max(MIN_TILE_EDGE, min(rendered_width, target_width))
+        target_height = max(MIN_TILE_EDGE, min(rendered_height, target_height))
+    scale = min(target_width / rendered_width, target_height / rendered_height, 1.0)
+    return (
+        max(1, min(rendered_width, int(round(rendered_width * scale)))),
+        max(1, min(rendered_height, int(round(rendered_height * scale)))),
+    )
 
 
 def _result_for_view_id(engine: Engine, view_id: int) -> QueryResult | None:
@@ -1169,29 +1245,44 @@ def main() -> None:
             self._send_json(payload)
 
         def _serve_tile(self, query: str) -> None:
-            view_id = _safe_positive_int(parse_qs(query).get("view_id", ["0"])[0], 0)
+            params = parse_qs(query)
+            view_id = _safe_positive_int(params.get("view_id", ["0"])[0], 0)
             if view_id <= 0:
                 self.send_error(400)
                 return
+            requested_width = _optional_positive_int(params.get("w", [""])[0])
+            requested_height = _optional_positive_int(params.get("h", [""])[0])
             result = _result_for_view_id(engine, view_id)
             if result is None:
                 self.send_error(404)
                 return
             try:
-                data, content_type = tile_renderer.render_tile(result)
+                output_width, output_height = _tile_output_size(
+                    result,
+                    requested_width=requested_width,
+                    requested_height=requested_height,
+                )
+                data, content_type = tile_renderer.render_tile(
+                    result,
+                    requested_width=output_width,
+                    requested_height=output_height,
+                )
             except Exception:
                 logger.exception("query_ui_tile_render_failed view_id=%s", view_id)
                 self.send_error(500)
                 return
             logger.info(
-                "query_ui_tile_served view_id=%s pano_id=%s bytes=%s",
+                "query_ui_tile_served view_id=%s pano_id=%s width=%s height=%s bytes=%s",
                 view_id,
                 result.pano_id,
+                output_width,
+                output_height,
                 len(data),
             )
             self.send_response(200)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=86400")
             self.end_headers()
             self.wfile.write(data)
 
@@ -1247,6 +1338,11 @@ def _safe_positive_int(value: str, fallback: int) -> int:
     except ValueError:
         return fallback
     return parsed if parsed > 0 else fallback
+
+
+def _optional_positive_int(value: str) -> int | None:
+    parsed = _safe_nonnegative_int(value)
+    return parsed if parsed > 0 else None
 
 
 def _safe_nonnegative_int(value: str) -> int:
