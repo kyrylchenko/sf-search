@@ -2,6 +2,7 @@ from main_service.embedding.query_ui import (
     QueryResult,
     TileRenderer,
     _extract_pano_heading,
+    build_parser,
     build_coverage_payload,
     build_search_payload,
     google_maps_street_view_url,
@@ -53,6 +54,9 @@ def test_render_results_page_uses_api_and_infinite_scroll_shell() -> None:
     assert "IntersectionObserver" in html
     assert "data-query=\"u haul truck\"" in html
     assert "data-limit=\"50\"" in html
+    assert 'id="loadMoreButton"' in html
+    assert "loadMoreButton.addEventListener" in html
+    assert "updateLoadMoreButton" in html
     assert ".local/panorama-views" not in html
 
 
@@ -64,6 +68,12 @@ def test_render_results_page_includes_loading_indicators() -> None:
     assert "tileSkeleton" in html
     assert "article.classList.remove(\"is-loading\")" in html
     assert "setLoading(true" in html
+
+
+def test_query_ui_parser_defaults_to_50_result_batches() -> None:
+    args = build_parser().parse_args([])
+
+    assert args.limit == 50
 
 
 def test_render_results_page_includes_coverage_map_tab() -> None:

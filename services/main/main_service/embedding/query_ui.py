@@ -522,6 +522,9 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
       font-weight: 700;
       cursor: pointer;
     }}
+    button[hidden] {{
+      display: none;
+    }}
     main {{
       padding: 20px;
     }}
@@ -603,6 +606,11 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
     #sentinel {{
       height: 1px;
     }}
+    .loadMore {{
+      display: block;
+      margin: 20px auto 0;
+      min-width: 160px;
+    }}
     .stats {{
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -668,7 +676,8 @@ def _search_page_body(escaped_query: str, limit: int) -> str:
     return f"""
     <p id="status" class="status"></p>
     <div id="results" class="grid" data-query="{escaped_query}" data-limit="{limit}"></div>
-    <div id="sentinel" aria-hidden="true"></div>"""
+    <div id="sentinel" aria-hidden="true"></div>
+    <button id="loadMoreButton" class="loadMore" type="button" hidden>Load more</button>"""
 
 
 def _coverage_page_body() -> str:
@@ -690,6 +699,7 @@ def _search_page_script() -> str:
     const grid = document.getElementById("results");
     const statusEl = document.getElementById("status");
     const topLoader = document.getElementById("topLoader");
+    const loadMoreButton = document.getElementById("loadMoreButton");
     const query = grid.dataset.query || "";
     const limit = Number(grid.dataset.limit || "50");
     let offset = 0;
@@ -737,6 +747,11 @@ def _search_page_script() -> str:
 
     function setLoading(active) {
       topLoader.classList.toggle("is-active", active);
+      updateLoadMoreButton();
+    }
+
+    function updateLoadMoreButton() {
+      loadMoreButton.hidden = !query || loading || !hasMore || grid.children.length === 0;
     }
 
     async function loadNext() {
@@ -763,11 +778,14 @@ def _search_page_script() -> str:
       } finally {
         loading = false;
         setLoading(false);
+        updateLoadMoreButton();
       }
     }
 
     const observer = new IntersectionObserver(() => loadNext(), { rootMargin: "800px" });
     observer.observe(document.getElementById("sentinel"));
+    loadMoreButton.addEventListener("click", () => loadNext());
+    updateLoadMoreButton();
     loadNext();
   """
 
@@ -1026,7 +1044,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run local embedding query UI.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--vector-store-dir", default=None)
     parser.add_argument(
         "--vector-store-kind",
