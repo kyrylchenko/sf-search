@@ -117,6 +117,28 @@ def test_render_results_page_includes_loading_indicators() -> None:
     assert "w: String(width)" in html
 
 
+def test_render_results_page_uses_compact_hover_tile_cards() -> None:
+    html = render_results_page(query="orange car", limit=50)
+
+    assert "grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))" in html
+    assert "gap: 2px" in html
+    assert "border-radius: 3px" in html
+    assert ".card:hover .meta" in html
+    assert "class=\"mapsButton\"" in html
+    assert "Open in Google Street View" in html
+    assert 'href="${escapeHtml(result.similar_url)}"' in html
+    assert "window.location.href = result.similar_url" not in html
+
+
+def test_render_image_search_uses_in_page_similarity_tile_clicks() -> None:
+    html = render_results_page(query="", limit=50, active_tab="image")
+
+    assert "thumbLink.addEventListener" in html
+    assert "startTileSearch(result.view_db_id, true)" in html
+    assert "window.location.href = result.similar_url" not in html
+    assert "class=\"mapsButton\"" in html
+
+
 def test_query_ui_parser_defaults_to_50_result_batches() -> None:
     args = build_parser().parse_args([])
 

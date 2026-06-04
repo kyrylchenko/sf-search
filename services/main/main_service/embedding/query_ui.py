@@ -626,7 +626,7 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
       display: none;
     }}
     main {{
-      padding: 20px;
+      padding: 8px;
     }}
     .status {{
       color: #b6c4d5;
@@ -635,12 +635,13 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
     }}
     .grid {{
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 2px;
     }}
     .card {{
-      border: 1px solid #263142;
-      border-radius: 8px;
+      position: relative;
+      border: 0;
+      border-radius: 3px;
       overflow: hidden;
       background: #161f2d;
     }}
@@ -683,11 +684,26 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
       background: #3a2630;
     }}
     .meta {{
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
       padding: 12px;
       display: grid;
       gap: 6px;
       font-size: 13px;
       color: #b6c4d5;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 120ms ease, transform 120ms ease;
+      background: linear-gradient(180deg, transparent, rgba(10, 15, 23, 0.94) 20%);
+    }}
+    .card:hover .meta,
+    .card:focus-within .meta {{
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
     }}
     .meta strong {{
       color: #fff;
@@ -724,6 +740,30 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
       color: #d9e6f5;
       padding: 8px 10px;
       font-size: 13px;
+    }}
+    .mapsButton {{
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      display: grid;
+      place-items: center;
+      background: rgba(12, 17, 26, 0.82);
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+      text-decoration: none;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 120ms ease, transform 120ms ease;
+    }}
+    .card:hover .mapsButton,
+    .card:focus-within .mapsButton {{
+      opacity: 1;
+      transform: translateY(0);
     }}
     .imageSearchShell {{
       display: grid;
@@ -901,10 +941,11 @@ def _search_page_script() -> str:
       const article = document.createElement("article");
       article.className = "card is-loading";
       article.innerHTML = `
-        <a class="thumb-link" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">
+        <a class="thumb-link" href="${escapeHtml(result.similar_url)}" data-similar-url="${escapeHtml(result.similar_url)}" aria-label="Search visually similar tiles">
           <span class="tileSkeleton" aria-hidden="true"></span>
           <img alt="${escapeHtml(result.pano_id)} ${escapeHtml(result.view_id)}" loading="lazy">
         </a>
+        <a class="mapsButton" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer" title="Open in Google Street View" aria-label="Open in Google Street View">SV</a>
         <div class="meta">
           <strong>${escapeHtml(result.pano_id)}</strong>
           <span>${escapeHtml(result.viewset_name)} / ${escapeHtml(result.view_id)}</span>
@@ -912,17 +953,9 @@ def _search_page_script() -> str:
           <span>heading ${Number(result.relative_heading).toFixed(1)} · pitch ${Number(result.pitch).toFixed(1)} · fov ${Number(result.fov).toFixed(1)}</span>
           <span>${result.rendered_width}x${result.rendered_height}</span>
           <span>${escapeHtml(result.model_id)} · vector ${escapeHtml(result.vector_id)}</span>
-          <div class="actions">
-            <a href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
-            <button type="button" class="similarButton" data-similar-url="${escapeHtml(result.similar_url)}">Similar</button>
-          </div>
         </div>
       `;
       const image = article.querySelector("img");
-      const similarButton = article.querySelector(".similarButton");
-      similarButton.addEventListener("click", () => {
-        window.location.href = result.similar_url;
-      });
       image.addEventListener("load", () => {
         article.classList.remove("is-loading");
       });
@@ -1069,10 +1102,11 @@ def _image_page_script() -> str:
       article.className = "card is-loading";
       article.dataset.result = JSON.stringify(result);
       article.innerHTML = `
-        <a class="thumb-link" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">
+        <a class="thumb-link" href="${escapeHtml(result.similar_url)}" data-similar-url="${escapeHtml(result.similar_url)}" aria-label="Search visually similar tiles">
           <span class="tileSkeleton" aria-hidden="true"></span>
           <img alt="${escapeHtml(result.pano_id)} ${escapeHtml(result.view_id)}" loading="lazy">
         </a>
+        <a class="mapsButton" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer" title="Open in Google Street View" aria-label="Open in Google Street View">SV</a>
         <div class="meta">
           <strong>${escapeHtml(result.pano_id)}</strong>
           <span>${escapeHtml(result.viewset_name)} / ${escapeHtml(result.view_id)}</span>
@@ -1080,15 +1114,12 @@ def _image_page_script() -> str:
           <span>heading ${Number(result.relative_heading).toFixed(1)} · pitch ${Number(result.pitch).toFixed(1)} · fov ${Number(result.fov).toFixed(1)}</span>
           <span>${result.rendered_width}x${result.rendered_height}</span>
           <span>${escapeHtml(result.model_id)} · vector ${escapeHtml(result.vector_id)}</span>
-          <div class="actions">
-            <a href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
-            <button type="button" class="similarButton" data-similar-url="${escapeHtml(result.similar_url)}">Similar</button>
-          </div>
         </div>
       `;
       const image = article.querySelector("img");
-      const similarButton = article.querySelector(".similarButton");
-      similarButton.addEventListener("click", () => {
+      const thumbLink = article.querySelector(".thumb-link");
+      thumbLink.addEventListener("click", (event) => {
+        event.preventDefault();
         startTileSearch(result.view_db_id, true);
       });
       image.addEventListener("load", () => {
