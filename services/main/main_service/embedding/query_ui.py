@@ -2,6 +2,8 @@ import argparse
 import html
 import json
 import logging
+import re
+import tempfile
 from collections import OrderedDict
 from io import BytesIO
 from math import degrees, floor, tau
@@ -36,6 +38,8 @@ from main_service.processing.view_rendering import (
 )
 
 logger = logging.getLogger(__name__)
+
+MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
 DEFAULT_TILE_SCALE_DIVISOR = 3
 MIN_TILE_EDGE = 64
 
@@ -83,6 +87,13 @@ class CoverageStats:
     embedded_panos: int
 
 
+@dataclass(frozen=True)
+class UploadedImage:
+    filename: str
+    content_type: str
+    data: bytes
+
+
 class LocalQueryService:
     def __init__(
         self,
@@ -126,27 +137,10 @@ class LocalQueryService:
             embed_seconds,
             {"service": "query-ui", "operation": "text_embedding"},
         )
-        with self.telemetry.span("query.vector_search"):
-            stage_started_at = perf_counter()
-            hits = self.vector_store.search(vector, search_limit)
-        vector_search_seconds = perf_counter() - stage_started_at
-        self.telemetry.record_duration(
-            "query_vector_search",
-            vector_search_seconds,
-            {"service": "query-ui", "operation": "vector_search"},
-        )
-        with self.telemetry.span("query.db_hydration"):
-            stage_started_at = perf_counter()
-            hydrated = _results_for_hits(self.engine, hits)
-        db_seconds = perf_counter() - stage_started_at
-        page_start = max(0, offset)
-        page_end = page_start + max(1, limit)
-        results = hydrated[page_start:page_end]
-        has_more = len(hydrated) > page_end
-        self.telemetry.record_duration(
-            "query_db_hydration",
-            db_seconds,
-            {"service": "query-ui", "operation": "db_hydration"},
+        results, has_more, hits, vector_search_seconds, db_seconds = self._search_vector_page(
+            vector=vector,
+            offset=offset,
+            limit=limit,
         )
         total_seconds = perf_counter() - started_at
         self.telemetry.record_duration(
@@ -183,6 +177,105 @@ class LocalQueryService:
             total_seconds,
         )
         return results, has_more
+
+    def search_image_path(
+        self,
+        *,
+        image_path: Path,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[QueryResult], bool]:
+        started_at = perf_counter()
+        logger.info(
+            "query_ui_image_search_start image_path=%s offset=%s limit=%s",
+            image_path,
+            offset,
+            limit,
+        )
+        with self.telemetry.span("query.image_embedding"):
+            stage_started_at = perf_counter()
+            vector = self.embedder.embed_image(image_path)
+        embed_seconds = perf_counter() - stage_started_at
+        self.telemetry.record_duration(
+            "query_image_embedding",
+            embed_seconds,
+            {"service": "query-ui", "operation": "image_embedding"},
+        )
+        results, has_more, hits, vector_search_seconds, db_seconds = self._search_vector_page(
+            vector=vector,
+            offset=offset,
+            limit=limit,
+        )
+        total_seconds = perf_counter() - started_at
+        self.telemetry.record_duration(
+            "query_image_total",
+            total_seconds,
+            {"service": "query-ui", "operation": "image_total"},
+        )
+        self.telemetry.record_event(
+            "query_ui_image_search_complete",
+            {
+                "results": len(results),
+                "hits": len(hits),
+                "offset": offset,
+                "limit": limit,
+                "has_more": has_more,
+            },
+        )
+        logger.info(
+            (
+                "query_ui_image_search_complete image_path=%s hits=%s results=%s "
+                "has_more=%s embed_seconds=%.3f vector_search_seconds=%.3f "
+                "db_seconds=%.3f total_seconds=%.3f"
+            ),
+            image_path,
+            len(hits),
+            len(results),
+            has_more,
+            embed_seconds,
+            vector_search_seconds,
+            db_seconds,
+            total_seconds,
+        )
+        return results, has_more
+
+    def _search_vector_page(
+        self,
+        *,
+        vector: np.ndarray,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[QueryResult], bool, list[tuple[str, float]], float, float]:
+        search_limit = max(0, offset) + max(1, limit) + 1
+        with self.telemetry.span("query.vector_search"):
+            stage_started_at = perf_counter()
+            hits = self.vector_store.search(vector, search_limit)
+        vector_search_seconds = perf_counter() - stage_started_at
+        self.telemetry.record_duration(
+            "query_vector_search",
+            vector_search_seconds,
+            {"service": "query-ui", "operation": "vector_search"},
+        )
+        with self.telemetry.span("query.db_hydration"):
+            stage_started_at = perf_counter()
+            hydrated = _results_for_hits(self.engine, hits)
+        db_seconds = perf_counter() - stage_started_at
+        page_start = max(0, offset)
+        page_end = page_start + max(1, limit)
+        results = hydrated[page_start:page_end]
+        has_more = len(hydrated) > page_end
+        self.telemetry.record_duration(
+            "query_db_hydration",
+            db_seconds,
+            {"service": "query-ui", "operation": "db_hydration"},
+        )
+        logger.info(
+            "query_ui_vector_page_complete hits=%s results=%s has_more=%s",
+            len(hits),
+            len(results),
+            has_more,
+        )
+        return results, has_more, hits, vector_search_seconds, db_seconds
 
 
 def _results_for_hits(
@@ -418,15 +511,20 @@ def _round_coord(value: float) -> float:
 def render_results_page(*, query: str, limit: int, active_tab: str = "search") -> str:
     escaped_query = html.escape(query, quote=True)
     is_coverage = active_tab == "coverage"
+    is_image = active_tab == "image"
     leaflet_assets = _leaflet_assets() if is_coverage else ""
-    main_body = (
-        _coverage_page_body()
-        if is_coverage
-        else _search_page_body(escaped_query, limit)
-    )
-    script_body = _coverage_page_script() if is_coverage else _search_page_script()
-    search_tab_class = "active" if not is_coverage else ""
+    if is_coverage:
+        main_body = _coverage_page_body()
+        script_body = _coverage_page_script()
+    elif is_image:
+        main_body = _image_page_body(limit)
+        script_body = _image_page_script()
+    else:
+        main_body = _search_page_body(escaped_query, limit)
+        script_body = _search_page_script()
+    search_tab_class = "active" if not is_coverage and not is_image else ""
     coverage_tab_class = "active" if is_coverage else ""
+    image_tab_class = "active" if is_image else ""
     return f"""<!doctype html>
 <html>
 <head>
@@ -613,6 +711,63 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
       margin: 20px auto 0;
       min-width: 160px;
     }}
+    .actions {{
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }}
+    .actions button,
+    .secondaryButton {{
+      border: 1px solid #34445a;
+      background: #202b3b;
+      color: #d9e6f5;
+      padding: 8px 10px;
+      font-size: 13px;
+    }}
+    .imageSearchShell {{
+      display: grid;
+      gap: 16px;
+    }}
+    .dropzone {{
+      border: 1px dashed #5c708d;
+      border-radius: 8px;
+      background: #161f2d;
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      color: #b6c4d5;
+    }}
+    .dropzone.is-active {{
+      border-color: #5ea1ff;
+      background: #18283e;
+    }}
+    .imageControls {{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }}
+    .previewPanel {{
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      border: 1px solid #263142;
+      border-radius: 8px;
+      background: #161f2d;
+      padding: 10px;
+    }}
+    .previewPanel[hidden] {{
+      display: none;
+    }}
+    .previewPanel img {{
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #0c111a;
+    }}
     .stats {{
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -655,6 +810,7 @@ def render_results_page(*, query: str, limit: int, active_tab: str = "search") -
   <header>
     <nav class="tabs" aria-label="Query UI sections">
       <a class="{search_tab_class}" href="/">Search</a>
+      <a class="{image_tab_class}" href="/image">Image Search</a>
       <a class="{coverage_tab_class}" href="/coverage">Coverage</a>
     </nav>
     <form method="get" action="/">
@@ -696,6 +852,29 @@ def _coverage_page_body() -> str:
     <div id="coverageMap" role="img" aria-label="Panorama coverage map"></div>"""
 
 
+def _image_page_body(limit: int) -> str:
+    return f"""
+    <section class="imageSearchShell">
+      <div id="imageDropzone" class="dropzone">
+        <strong>Drop, paste, or choose an image</strong>
+        <span>Search visually similar panorama tiles using the same embedding model.</span>
+        <div class="imageControls">
+          <input id="imageFileInput" type="file" accept="image/*" hidden>
+          <button id="imagePickButton" class="secondaryButton" type="button">Choose image</button>
+          <button id="imageSearchButton" type="button">Search</button>
+        </div>
+      </div>
+      <div id="imagePreviewPanel" class="previewPanel" hidden>
+        <img id="imagePreview" alt="Selected search image">
+        <span id="imagePreviewLabel"></span>
+      </div>
+      <p id="imageStatus" class="status"></p>
+      <div id="imageResults" class="grid" data-limit="{limit}"></div>
+      <div id="imageSentinel" aria-hidden="true"></div>
+      <button id="imageLoadMoreButton" class="loadMore" type="button" hidden>Load more</button>
+    </section>"""
+
+
 def _search_page_script() -> str:
     return """
     const grid = document.getElementById("results");
@@ -733,10 +912,17 @@ def _search_page_script() -> str:
           <span>heading ${Number(result.relative_heading).toFixed(1)} · pitch ${Number(result.pitch).toFixed(1)} · fov ${Number(result.fov).toFixed(1)}</span>
           <span>${result.rendered_width}x${result.rendered_height}</span>
           <span>${escapeHtml(result.model_id)} · vector ${escapeHtml(result.vector_id)}</span>
-          <span><a href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a></span>
+          <div class="actions">
+            <a href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+            <button type="button" class="similarButton" data-similar-url="${escapeHtml(result.similar_url)}">Similar</button>
+          </div>
         </div>
       `;
       const image = article.querySelector("img");
+      const similarButton = article.querySelector(".similarButton");
+      similarButton.addEventListener("click", () => {
+        window.location.href = result.similar_url;
+      });
       image.addEventListener("load", () => {
         article.classList.remove("is-loading");
       });
@@ -813,6 +999,315 @@ def _search_page_script() -> str:
     loadMoreButton.addEventListener("click", () => loadNext());
     updateLoadMoreButton();
     loadNext();
+  """
+
+
+def _image_page_script() -> str:
+    return """
+    const dropzone = document.getElementById("imageDropzone");
+    const fileInput = document.getElementById("imageFileInput");
+    const pickButton = document.getElementById("imagePickButton");
+    const searchButton = document.getElementById("imageSearchButton");
+    const previewPanel = document.getElementById("imagePreviewPanel");
+    const previewImage = document.getElementById("imagePreview");
+    const previewLabel = document.getElementById("imagePreviewLabel");
+    const statusEl = document.getElementById("imageStatus");
+    const grid = document.getElementById("imageResults");
+    const topLoader = document.getElementById("topLoader");
+    const loadMoreButton = document.getElementById("imageLoadMoreButton");
+    const limit = Number(grid.dataset.limit || "50");
+    let selectedFile = null;
+    let sourceViewId = null;
+    let offset = 0;
+    let loading = false;
+    let hasMore = false;
+    let mode = "empty";
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function setLoading(active) {
+      loading = active;
+      topLoader.classList.toggle("is-active", active);
+      updateLoadMoreButton();
+    }
+
+    function updateLoadMoreButton() {
+      loadMoreButton.hidden = loading || !hasMore || grid.children.length === 0;
+    }
+
+    function tileUrlForResult(result, image) {
+      const rect = image.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const renderedWidth = Math.max(1, Number(result.rendered_width) || 1);
+      const renderedHeight = Math.max(1, Number(result.rendered_height) || 1);
+      const maxWidth = Math.max(64, Math.ceil(renderedWidth / 3));
+      const maxHeight = Math.max(64, Math.ceil(renderedHeight / 3));
+      const displayWidth = rect.width > 0 ? rect.width : image.clientWidth;
+      const displayHeight = rect.height > 0 ? rect.height : image.clientHeight;
+      const requestedWidth = Math.max(64, Math.ceil((displayWidth || maxWidth) * dpr));
+      const requestedHeight = Math.max(64, Math.ceil((displayHeight || maxHeight) * dpr));
+      const width = Math.min(renderedWidth, maxWidth, requestedWidth);
+      const height = Math.min(renderedHeight, maxHeight, requestedHeight);
+      const params = new URLSearchParams({
+        view_id: String(result.view_db_id),
+        w: String(width),
+        h: String(height)
+      });
+      return `/tile?${params.toString()}`;
+    }
+
+    function appendCard(result) {
+      const article = document.createElement("article");
+      article.className = "card is-loading";
+      article.dataset.result = JSON.stringify(result);
+      article.innerHTML = `
+        <a class="thumb-link" href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">
+          <span class="tileSkeleton" aria-hidden="true"></span>
+          <img alt="${escapeHtml(result.pano_id)} ${escapeHtml(result.view_id)}" loading="lazy">
+        </a>
+        <div class="meta">
+          <strong>${escapeHtml(result.pano_id)}</strong>
+          <span>${escapeHtml(result.viewset_name)} / ${escapeHtml(result.view_id)}</span>
+          <span>score ${Number(result.score).toFixed(4)}</span>
+          <span>heading ${Number(result.relative_heading).toFixed(1)} · pitch ${Number(result.pitch).toFixed(1)} · fov ${Number(result.fov).toFixed(1)}</span>
+          <span>${result.rendered_width}x${result.rendered_height}</span>
+          <span>${escapeHtml(result.model_id)} · vector ${escapeHtml(result.vector_id)}</span>
+          <div class="actions">
+            <a href="${escapeHtml(result.maps_url)}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+            <button type="button" class="similarButton" data-similar-url="${escapeHtml(result.similar_url)}">Similar</button>
+          </div>
+        </div>
+      `;
+      const image = article.querySelector("img");
+      const similarButton = article.querySelector(".similarButton");
+      similarButton.addEventListener("click", () => {
+        startTileSearch(result.view_db_id, true);
+      });
+      image.addEventListener("load", () => {
+        article.classList.remove("is-loading");
+      });
+      image.addEventListener("error", () => {
+        article.classList.remove("is-loading");
+        article.classList.add("is-error");
+      });
+      grid.appendChild(article);
+      requestAnimationFrame(() => {
+        image.src = tileUrlForResult(result, image);
+      });
+    }
+
+    function resultSnapshot() {
+      return Array.from(grid.querySelectorAll(".card"))
+        .map((article) => JSON.parse(article.dataset.result || "{}"));
+    }
+
+    function restoreResults(results) {
+      grid.innerHTML = "";
+      for (const result of results || []) appendCard(result);
+    }
+
+    function setPreview(src, label) {
+      previewImage.src = src;
+      previewLabel.textContent = label;
+      previewPanel.hidden = false;
+    }
+
+    function saveHistoryState(push, url) {
+      const state = {
+        mode,
+        sourceViewId,
+        previewSrc: previewPanel.hidden ? "" : previewImage.src,
+        previewLabel: previewLabel.textContent || "",
+        results: resultSnapshot(),
+        offset,
+        hasMore
+      };
+      if (push) {
+        history.pushState(state, "", url);
+      } else {
+        history.replaceState(state, "", url);
+      }
+    }
+
+    function resetResults() {
+      grid.innerHTML = "";
+      offset = 0;
+      hasMore = false;
+      statusEl.textContent = "";
+      updateLoadMoreButton();
+    }
+
+    function selectFile(file) {
+      if (!file || !file.type.startsWith("image/")) {
+        statusEl.textContent = "Choose an image file.";
+        return;
+      }
+      selectedFile = file;
+      sourceViewId = null;
+      mode = "upload";
+      resetResults();
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        setPreview(String(reader.result || ""), file.name || "Pasted image");
+        history.replaceState({
+          mode,
+          sourceViewId,
+          previewSrc: previewImage.src,
+          previewLabel: previewLabel.textContent || "",
+          results: [],
+          offset,
+          hasMore
+        }, "", "/image");
+      });
+      reader.readAsDataURL(file);
+    }
+
+    async function fetchPayload(request) {
+      const response = await fetch(request);
+      if (!response.ok) throw new Error(`Image search failed: ${response.status}`);
+      return response.json();
+    }
+
+    function applyPayload(payload) {
+      for (const result of payload.results || []) appendCard(result);
+      offset = payload.next_offset ?? offset + (payload.results || []).length;
+      hasMore = Boolean(payload.has_more);
+      if (grid.children.length === 0) {
+        statusEl.textContent = "No similar tiles found.";
+      } else {
+        statusEl.textContent = hasMore ? "" : "End of results.";
+      }
+      updateLoadMoreButton();
+    }
+
+    async function startUploadSearch(pushHistory) {
+      if (!selectedFile || loading) return;
+      if (offset === 0) grid.innerHTML = "";
+      setLoading(true);
+      statusEl.textContent = offset === 0 ? "Searching by image..." : "Loading more...";
+      const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+      const form = new FormData();
+      form.append("image", selectedFile);
+      try {
+        const payload = await fetchPayload(new Request(`/api/image-search?${params.toString()}`, {
+          method: "POST",
+          body: form
+        }));
+        applyPayload(payload);
+        saveHistoryState(pushHistory && offset <= limit, "/image");
+      } catch (error) {
+        statusEl.textContent = error.message || "Image search failed.";
+        hasMore = false;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function startTileSearch(viewId, pushHistory) {
+      if (!viewId || loading) return;
+      mode = "tile";
+      sourceViewId = viewId;
+      selectedFile = null;
+      resetResults();
+      setPreview(`/tile?view_id=${encodeURIComponent(viewId)}`, `Tile ${viewId}`);
+      await loadTilePage(pushHistory);
+    }
+
+    async function loadTilePage(pushHistory) {
+      if (!sourceViewId || loading) return;
+      setLoading(true);
+      statusEl.textContent = offset === 0 ? "Searching by similar tile..." : "Loading more...";
+      const params = new URLSearchParams({
+        view_id: String(sourceViewId),
+        offset: String(offset),
+        limit: String(limit)
+      });
+      try {
+        const payload = await fetchPayload(`/api/image-search?${params.toString()}`);
+        applyPayload(payload);
+        const url = `/image?view_id=${encodeURIComponent(sourceViewId)}`;
+        saveHistoryState(pushHistory && offset <= limit, url);
+      } catch (error) {
+        statusEl.textContent = error.message || "Image search failed.";
+        hasMore = false;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function loadNext() {
+      if (loading || !hasMore) return;
+      if (mode === "upload") {
+        startUploadSearch(false);
+      } else if (mode === "tile") {
+        loadTilePage(false);
+      }
+    }
+
+    pickButton.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => selectFile(fileInput.files && fileInput.files[0]));
+    searchButton.addEventListener("click", () => startUploadSearch(true));
+    dropzone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      dropzone.classList.add("is-active");
+    });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("is-active"));
+    dropzone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("is-active");
+      selectFile(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]);
+    });
+    document.addEventListener("paste", (event) => {
+      const items = Array.from((event.clipboardData && event.clipboardData.items) || []);
+      const imageItem = items.find((item) => item.type && item.type.startsWith("image/"));
+      if (imageItem) selectFile(imageItem.getAsFile());
+    });
+    loadMoreButton.addEventListener("click", () => loadNext());
+
+    const observer = new IntersectionObserver(() => loadNext(), { rootMargin: "800px" });
+    observer.observe(document.getElementById("imageSentinel"));
+
+    window.addEventListener("popstate", (event) => {
+      const state = event.state;
+      if (!state) return;
+      mode = state.mode || "empty";
+      sourceViewId = state.sourceViewId || null;
+      selectedFile = null;
+      offset = state.offset || 0;
+      hasMore = Boolean(state.hasMore);
+      if (state.previewSrc) {
+        setPreview(state.previewSrc, state.previewLabel || "");
+      } else {
+        previewPanel.hidden = true;
+      }
+      restoreResults(state.results || []);
+      statusEl.textContent = grid.children.length === 0 ? "" : (hasMore ? "" : "End of results.");
+      updateLoadMoreButton();
+    });
+
+    const initialViewId = new URLSearchParams(window.location.search).get("view_id");
+    if (initialViewId) {
+      startTileSearch(Number(initialViewId), false);
+    } else {
+      history.replaceState({
+        mode,
+        sourceViewId,
+        previewSrc: "",
+        previewLabel: "",
+        results: [],
+        offset,
+        hasMore
+      }, "", "/image");
+      updateLoadMoreButton();
+    }
   """
 
 
@@ -911,6 +1406,7 @@ def _result_to_json(result: QueryResult) -> dict[str, object]:
         "score": result.score,
         "view_db_id": result.view_db_id,
         "tile_url": f"/tile?view_id={result.view_db_id}",
+        "similar_url": f"/image?view_id={result.view_db_id}",
         "maps_url": google_maps_street_view_url(result),
         "pano_id": result.pano_id,
         "viewset_name": result.viewset_name,
@@ -923,6 +1419,87 @@ def _result_to_json(result: QueryResult) -> dict[str, object]:
         "model_id": result.model_id,
         "vector_id": result.vector_id,
     }
+
+
+def _extract_multipart_image(content_type: str, body: bytes) -> UploadedImage:
+    boundary_match = re.search(r"(?:^|;)\s*boundary=(\"[^\"]+\"|[^;]+)", content_type)
+    if boundary_match is None:
+        raise ValueError("Multipart upload is missing a boundary.")
+    boundary = boundary_match.group(1).strip().strip('"')
+    if not boundary:
+        raise ValueError("Multipart upload boundary is empty.")
+    marker = b"--" + boundary.encode("utf-8")
+    for raw_part in body.split(marker):
+        part = raw_part.strip(b"\r\n")
+        if not part or part == b"--":
+            continue
+        if part.endswith(b"--"):
+            part = part[:-2].rstrip(b"\r\n")
+        header_bytes, separator, data = part.partition(b"\r\n\r\n")
+        if not separator:
+            continue
+        headers = header_bytes.decode("utf-8", errors="replace")
+        disposition = _multipart_header(headers, "Content-Disposition")
+        if not disposition or 'name="image"' not in disposition:
+            continue
+        filename = _multipart_quoted_value(disposition, "filename") or "query-image"
+        content_type_value = _multipart_header(headers, "Content-Type") or "application/octet-stream"
+        if not data:
+            raise ValueError("Uploaded image is empty.")
+        return UploadedImage(
+            filename=filename,
+            content_type=content_type_value,
+            data=data.rstrip(b"\r\n"),
+        )
+    raise ValueError("Multipart upload did not contain an image field.")
+
+
+def _multipart_header(headers: str, name: str) -> str | None:
+    prefix = name.lower() + ":"
+    for line in headers.splitlines():
+        if line.lower().startswith(prefix):
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def _multipart_quoted_value(value: str, key: str) -> str | None:
+    match = re.search(rf'{re.escape(key)}="([^"]*)"', value)
+    return match.group(1) if match else None
+
+
+def _write_temp_query_image(image_bytes: bytes) -> Path:
+    with Image.open(BytesIO(image_bytes)) as image:
+        normalized = image.convert("RGB")
+        handle = tempfile.NamedTemporaryFile(
+            prefix="sf-search-query-image-",
+            suffix=".jpg",
+            delete=False,
+        )
+        temp_path = Path(handle.name)
+        try:
+            with handle:
+                normalized.save(handle, format="JPEG", quality=95, subsampling=0)
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            raise
+    return temp_path
+
+
+def _write_temp_tile_image(data: bytes, content_type: str) -> Path:
+    suffix = ".png" if content_type == "image/png" else ".jpg"
+    handle = tempfile.NamedTemporaryFile(
+        prefix="sf-search-query-tile-",
+        suffix=suffix,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+    try:
+        with handle:
+            handle.write(data)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+    return temp_path
 
 
 class TileRenderer:
@@ -1172,6 +1749,9 @@ def main() -> None:
             if parsed.path == "/api/search":
                 self._serve_search_api(parsed.query)
                 return
+            if parsed.path == "/api/image-search":
+                self._serve_image_search_api_get(parsed.query)
+                return
             if parsed.path == "/api/coverage":
                 self._serve_coverage_api()
                 return
@@ -1181,6 +1761,8 @@ def main() -> None:
             params = parse_qs(parsed.query)
             query = params.get("q", [""])[0].strip()
             active_tab = "coverage" if parsed.path == "/coverage" else "search"
+            if parsed.path == "/image":
+                active_tab = "image"
             try:
                 logger.info("query_ui_request path=%s query=%r", parsed.path, query)
                 html_body = render_results_page(
@@ -1197,6 +1779,13 @@ def main() -> None:
                 )
                 html_body += f"\n<!-- {html.escape(str(exc))} -->"
             self._send_html(html_body)
+
+        def do_POST(self) -> None:
+            parsed = urlparse(self.path)
+            if parsed.path == "/api/image-search":
+                self._serve_image_search_api_post(parsed.query)
+                return
+            self.send_error(404)
 
         def _serve_search_api(self, query: str) -> None:
             params = parse_qs(query)
@@ -1243,6 +1832,90 @@ def main() -> None:
                 self.send_error(500)
                 return
             self._send_json(payload)
+
+        def _serve_image_search_api_get(self, query: str) -> None:
+            params = parse_qs(query)
+            view_id = _safe_positive_int(params.get("view_id", ["0"])[0], 0)
+            limit = _safe_positive_int(params.get("limit", [str(args.limit)])[0], args.limit)
+            offset = _safe_nonnegative_int(params.get("offset", ["0"])[0])
+            limit = min(limit, 100)
+            if view_id <= 0:
+                self.send_error(400)
+                return
+            result = _result_for_view_id(engine, view_id)
+            if result is None:
+                self.send_error(404)
+                return
+            temp_path: Path | None = None
+            try:
+                data, content_type = tile_renderer.render_tile(
+                    result,
+                    requested_width=result.rendered_width,
+                    requested_height=result.rendered_height,
+                )
+                temp_path = _write_temp_tile_image(data, content_type)
+                results, has_more = service.search_image_path(
+                    image_path=temp_path,
+                    offset=offset,
+                    limit=limit,
+                )
+            except Exception:
+                logger.exception("query_ui_api_image_search_tile_failed view_id=%s", view_id)
+                self.send_error(500)
+                return
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
+            self._send_json(
+                build_search_payload(
+                    query=f"view:{view_id}",
+                    results=results,
+                    offset=offset,
+                    limit=limit,
+                    has_more=has_more,
+                )
+            )
+
+        def _serve_image_search_api_post(self, query: str) -> None:
+            params = parse_qs(query)
+            limit = _safe_positive_int(params.get("limit", [str(args.limit)])[0], args.limit)
+            offset = _safe_nonnegative_int(params.get("offset", ["0"])[0])
+            limit = min(limit, 100)
+            content_length = _safe_nonnegative_int(self.headers.get("Content-Length", "0"))
+            if content_length <= 0 or content_length > MAX_IMAGE_UPLOAD_BYTES:
+                self.send_error(400)
+                return
+            content_type = self.headers.get("Content-Type", "")
+            body = self.rfile.read(content_length)
+            temp_path: Path | None = None
+            try:
+                upload = _extract_multipart_image(content_type, body)
+                temp_path = _write_temp_query_image(upload.data)
+                results, has_more = service.search_image_path(
+                    image_path=temp_path,
+                    offset=offset,
+                    limit=limit,
+                )
+            except ValueError:
+                logger.exception("query_ui_api_image_search_upload_invalid")
+                self.send_error(400)
+                return
+            except Exception:
+                logger.exception("query_ui_api_image_search_upload_failed")
+                self.send_error(500)
+                return
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
+            self._send_json(
+                build_search_payload(
+                    query="uploaded-image",
+                    results=results,
+                    offset=offset,
+                    limit=limit,
+                    has_more=has_more,
+                )
+            )
 
         def _serve_tile(self, query: str) -> None:
             params = parse_qs(query)

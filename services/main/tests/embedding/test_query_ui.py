@@ -1,6 +1,12 @@
+from io import BytesIO
+
+import numpy as np
+
 from main_service.embedding.query_ui import (
+    LocalQueryService,
     QueryResult,
     TileRenderer,
+    _extract_multipart_image,
     _extract_pano_heading,
     _tile_output_size,
     build_parser,
@@ -44,6 +50,43 @@ def make_result(**overrides: object) -> QueryResult:
     return QueryResult(**values)  # type: ignore[arg-type]
 
 
+class FakeImageTextEmbedder:
+    def __init__(self) -> None:
+        self.image_paths = []
+        self.texts = []
+
+    def embed_image(self, image_path):
+        self.image_paths.append(image_path)
+        return np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+
+    def embed_images(self, image_paths):
+        self.image_paths.extend(image_paths)
+        return [np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32) for _ in image_paths]
+
+    def embed_text(self, text):
+        self.texts.append(text)
+        return np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)
+
+
+class FakeVectorStore:
+    kind = "fake"
+    path = "fake"
+
+    def __init__(self, hits):
+        self.hits = hits
+        self.queries = []
+
+    def add(self, *, vector_id, vector, metadata):
+        return str(vector_id)
+
+    def add_many(self, records):
+        return [str(record.vector_id) for record in records]
+
+    def search(self, vector, limit):
+        self.queries.append((vector, limit))
+        return self.hits[:limit]
+
+
 def test_render_results_page_uses_api_and_infinite_scroll_shell() -> None:
     html = render_results_page(
         query="u haul truck",
@@ -58,6 +101,7 @@ def test_render_results_page_uses_api_and_infinite_scroll_shell() -> None:
     assert 'id="loadMoreButton"' in html
     assert "loadMoreButton.addEventListener" in html
     assert "updateLoadMoreButton" in html
+    assert "data-similar-url" in html
     assert ".local/panorama-views" not in html
 
 
@@ -90,6 +134,20 @@ def test_render_results_page_includes_coverage_map_tab() -> None:
     assert "Embedded panos" in html
 
 
+def test_render_results_page_includes_image_search_tab() -> None:
+    html = render_results_page(query="", limit=50, active_tab="image")
+
+    assert 'href="/image"' in html
+    assert 'id="imageDropzone"' in html
+    assert 'id="imagePreview"' in html
+    assert 'id="imageSearchButton"' in html
+    assert "/api/image-search" in html
+    assert "navigator.clipboard" not in html
+    assert "paste" in html
+    assert "dragover" in html
+    assert "pushState" in html
+
+
 def test_build_search_payload_uses_view_tile_urls_and_next_offset() -> None:
     payload = build_search_payload(
         query="u haul truck",
@@ -106,8 +164,71 @@ def test_build_search_payload_uses_view_tile_urls_and_next_offset() -> None:
     assert payload["has_more"] is True
     assert payload["results"][0]["view_db_id"] == 7
     assert payload["results"][0]["tile_url"] == "/tile?view_id=7"
+    assert payload["results"][0]["similar_url"] == "/image?view_id=7"
     assert payload["results"][0]["pano_id"] == "pano-a"
     assert payload["results"][0]["maps_url"].startswith("https://www.google.com/maps/@?")
+
+
+def test_extract_multipart_image_returns_named_image_bytes() -> None:
+    image = Image.new("RGB", (4, 4), color=(20, 40, 80))
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    image_bytes = buffer.getvalue()
+    boundary = "sf-search-boundary"
+    body = (
+        f"--{boundary}\r\n"
+        'Content-Disposition: form-data; name="image"; filename="query.png"\r\n'
+        "Content-Type: image/png\r\n"
+        "\r\n"
+    ).encode("utf-8") + image_bytes + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    upload = _extract_multipart_image(
+        f"multipart/form-data; boundary={boundary}",
+        body,
+    )
+
+    assert upload.filename == "query.png"
+    assert upload.content_type == "image/png"
+    assert upload.data == image_bytes
+
+
+def test_local_query_service_searches_by_image_path(tmp_path) -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        panorama = _add_panorama(
+            session,
+            "pano-a",
+            37.1002,
+            -122.1002,
+            DownloadStatus.DOWNLOADED.value,
+        )
+        _add_completed_embedding(session, panorama)
+        session.commit()
+    image_path = tmp_path / "query.jpg"
+    Image.new("RGB", (8, 8), color=(20, 40, 80)).save(image_path)
+    embedder = FakeImageTextEmbedder()
+    vector_store = FakeVectorStore([("1", 0.98)])
+    service = LocalQueryService(
+        engine=engine,
+        embedder=embedder,
+        vector_store=vector_store,
+    )
+
+    results, has_more = service.search_image_path(
+        image_path=image_path,
+        offset=0,
+        limit=50,
+    )
+
+    assert has_more is False
+    assert [result.pano_id for result in results] == ["pano-a"]
+    assert embedder.image_paths == [image_path]
+    expected = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    assert len(vector_store.queries) == 1
+    assert np.array_equal(vector_store.queries[0][0], expected)
+    assert vector_store.queries[0][1] == 51
+
 
 def test_build_coverage_payload_counts_total_and_embedded_panos_by_cell() -> None:
     engine = create_engine("sqlite:///:memory:")
