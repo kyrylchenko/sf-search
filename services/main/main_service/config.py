@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Final, Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     db_name: str = Field()
     db_driver: str = Field(default="postgresql+psycopg")
     map_tiles_zoom: int = Field(default=17)
+    discovery_tile_order: Literal["sequential", "random"] = Field(default="random")
+    discovery_tile_random_seed: int | None = Field(default=None)
     discovery_concurrency: int = Field(default=20)
     max_attempts: int = Field(default=5)
     pano_download_concurrency: int = Field(default=5)

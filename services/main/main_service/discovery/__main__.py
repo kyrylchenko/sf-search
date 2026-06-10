@@ -39,6 +39,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pause before discovering another tile when downloader backlog reaches this value.",
     )
     parser.add_argument(
+        "--tile-order",
+        choices=["random", "sequential"],
+        default=None,
+        help="Order for valid boundary tiles. Defaults to DISCOVERY_TILE_ORDER.",
+    )
+    parser.add_argument(
+        "--tile-random-seed",
+        type=int,
+        default=None,
+        help="Optional deterministic seed when tile order is random.",
+    )
+    parser.add_argument(
         "--log-level",
         default=None,
         help="Console log level: DEBUG, INFO, WARNING, ERROR.",
@@ -64,7 +76,18 @@ async def run(args: argparse.Namespace) -> None:
     logger = logging.getLogger(__name__)
     geojson_path = Path(args.geojson or settings.area_to_process_geojson_filepath)
     zoom = _value_or_default(args.zoom, settings.map_tiles_zoom)
-    logger.info("🗺️ discovery_cli_start geojson=%s zoom=%s", geojson_path, zoom)
+    tile_order = _value_or_default(args.tile_order, settings.discovery_tile_order)
+    tile_random_seed = _value_or_default(
+        args.tile_random_seed,
+        settings.discovery_tile_random_seed,
+    )
+    logger.info(
+        "🗺️ discovery_cli_start geojson=%s zoom=%s tile_order=%s tile_random_seed=%s",
+        geojson_path,
+        zoom,
+        tile_order,
+        tile_random_seed,
+    )
 
     engine = initialize_engine(settings)
     Base.metadata.create_all(engine)
@@ -76,8 +99,13 @@ async def run(args: argparse.Namespace) -> None:
         subject=settings.pano_download_subject,
         consumer_name=settings.pano_downloader_consumer,
     )
-    tiles = load_map_tiles_from_geojson(geojson_path, zoom)
-    logger.info("🧱 discovery_tiles_loaded count=%s", len(tiles))
+    tiles = load_map_tiles_from_geojson(
+        geojson_path,
+        zoom,
+        order=tile_order,
+        random_seed=tile_random_seed,
+    )
+    logger.info("🧱 discovery_tiles_loaded count=%s order=%s", len(tiles), tile_order)
 
     try:
         async def run_batch() -> DiscoveryResult:
